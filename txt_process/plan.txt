@@ -1,0 +1,6 @@
+This is where all the text processing happens:
+functions should include:
+    - take full text (book, subtitles, podcast transcription) and get the unique words
+    - multiple choice generator, where input is the unique word (from previous function),
+        and output a multiple choice (based on semantic similarity, closeness in semantic space)
+    - 
