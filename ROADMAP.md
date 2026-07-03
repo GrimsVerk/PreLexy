@@ -24,9 +24,10 @@ v1 is done when this works end to end:
 
 ### Phases
 
-1. **Extraction CLI** — ingest a text: tokenize, apply the extraction policy
-   (lemmas for English), filter noise, rank by frequency/rarity; persist
-   sources/items/occurrences to SQLite.
+1. **Extraction CLI** *(implemented — pending an end-to-end run with the real
+   spaCy model to tick the success box)* — ingest a text: tokenize, apply the
+   extraction policy (lemmas for English), filter noise, rank by
+   frequency/rarity; persist sources/items/occurrences to SQLite.
 2. **MCQ generation** — definition lookup through the offline-first chain
    (WordNet → cache → free API); distractor selection (same POS,
    frequency-matched, similarity band).

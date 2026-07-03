@@ -24,8 +24,10 @@ Three use cases drive the design, in priority order:
 
 ## Status
 
-Early planning / skeleton stage. The design is documented; the game is not yet
-written. See [ROADMAP.md](ROADMAP.md) for goals and phases, and
+Early development. Phase 1 (the extraction CLI) is implemented: `ingest`
+extracts, filters, and ranks vocabulary from a text into a local SQLite
+database, and `words` lists it. The game itself (practice sessions, scheduling)
+is not written yet. See [ROADMAP.md](ROADMAP.md) for goals and phases, and
 [docs/DESIGN.md](docs/DESIGN.md) for the architecture and data model.
 
 ## Quickstart (development)
@@ -38,7 +40,12 @@ conda activate prelexy
 python -m nltk.downloader punkt wordnet omw-1.4
 python -m spacy download en_core_web_md
 
-python -m prelexy play   # placeholder for now
+# try it: extract the vocabulary of a book, then list the rarest words
+python -m prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
+python -m prelexy words --limit 20
+
+# run the tests
+python -m pytest
 ```
 
 ## Scope
