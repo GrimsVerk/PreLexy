@@ -30,23 +30,42 @@ database, and `words` lists it. The game itself (practice sessions, scheduling)
 is not written yet. See [ROADMAP.md](ROADMAP.md) for goals and phases, and
 [docs/DESIGN.md](docs/DESIGN.md) for the architecture and data model.
 
-## Quickstart (development)
+## Setup
+
+First time:
 
 ```bash
 conda env create -f environment.yml
 conda activate prelexy
 
-# one-time data downloads (everything runs offline afterwards)
-python -m nltk.downloader punkt wordnet omw-1.4
+# one-time model/data downloads (everything runs offline afterwards)
 python -m spacy download en_core_web_md
+python -m nltk.downloader wordnet omw-1.4   # auto-fetched on first run if skipped
+```
 
-# try it: extract the vocabulary of a book, then list the rarest words
+After pulling changes that touch `environment.yml`, refresh the existing
+environment instead:
+
+```bash
+conda env update -f environment.yml --prune
+```
+
+## Usage
+
+```bash
+# extract the vocabulary of a text into the local database
 python -m prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
+
+# list the stored words, rarest first
 python -m prelexy words --limit 20
 
-# run the tests
+# run the test suite
 python -m pytest
 ```
+
+The database lives at `~/.local/share/prelexy/prelexy.db` by default; every
+command accepts `--db <path>` (or the `PRELEXY_DB` environment variable) to
+use a different one.
 
 ## Scope
 
