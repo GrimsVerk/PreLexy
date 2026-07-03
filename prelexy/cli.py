@@ -125,7 +125,35 @@ def question(form, language, db_path):
 
 
 @cli.command()
-def play():
+@click.option(
+    "--profile",
+    "profile_name",
+    default="default",
+    show_default=True,
+    help="Player profile; each profile tracks its own progress.",
+)
+@click.option("--language", default="en", show_default=True)
+@click.option("--length", "n_questions", default=10, show_default=True,
+              help="Questions per session.")
+@_db_option
+def play(profile_name, language, n_questions, db_path):
     """Start a practice session."""
-    click.echo("Practice sessions arrive in phase 3 — nothing to play yet.")
-    click.echo("Try `ingest`, `words`, and `question` in the meantime; see ROADMAP.md.")
+    from prelexy.scheduler import SimpleScheduler
+    from prelexy.session import run_session
+    from prelexy.similarity import SpacyVectors
+    from prelexy.textproc import load_nlp
+
+    try:
+        similarity = SpacyVectors(load_nlp(language))
+    except (OSError, ValueError):
+        similarity = None  # no vectors: distractors matched by POS and rarity only
+    with Store(db_path) as store:
+        profile_id = store.get_or_create_profile(profile_name)
+        run_session(
+            store,
+            profile_id,
+            language,
+            SimpleScheduler(),
+            similarity=similarity,
+            n_questions=n_questions,
+        )

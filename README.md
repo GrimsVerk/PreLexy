@@ -24,13 +24,15 @@ Three use cases drive the design, in priority order:
 
 ## Status
 
-Early development. Phases 1–2 are implemented: `ingest` extracts, filters, and
+Early development. Phases 1–3 are implemented: `ingest` extracts, filters, and
 ranks vocabulary from a text into a local SQLite database, `words` lists it,
-and `question` previews a generated multiple-choice question (definitions via
-WordNet with a cached free-API fallback). The game loop itself (practice
-sessions, scheduling) is not written yet. See [ROADMAP.md](ROADMAP.md) for
-goals and phases, and [docs/DESIGN.md](docs/DESIGN.md) for the architecture
-and data model.
+`question` previews a generated multiple-choice question (definitions via
+WordNet with a cached free-API fallback), and `play` runs an interactive
+practice session that tracks per-profile progress and logs every answer.
+Spaced-repetition scheduling (phase 4) is not in yet — for now a missed word
+simply returns next session. See [ROADMAP.md](ROADMAP.md) for goals and
+phases, and [docs/DESIGN.md](docs/DESIGN.md) for the architecture and data
+model.
 
 ## Setup
 
@@ -63,6 +65,10 @@ python -m prelexy words --limit 20
 
 # preview a multiple-choice question for a stored word
 python -m prelexy question vermilion
+
+# play a practice session (progress is saved per profile)
+python -m prelexy play
+python -m prelexy play --profile alice --length 20
 
 # run the test suite
 python -m pytest

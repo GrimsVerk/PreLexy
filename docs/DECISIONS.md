@@ -101,3 +101,18 @@ and adds nothing POS+rarity matching doesn't already give; the upper bound
 is the part that protects fairness. Allowing API calls for pool words would
 fire dozens of HTTP requests per question for marginal gain — the API stays
 reserved for the one word being asked about.
+
+## 011 — Session semantics (2026-07)
+
+**Decision:** The review log stores the chosen gloss text as the response
+(not an option index). Words for which no question can be built (no
+definition anywhere, or no distractors) are auto-suspended so they stop
+being served. The scheduler seam ships in phase 3 with a placeholder
+(SimpleScheduler: missed words first, then new rarest-first, one correct
+answer graduates a word) so the session loop runs against the real
+interface before SM-2 lands.
+**Why:** The gloss text keeps the log self-contained — a future RL scheduler
+can see *which* distractor fooled the player even if options are regenerated
+differently later. Auto-suspension prevents definition-less words from being
+re-served and re-skipped forever. Building the session against the protocol
+from day one is what makes phase 4 a drop-in.

@@ -32,8 +32,8 @@ v1 is done when this works end to end:
    — definition lookup through the offline-first chain (cache → WordNet →
    free API); distractor selection (same POS, closest rarity, near-synonym
    ceiling).
-3. **Session loop + saves** — terminal UI, profiles, answer recording, and the
-   append-only review log.
+3. **Session loop + saves** *(implemented — `prelexy play`)* — terminal UI,
+   profiles, answer recording, and the append-only review log.
 4. **Scheduler** — the `Scheduler` interface with SM-2 as the default
    implementation; sessions composed from due reviews plus new items.
 5. **Polish** — ranking quality, distractor quality tuning, UX friction, docs.
