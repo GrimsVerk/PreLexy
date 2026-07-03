@@ -1,2 +1,0 @@
-this is where all the books, subtitles, transcripts (all media) that will
-be processed goes.
