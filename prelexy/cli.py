@@ -42,7 +42,10 @@ def ingest(file, language, title, kind, db_path):
             )
         text = file.read_text(encoding="utf-8", errors="replace")
         click.echo(f"Extracting from {file.name} … (first run loads models, be patient)")
-        candidates = extract_candidates(text, language)
+        try:
+            candidates = extract_candidates(text, language)
+        except (OSError, ValueError) as error:  # missing/unsupported spaCy model
+            raise click.ClickException(str(error)) from error
         source_id = store.add_source(title or file.stem, language, kind, path)
         n_occurrences = 0
         for candidate in candidates:
