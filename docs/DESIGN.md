@@ -160,8 +160,12 @@ migration: SM-2 stores its ease factor and interval there, a Leitner scheduler
 stores a box number, a future RL policy stores whatever features it wants —
 trained on `review_log`.
 
-**(proposed)** Default implementation (phase 4): **SM-2** — simple,
-battle-tested (classic Anki), well documented.
+Default implementation: **SM2Scheduler**, a binary-outcome adaptation of
+SM-2 (see DECISIONS 012): intervals of 1 day, 6 days, then interval × ease;
+ease drifts up 0.1 per success (floor 1.3) and is untouched by misses, which
+reset the ladder to tomorrow. "Known" from the third consecutive success —
+but due dates, not statuses, drive scheduling. Sessions serve due reviews
+(oldest due first), then new words rarest-first.
 
 ## SimilarityProvider interface
 

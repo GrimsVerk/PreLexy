@@ -28,11 +28,12 @@ Early development. Phases 1–3 are implemented: `ingest` extracts, filters, and
 ranks vocabulary from a text into a local SQLite database, `words` lists it,
 `question` previews a generated multiple-choice question (definitions via
 WordNet with a cached free-API fallback), and `play` runs an interactive
-practice session that tracks per-profile progress and logs every answer.
-Spaced-repetition scheduling (phase 4) is not in yet — for now a missed word
-simply returns next session. See [ROADMAP.md](ROADMAP.md) for goals and
-phases, and [docs/DESIGN.md](docs/DESIGN.md) for the architecture and data
-model.
+practice session that tracks per-profile progress, logs every answer, and
+schedules reviews with spaced repetition (SM-2): correct answers push a word
+further into the future, misses bring it back tomorrow. Phases 1–4 are
+implemented; what remains for v1 is polish. See [ROADMAP.md](ROADMAP.md) for
+goals and phases, and [docs/DESIGN.md](docs/DESIGN.md) for the architecture
+and data model.
 
 ## Setup
 

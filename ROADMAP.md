@@ -34,8 +34,9 @@ v1 is done when this works end to end:
    ceiling).
 3. **Session loop + saves** *(implemented — `prelexy play`)* — terminal UI,
    profiles, answer recording, and the append-only review log.
-4. **Scheduler** — the `Scheduler` interface with SM-2 as the default
-   implementation; sessions composed from due reviews plus new items.
+4. **Scheduler** *(implemented — SM-2 is the default)* — the `Scheduler`
+   interface with SM-2 as the default implementation; sessions composed from
+   due reviews plus new items.
 5. **Polish** — ranking quality, distractor quality tuning, UX friction, docs.
 
 ## Post-v1

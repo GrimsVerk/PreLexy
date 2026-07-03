@@ -138,7 +138,7 @@ def question(form, language, db_path):
 @_db_option
 def play(profile_name, language, n_questions, db_path):
     """Start a practice session."""
-    from prelexy.scheduler import SimpleScheduler
+    from prelexy.scheduler import SM2Scheduler
     from prelexy.session import run_session
     from prelexy.similarity import SpacyVectors
     from prelexy.textproc import load_nlp
@@ -153,7 +153,7 @@ def play(profile_name, language, n_questions, db_path):
             store,
             profile_id,
             language,
-            SimpleScheduler(),
+            SM2Scheduler(),
             similarity=similarity,
             n_questions=n_questions,
         )

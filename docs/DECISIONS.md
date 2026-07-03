@@ -116,3 +116,20 @@ can see *which* distractor fooled the player even if options are regenerated
 differently later. Auto-suspension prevents definition-less words from being
 re-served and re-skipped forever. Building the session against the protocol
 from day one is what makes phase 4 a drop-in.
+
+## 012 — Binary SM-2 adaptation as the default scheduler (2026-07)
+
+**Decision:** SM2Scheduler adapts classic SM-2 to PreLexy's binary outcomes:
+a correct answer advances the interval ladder (1 day, 6 days, then
+interval × ease) and raises ease by 0.1; a miss resets repetitions and
+schedules the word for tomorrow, leaving ease unchanged (as original SM-2
+does for sub-3 quality grades). Ease floor 1.3. Status becomes "known" at
+the third consecutive success, but due dates alone drive what gets served.
+Rows written before spacing existed (due_at NULL, status "learning") count
+as immediately due. The swap from SimpleScheduler touched only the one line
+in `play` that names the scheduler — the modularity requirement holds.
+**Why:** SM-2's 0–5 quality grades don't fit a four-option MCQ; the binary
+mapping keeps the algorithm's behaviour (growing intervals, ease
+personalisation per word) without inventing fake grades. Anything cleverer
+(FSRS, RL personalisation) plugs into the same seam later, trained on the
+review log.
