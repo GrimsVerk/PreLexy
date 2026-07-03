@@ -90,7 +90,42 @@ def words(language, limit, db_path):
 
 
 @cli.command()
+@click.argument("form")
+@click.option("--language", default="en", show_default=True)
+@_db_option
+def question(form, language, db_path):
+    """Preview a multiple-choice question for a stored word (* marks the answer)."""
+    from prelexy.mcq import build_question
+    from prelexy.similarity import SpacyVectors
+    from prelexy.textproc import load_nlp
+
+    with Store(db_path) as store:
+        item = store.find_item(language, form)
+        if item is None:
+            raise click.ClickException(
+                f"{form!r} is not stored — run `prelexy ingest` on a text containing it."
+            )
+        try:
+            similarity = SpacyVectors(load_nlp(language))
+        except (OSError, ValueError):
+            similarity = None  # no vectors: distractors matched by POS and rarity only
+        built = build_question(store, item, similarity=similarity)
+        if built is None:
+            raise click.ClickException(
+                f"Couldn't build a question for {form!r} — no definition or no "
+                "distractors available yet."
+            )
+    if built.context:
+        click.echo(f"“{built.context}”\n")
+    click.echo(f"What does “{built.form}” mean?\n")
+    for index, option in enumerate(built.options):
+        marker = "*" if index == built.answer else " "
+        click.echo(f" {marker} {index + 1}. {option}")
+    click.echo("\n(* marks the correct answer — preview mode)")
+
+
+@cli.command()
 def play():
     """Start a practice session."""
     click.echo("Practice sessions arrive in phase 3 — nothing to play yet.")
-    click.echo("Try `ingest` and `words` in the meantime; see ROADMAP.md.")
+    click.echo("Try `ingest`, `words`, and `question` in the meantime; see ROADMAP.md.")

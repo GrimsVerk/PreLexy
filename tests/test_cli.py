@@ -52,3 +52,36 @@ def test_words_on_empty_db_explains_ingest(tmp_path):
     result = runner.invoke(cli, ["words", "--db", str(tmp_path / "empty.db")])
     assert result.exit_code != 0
     assert "ingest" in result.output
+
+
+def test_question_command_previews_mcq(tmp_path, monkeypatch):
+    from prelexy.store import Store
+
+    monkeypatch.setattr(
+        "prelexy.textproc.load_nlp", lambda language="en": (_ for _ in ()).throw(OSError)
+    )
+    db = tmp_path / "db.sqlite"
+    with Store(db) as store:
+        source = store.add_source("t", "en", "book", None)
+        target = store.get_or_create_item(
+            "en", "sagacious", lemma="sagacious", pos="ADJ", metadata={"zipf": 2.5}
+        )
+        store.add_sense(target, "having keen judgement", "en", "wordnet")
+        store.add_occurrences(target, source, [("A sagacious old man.", 2)])
+        gaunt = store.get_or_create_item(
+            "en", "gaunt", lemma="gaunt", pos="ADJ", metadata={"zipf": 2.6}
+        )
+        store.add_sense(gaunt, "very thin", "en", "wordnet")
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["question", "sagacious", "--db", str(db)])
+    assert result.exit_code == 0, result.output
+    assert "What does “sagacious” mean?" in result.output
+    assert "A sagacious old man." in result.output
+    assert "having keen judgement" in result.output
+    assert "very thin" in result.output
+    assert "*" in result.output
+
+    result = runner.invoke(cli, ["question", "nonexistent", "--db", str(db)])
+    assert result.exit_code != 0
+    assert "not stored" in result.output

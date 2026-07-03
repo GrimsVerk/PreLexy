@@ -24,11 +24,13 @@ Three use cases drive the design, in priority order:
 
 ## Status
 
-Early development. Phase 1 (the extraction CLI) is implemented: `ingest`
-extracts, filters, and ranks vocabulary from a text into a local SQLite
-database, and `words` lists it. The game itself (practice sessions, scheduling)
-is not written yet. See [ROADMAP.md](ROADMAP.md) for goals and phases, and
-[docs/DESIGN.md](docs/DESIGN.md) for the architecture and data model.
+Early development. Phases 1–2 are implemented: `ingest` extracts, filters, and
+ranks vocabulary from a text into a local SQLite database, `words` lists it,
+and `question` previews a generated multiple-choice question (definitions via
+WordNet with a cached free-API fallback). The game loop itself (practice
+sessions, scheduling) is not written yet. See [ROADMAP.md](ROADMAP.md) for
+goals and phases, and [docs/DESIGN.md](docs/DESIGN.md) for the architecture
+and data model.
 
 ## Setup
 
@@ -58,6 +60,9 @@ python -m prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
 
 # list the stored words, rarest first
 python -m prelexy words --limit 20
+
+# preview a multiple-choice question for a stored word
+python -m prelexy question vermilion
 
 # run the test suite
 python -m pytest

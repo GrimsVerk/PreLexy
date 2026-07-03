@@ -28,9 +28,10 @@ v1 is done when this works end to end:
    spaCy model to tick the success box)* — ingest a text: tokenize, apply the
    extraction policy (lemmas for English), filter noise, rank by
    frequency/rarity; persist sources/items/occurrences to SQLite.
-2. **MCQ generation** — definition lookup through the offline-first chain
-   (WordNet → cache → free API); distractor selection (same POS,
-   frequency-matched, similarity band).
+2. **MCQ generation** *(implemented — `prelexy question <word>` previews one)*
+   — definition lookup through the offline-first chain (cache → WordNet →
+   free API); distractor selection (same POS, closest rarity, near-synonym
+   ceiling).
 3. **Session loop + saves** — terminal UI, profiles, answer recording, and the
    append-only review log.
 4. **Scheduler** — the `Scheduler` interface with SM-2 as the default
