@@ -108,13 +108,16 @@ Format (tier 1): show the item (with its example sentence from the source text),
 ask **"pick the correct definition"** from four options.
 
 - **Correct answer:** the item's top sense from the definition chain below.
-- **Distractors (proposed):** real definitions of other items that are
-  (a) the same part of speech, (b) frequency-matched (similarly rare), and
-  (c) within a cosine-similarity band of the target — close enough to be
-  plausible, far enough to be clearly wrong. Near-synonyms are excluded (too
-  close is ambiguous and unfair), as is anything sharing a lemma with the
-  target. Band thresholds are tunable constants, calibrated empirically in
-  phase 2.
+- **Distractors:** real definitions of other stored items that are (a) the
+  same part of speech, (b) closest in rarity to the target, and (c) below a
+  cosine-similarity ceiling — anything above it is a near-synonym, which
+  would make the question ambiguous and unfair. Anything sharing a lemma
+  with the target is excluded, as are duplicate glosses. Plausibility comes
+  from the POS and rarity match rather than a similarity floor (a floor
+  empties the pool in small databases). Distractor glosses are resolved
+  offline-only (no API calls for pool words). While the store is small a
+  question may carry fewer than four options. The ceiling is a tunable
+  constant, calibrated empirically in phase 5.
 
 Other exercise types (cloze from the source sentence, reverse lookup) are natural
 later additions; the `review_log.exercise` field already accommodates them.

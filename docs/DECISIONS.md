@@ -87,3 +87,17 @@ has no frequency data, so a frequency source is needed. wordfreq is free,
 offline (data bundled), and covers Dutch and many other languages — so the
 same ranking works for tier 2. Storing the score at ingest keeps later queries
 free of the dependency.
+
+## 010 — Distractors: similarity ceiling, not a band; offline glosses only (2026-07)
+
+**Decision:** Distractor selection uses only an upper similarity bound
+(near-synonym exclusion); plausibility comes from matching POS and picking
+pool words closest in rarity to the target. Distractor glosses are resolved
+through the offline chain only (`allow_api=False`), and a question may have
+fewer than four options while the store is small. Supersedes the
+"similarity band" proposal in 003-era DESIGN drafts.
+**Why:** A similarity floor empties the candidate pool in young databases
+and adds nothing POS+rarity matching doesn't already give; the upper bound
+is the part that protects fairness. Allowing API calls for pool words would
+fire dozens of HTTP requests per question for marginal gain — the API stays
+reserved for the one word being asked about.
