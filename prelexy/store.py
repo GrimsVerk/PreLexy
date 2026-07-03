@@ -206,6 +206,61 @@ class Store:
         )
         return cur.lastrowid
 
+    # -- learner ----------------------------------------------------------
+
+    def get_or_create_profile(self, name: str) -> int:
+        self._conn.execute("INSERT OR IGNORE INTO profiles (name) VALUES (?)", (name,))
+        return self._conn.execute(
+            "SELECT id FROM profiles WHERE name = ?", (name,)
+        ).fetchone()["id"]
+
+    def upsert_item_state(
+        self,
+        profile_id: int,
+        item_id: int,
+        status: str,
+        due_at: str | None,
+        scheduler_state: dict,
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO item_state (profile_id, item_id, status, due_at, scheduler_state) "
+            "VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT (profile_id, item_id) DO UPDATE SET "
+            "status = excluded.status, due_at = excluded.due_at, "
+            "scheduler_state = excluded.scheduler_state, updated_at = datetime('now')",
+            (profile_id, item_id, status, due_at, json.dumps(scheduler_state)),
+        )
+
+    def log_review(
+        self,
+        profile_id: int,
+        item_id: int,
+        exercise: str,
+        response: str | None,
+        correct: bool,
+        latency_ms: int | None,
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO review_log (profile_id, item_id, exercise, response, correct, latency_ms) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (profile_id, item_id, exercise, response, int(correct), latency_ms),
+        )
+
+    def items_for_review(self, profile_id: int, language: str) -> list[sqlite3.Row]:
+        """All items of a language joined with this profile's state.
+
+        The state columns (status, due_at, scheduler_state) are NULL for
+        items the profile has never reviewed.
+        """
+        return self._conn.execute(
+            "SELECT items.*, item_state.status, item_state.due_at, "
+            "item_state.scheduler_state "
+            "FROM items LEFT JOIN item_state "
+            "ON item_state.item_id = items.id AND item_state.profile_id = ? "
+            "WHERE items.language = ?",
+            (profile_id, language),
+        ).fetchall()
+
     # -- lifecycle --------------------------------------------------------
 
     def commit(self) -> None:

@@ -84,6 +84,57 @@ def test_list_items_counts_occurrences(db):
         assert store.list_items("nl") == []
 
 
+def test_get_or_create_profile_is_idempotent(db):
+    with Store(db) as store:
+        first = store.get_or_create_profile("thom")
+        assert store.get_or_create_profile("thom") == first
+        assert store.get_or_create_profile("guest") != first
+
+
+def test_upsert_item_state_inserts_then_updates(db):
+    with Store(db) as store:
+        profile = store.get_or_create_profile("p")
+        item = store.get_or_create_item("en", "run")
+        store.upsert_item_state(profile, item, "learning", None, {"box": 1})
+        store.upsert_item_state(profile, item, "known", "2026-07-04T00:00:00", {"box": 2})
+        rows = store._conn.execute("SELECT * FROM item_state").fetchall()
+    assert len(rows) == 1
+    assert rows[0]["status"] == "known"
+    assert rows[0]["due_at"] == "2026-07-04T00:00:00"
+    assert json.loads(rows[0]["scheduler_state"]) == {"box": 2}
+
+
+def test_log_review_appends(db):
+    with Store(db) as store:
+        profile = store.get_or_create_profile("p")
+        item = store.get_or_create_item("en", "run")
+        store.log_review(profile, item, "mcq_definition", "a gloss", True, 1200)
+        store.log_review(profile, item, "mcq_definition", "wrong gloss", False, None)
+        rows = store._conn.execute("SELECT * FROM review_log ORDER BY id").fetchall()
+    assert [row["correct"] for row in rows] == [1, 0]
+    assert rows[0]["latency_ms"] == 1200
+    assert rows[1]["response"] == "wrong gloss"
+
+
+def test_items_for_review_joins_state_per_profile(db):
+    with Store(db) as store:
+        alice = store.get_or_create_profile("alice")
+        bob = store.get_or_create_profile("bob")
+        run = store.get_or_create_item("en", "run")
+        store.get_or_create_item("en", "walk")
+        store.get_or_create_item("nl", "lopen")
+        store.upsert_item_state(alice, run, "learning", None, {})
+
+        rows = {row["form"]: row for row in store.items_for_review(alice, "en")}
+        assert set(rows) == {"run", "walk"}
+        assert rows["run"]["status"] == "learning"
+        assert rows["walk"]["status"] is None
+
+        # bob's view is untouched by alice's progress
+        bob_rows = {row["form"]: row for row in store.items_for_review(bob, "en")}
+        assert bob_rows["run"]["status"] is None
+
+
 def test_writes_persist_after_clean_exit(db):
     with Store(db) as store:
         store.add_source("kept", "en", "book", "/kept.txt")
