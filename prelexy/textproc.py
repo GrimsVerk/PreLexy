@@ -79,10 +79,11 @@ def in_dictionary(form: str, language: str = "en") -> bool:
     """
     if language != "en":
         return True
-    return bool(_wordnet().synsets(form))
+    return bool(get_wordnet().synsets(form))
 
 
-def _wordnet():
+def get_wordnet():
+    """Return the WordNet corpus, downloading its data on first use."""
     import nltk
     from nltk.corpus import wordnet
 

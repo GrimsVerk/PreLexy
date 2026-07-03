@@ -168,6 +168,17 @@ class Store:
             ((item_id, source_id, context, position) for context, position in occurrences),
         )
 
+    def find_item(self, language: str, form: str) -> sqlite3.Row | None:
+        return self._conn.execute(
+            "SELECT * FROM items WHERE language = ? AND form = ?", (language, form)
+        ).fetchone()
+
+    def example_for(self, item_id: int) -> str | None:
+        row = self._conn.execute(
+            "SELECT context FROM occurrences WHERE item_id = ? LIMIT 1", (item_id,)
+        ).fetchone()
+        return row["context"] if row else None
+
     def list_items(self, language: str) -> list[sqlite3.Row]:
         """All items for a language, each with its total occurrence count."""
         return self._conn.execute(
@@ -177,6 +188,23 @@ class Store:
             "GROUP BY items.id",
             (language,),
         ).fetchall()
+
+    # -- knowledge --------------------------------------------------------
+
+    def senses_for(self, item_id: int) -> list[sqlite3.Row]:
+        return self._conn.execute(
+            "SELECT * FROM senses WHERE item_id = ? ORDER BY id", (item_id,)
+        ).fetchall()
+
+    def add_sense(
+        self, item_id: int, gloss: str, gloss_language: str, provider: str
+    ) -> int:
+        cur = self._conn.execute(
+            "INSERT INTO senses (item_id, gloss, gloss_language, provider) "
+            "VALUES (?, ?, ?, ?)",
+            (item_id, gloss, gloss_language, provider),
+        )
+        return cur.lastrowid
 
     # -- lifecycle --------------------------------------------------------
 
