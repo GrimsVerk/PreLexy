@@ -141,12 +141,18 @@ glosses and, crucially, the **bilingual** glosses tier 2 needs; the
 
 ```python
 class Scheduler(Protocol):
-    def next_items(self, profile_id: int, now: datetime, limit: int) -> list[ItemState]:
-        """Compose a session: due reviews first, then new items."""
+    def next_items(self, store, profile_id: int, language: str,
+                   now: datetime, limit: int) -> list[Row]:
+        """Items to practice this session, most urgent first."""
 
-    def record_review(self, state: ItemState, outcome: ReviewOutcome) -> ItemState:
-        """Return updated state, including new due_at and scheduler_state blob."""
+    def record_review(self, state: Row, outcome: ReviewOutcome,
+                      now: datetime) -> ItemSchedule:
+        """Digest one review into the item's next status/due_at/state blob."""
 ```
+
+The seam ships in phase 3 with `SimpleScheduler` (missed words first, then
+new words rarest-first; one correct answer marks a word known, no spacing)
+so the session loop is exercised before any real algorithm exists.
 
 The scheduler owns `item_state.scheduler_state` (opaque JSON) and sets `due_at`;
 core code never interprets the blob. Swapping algorithms is a config change, not a
@@ -154,8 +160,8 @@ migration: SM-2 stores its ease factor and interval there, a Leitner scheduler
 stores a box number, a future RL policy stores whatever features it wants —
 trained on `review_log`.
 
-**(proposed)** Default implementation: **SM-2** — simple, battle-tested (classic
-Anki), well documented.
+**(proposed)** Default implementation (phase 4): **SM-2** — simple,
+battle-tested (classic Anki), well documented.
 
 ## SimilarityProvider interface
 

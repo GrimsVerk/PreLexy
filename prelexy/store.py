@@ -100,6 +100,11 @@ def default_db_path() -> Path:
     return base / "prelexy" / "prelexy.db"
 
 
+def item_zipf(row) -> float:
+    """Rarity score stored in an item row's metadata at ingest time."""
+    return json.loads(row["metadata"]).get("zipf", 0.0)
+
+
 class Store:
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path else default_db_path()

@@ -10,11 +10,11 @@ fewer than the usual four options — a leaner question beats none.
 
 from __future__ import annotations
 
-import json
 import random
 from dataclasses import dataclass
 
 from prelexy.definitions import ensure_sense
+from prelexy.store import item_zipf
 
 # Above this cosine similarity a pool word counts as a near-synonym of the
 # target and is excluded. Plausibility comes from matching POS and rarity;
@@ -59,7 +59,7 @@ def build_question(store, item, similarity=None, rng=None) -> Question | None:
 
 def _distractors(store, item, correct_gloss, similarity) -> list[str]:
     """Up to N_OPTIONS-1 distractor glosses, closest in rarity first."""
-    target_zipf = _zipf(item)
+    target_zipf = item_zipf(item)
     target_lemma = item["lemma"] or item["form"]
     pool = [
         row
@@ -68,7 +68,7 @@ def _distractors(store, item, correct_gloss, similarity) -> list[str]:
         and row["pos"] == item["pos"]
         and (row["lemma"] or row["form"]) != target_lemma
     ]
-    pool.sort(key=lambda row: abs(_zipf(row) - target_zipf))
+    pool.sort(key=lambda row: abs(item_zipf(row) - target_zipf))
 
     glosses: list[str] = []
     for row in pool:
@@ -83,7 +83,3 @@ def _distractors(store, item, correct_gloss, similarity) -> list[str]:
             continue
         glosses.append(sense.gloss)
     return glosses
-
-
-def _zipf(row) -> float:
-    return json.loads(row["metadata"]).get("zipf", 0.0)
