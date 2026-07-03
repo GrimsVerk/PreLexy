@@ -11,3 +11,6 @@ dependencies:
   - spacy
   - click
   - pytest
+  - pip
+  - pip:
+      - wordfreq

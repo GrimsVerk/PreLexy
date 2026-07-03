@@ -76,3 +76,14 @@ of scope.
 **Why:** The committed Dorian Gray scan is imperfect OCR ("|" for "I", etc.).
 Membership filtering removes that garbage as a side effect of a check we need
 anyway; input text quality remains the user's responsibility, not core scope.
+
+## 009 — wordfreq for rarity ranking; Zipf score stored in item metadata (2026-07)
+
+**Decision:** Candidates are ranked by wordfreq's Zipf frequency scale (rarest
+first), computed once at ingest and stored in `items.metadata` as
+`{"zipf": …}`. wordfreq is added as a dependency (pip).
+**Why:** Modern spaCy models no longer ship lexeme probabilities and WordNet
+has no frequency data, so a frequency source is needed. wordfreq is free,
+offline (data bundled), and covers Dutch and many other languages — so the
+same ranking works for tier 2. Storing the score at ingest keeps later queries
+free of the dependency.
