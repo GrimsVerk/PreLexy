@@ -127,6 +127,8 @@ entirely free (offline dictionaries first, free APIs only as a cached fallback).
 
 - `prelexy/` — the Python package (CLI, text processing, game engine)
 - `data/corpora/` — input texts to learn from
-- `docs/` — design ([DESIGN.md](docs/DESIGN.md)) and decision log
-  ([DECISIONS.md](docs/DECISIONS.md))
+- `docs/` — design ([DESIGN.md](docs/DESIGN.md)), decision log
+  ([DECISIONS.md](docs/DECISIONS.md)), and work queue
+  ([BACKLOG.md](docs/BACKLOG.md))
 - [`ROADMAP.md`](ROADMAP.md) — goals, phases, definition of done
+- `CLAUDE.md`, `.claude/` — working rules and setup for Claude Code sessions

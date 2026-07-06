@@ -234,3 +234,19 @@ semantics stay).
 **Why:** Owner ruling: two absolute counts are more direct than a total
 plus a ratio, and the band belongs in config because tuning it is an
 ongoing playtest activity — with `--debug` providing the scores to tune by.
+
+## 020 — Claude Code guardrails: CLAUDE.md + Approved-only backlog (2026-07)
+
+**Decision:** Working rules for AI sessions live in `CLAUDE.md` (branch
+discipline, scope rules, rulings-are-law, free/offline constraints, seam
+protection, conventions). `docs/BACKLOG.md` holds the work queue in three
+sections — autonomous sessions implement **Approved items only**; new ideas
+go to Proposed as text; Deferred items are owner-parked and untouchable.
+`.claude/session-setup.sh` makes fresh sandboxes test-capable; the
+`.claude/settings.json` permission rules (allow the test/run/commit loop,
+deny any push to main and force pushes) are applied by the owner directly,
+since an agent should not write its own permission grants.
+**Why:** The owner wants sessions running unattended without drifting off
+topic or off rules. Rule drift, scope drift, and capability-gap drift each
+get a mechanism; the Approved-only rule mirrors how owner and agent already
+work (agent proposes, owner rules).
