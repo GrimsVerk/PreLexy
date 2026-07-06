@@ -52,6 +52,17 @@ choices and owner rulings.
   `no_network` autouse fixtures); model-dependent tests skip gracefully.
 - Diagnostics go through `prelexy/debug.py` — add a channel, don't invent a
   new mechanism.
+- **Rolling context capture (owner ruling, DECISIONS 021):** whenever
+  something surfaces in chat that a future session or a different agent
+  would need, write it into the repo in the same work unit — chat is not
+  storage. Route it to the file where it belongs; only create a new file
+  if nothing fits, and give it an obvious purpose statement at the top.
+  Routing: owner rulings & design choices → `docs/DECISIONS.md` · work
+  items & ideas → `docs/BACKLOG.md` · standing operational facts →
+  `docs/JOURNAL.md` Field notes · what-was-verified-where →
+  `docs/VERIFICATION.md` · architecture → `docs/DESIGN.md` · session
+  events & friction → `docs/JOURNAL.md` Log · user-facing behaviour →
+  README/ROADMAP · working rules for agents → this file.
 - Use AskUserQuestion only when truly blocked. Otherwise state what you
   need in plain chat and continue on best judgment; the owner reads chat.
 - Real-model verification happens on the owner's machine: ask for

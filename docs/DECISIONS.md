@@ -250,3 +250,16 @@ since an agent should not write its own permission grants.
 topic or off rules. Rule drift, scope drift, and capability-gap drift each
 get a mechanism; the Approved-only rule mirrors how owner and agent already
 work (agent proposes, owner rules).
+
+## 021 — Rolling context capture (2026-07)
+
+**Decision:** Context relevant to future sessions or a different agent is
+written into the repo as it surfaces, in the same unit of work — chat is
+not storage. Prefer the existing file whose purpose fits (routing table in
+CLAUDE.md); create a new file only when nothing fits, with a clear purpose
+statement at the top.
+**Why:** Owner ruling. A conversation's context window is ephemeral and
+agent-specific; the repo is the only memory that transfers. The one-time
+capture of 2026-07-06 (journal, verification ledger, field notes) closed a
+~15% context gap that would otherwise silently reopen with every new
+session.

@@ -50,6 +50,11 @@ and are referenced from entries.
   git mv/rm/checkout/switch/stash/pull, mkdir, printf, setup script) was
   permitted when done right after an explicit owner instruction in chat —
   the classifier weighs conversational intent heavily.
+- Owner ruling added late in the session: rolling context capture
+  (DECISIONS 021) — repo-worthy info moves from chat to its file as it
+  appears, routing table in CLAUDE.md.
 - Awaiting owner: verification run (commands in docs/VERIFICATION.md),
   most importantly whether `prelexy say` produces audio, post-change
   `--debug play` scores for band calibration, and real-model pytest.
+  Owner will then merge everything into main; from that point the `claude`
+  branch accumulates only the unattended work done while they are away.
