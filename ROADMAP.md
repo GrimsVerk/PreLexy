@@ -11,16 +11,20 @@ v1 is done when this works end to end:
 
 ### Success criteria
 
-- [ ] `prelexy ingest <file>` extracts lemma-based items from an English text,
+- [x] `prelexy ingest <file>` extracts lemma-based items from an English text,
       filters noise (stopwords, proper nouns, dictionary-membership check), ranks
-      candidates by rarity, and stores them
+      candidates by rarity, and stores them *(owner-verified 2026-07)*
 - [ ] `prelexy play` runs an MCQ session with real definitions and plausible
       distractors, and shows the example sentence from the source text
-- [ ] Progress is per profile and survives program restarts
-- [ ] Reviews come due on schedule, and the scheduler is swappable behind an
-      interface without touching any other code
+      *(works; "plausible" pending band calibration — docs/VERIFICATION.md)*
+- [x] Progress is per profile and survives program restarts
+      *(owner-verified across days)*
+- [x] Reviews come due on schedule, and the scheduler is swappable behind an
+      interface without touching any other code *(owner-verified; swap was a
+      one-line change)*
 - [ ] Works fully offline after initial setup (API used only as a fallback for
-      missing definitions, with results cached locally)
+      missing definitions, with results cached locally) *(offline works; the
+      API fallback path has never fired live — low risk, fails soft)*
 
 ### Phases
 

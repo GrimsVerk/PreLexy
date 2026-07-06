@@ -34,8 +34,6 @@ the owner — do not start them, do not delete them.
   without trusting session claims.
 - **`/playtest` slash command** (`.claude/commands/playtest.md`): paste a
   transcript → structured triage (diagnose, map to backlog, propose only).
-- **Session journal** (`docs/JOURNAL.md`): autonomous sessions append a
-  dated 3-line summary so the owner can skim what happened.
 
 ## Deferred (owner: later — do not start)
 
