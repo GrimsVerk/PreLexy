@@ -1,0 +1,5 @@
+Wrote data/corpora/dorian_gray_oscar_wilde.cleaned.txt
+  pipe-as-I: 1415 fix(es)
+  broken-hyphen: 53 fix(es)
+  letterless-line: 4 fix(es)
+  blank-run: 301 fix(es)
