@@ -88,6 +88,10 @@ runtime today, and future custom code-embeddings live in their own artifact file
 
 ## Extraction pipeline (phase 1)
 
+0. Optional, before ingesting: `prelexy clean <file>` fixes systematic OCR
+   artifacts (standalone `|` as "I", hyphenation splits, letterless page
+   furniture, blank-line runs) — conservative, source-agnostic rules in
+   `prelexy/clean.py`. Deep OCR repair remains out of scope (DECISIONS 008).
 1. Load text; light cleanup (whitespace, obvious junk lines).
 2. Tokenize (current `prelexy/textproc.py` tokenizer as the starting point).
 3. Apply the language's extraction policy (lemmatize via spaCy for `en`).

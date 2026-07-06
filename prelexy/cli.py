@@ -95,6 +95,31 @@ def words(language, limit, db_path):
 
 
 @cli.command()
+@click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Where to write [default: <name>.cleaned.<ext> beside the input]",
+)
+def clean(file, output):
+    """Clean common OCR artifacts from a text file before ingesting it."""
+    from prelexy.clean import clean_text
+
+    text = file.read_text(encoding="utf-8", errors="replace")
+    cleaned, counts = clean_text(text)
+    output = output or file.with_suffix(".cleaned" + file.suffix)
+    output.write_text(cleaned, encoding="utf-8")
+    click.echo(f"Wrote {output}")
+    for rule, count in counts.items():
+        if count:
+            click.echo(f"  {rule}: {count} fix(es)")
+    if not any(counts.values()):
+        click.echo("  (no artifacts found)")
+
+
+@cli.command()
 @click.argument("word")
 @click.option("--language", default="en", show_default=True)
 def say(word, language):

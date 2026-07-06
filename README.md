@@ -58,6 +58,10 @@ conda env update -f environment.yml --prune
 ## Usage
 
 ```bash
+# optional: clean OCR artifacts (| for I, split hyphenation, page junk)
+# out of a text first — writes <name>.cleaned.txt beside the input
+python -m prelexy clean data/corpora/dorian_gray_oscar_wilde.txt
+
 # extract the vocabulary of a text into the local database
 python -m prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
 
