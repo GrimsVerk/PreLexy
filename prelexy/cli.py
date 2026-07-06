@@ -94,7 +94,11 @@ def words(language, limit, db_path):
 @click.option("--language", default="en", show_default=True)
 @_db_option
 def question(form, language, db_path):
-    """Preview a multiple-choice question for a stored word (* marks the answer)."""
+    """Preview a multiple-choice question for a stored word (* marks the answer).
+
+    Debug view: unlike a play session, the context sentence and the answer
+    are shown up front.
+    """
     from prelexy.mcq import build_question
     from prelexy.similarity import SpacyVectors
     from prelexy.textproc import load_nlp

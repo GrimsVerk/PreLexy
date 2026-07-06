@@ -47,15 +47,22 @@ def play(store, profile, n_questions=10):
     )
 
 
-def test_session_records_reviews_and_state(store, monkeypatch):
+def test_session_records_reviews_and_state(store, monkeypatch, capsys):
     profile = store.get_or_create_profile("p")
-    add_word(store, "sagacious", gloss="having keen judgement")
+    target = add_word(store, "sagacious", gloss="having keen judgement")
     add_word(store, "gaunt", gloss="very thin")
+    source = store.add_source("t", "en", "book", None)
+    store.add_occurrences(target, source, [("A sagacious old man.", 2)])
     feed_answers(monkeypatch, ["1", "2"])
 
     summary = play(store, profile)
     assert summary.asked == 2
     assert summary.suspended == 0
+
+    # the context sentence is revealed only after the answer
+    out = capsys.readouterr().out
+    assert "seen in:" in out
+    assert out.index("A sagacious old man.") > out.index("What does “sagacious” mean?")
 
     logs = store._conn.execute("SELECT * FROM review_log ORDER BY id").fetchall()
     assert len(logs) == 2

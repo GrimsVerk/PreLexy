@@ -60,6 +60,10 @@ def run_session(
             click.secho("  ✓ correct", fg="green")
         else:
             click.secho(f"  ✗ it means: {question.options[question.answer]}", fg="red")
+        if question.context:
+            # revealed only after answering: seeing the sentence first makes
+            # the definition guessable from context
+            click.echo(f"  seen in: “{question.context}”")
         store.log_review(
             profile_id,
             item["id"],
@@ -85,8 +89,6 @@ def run_session(
 def _ask(question, number: int) -> tuple[int, int] | None:
     """Render one question and return (chosen index, latency ms); None = quit."""
     click.echo()
-    if question.context:
-        click.echo(f"  “{question.context}”")
     click.echo(f"{number}. What does “{question.form}” mean?")
     for index, option in enumerate(question.options):
         click.echo(f"   {index + 1}. {option}")
