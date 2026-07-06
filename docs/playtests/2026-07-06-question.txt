@@ -1,0 +1,14 @@
+[mcq] 'vermilion' ← 'hogweed' score 0.704
+[mcq] 'vermilion' ← 'lube' score 0.713
+[mcq] 'vermilion' ← 'goethite' score 0.762
+[mcq] 'vermilion': scanned 500, scored 496, in band 245, pool 10 → sampled 3
+““It is quite finished,” he cried at last, and stooping down he wrote his name in long vermilion letters on the left-hand corner of the canvas.”
+
+What does “vermilion” mean?
+
+   1. a substance capable of reducing friction by making surfaces smooth or slippery
+   2. a red or yellow or brown mineral; an oxide of iron that is a common constituent of rust
+   3. tall coarse plant having thick stems and cluster of white to purple flowers
+ * 4. a variable color that is vivid red but sometimes with an orange tinge
+
+(* marks the correct answer — preview mode)

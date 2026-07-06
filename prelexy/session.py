@@ -36,6 +36,7 @@ def run_session(
     similarity=None,
     n_questions: int = 10,
     rng=None,
+    band=None,
 ) -> SessionSummary:
     now = datetime.now(timezone.utc)
     items = scheduler.next_items(store, profile_id, language, now, n_questions)
@@ -45,7 +46,7 @@ def run_session(
         return summary
 
     for item in items:
-        question = build_question(store, item, similarity=similarity, rng=rng)
+        question = build_question(store, item, similarity=similarity, rng=rng, band=band)
         if question is None:
             store.upsert_item_state(profile_id, item["id"], "suspended", None, {})
             summary.suspended += 1

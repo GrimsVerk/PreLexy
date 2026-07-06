@@ -1,0 +1,127 @@
+Who is playing?
+  1. default
+  n. new profile
+Profile: [scheduler] 0 due, 4470 new, quotas 3 seen + 7 new → serving 0 reviews + 10 new
+[mcq] 'joyousness' ← 'ironside' score 0.691
+[mcq] 'joyousness' ← 'gleefulness' score 0.716
+[mcq] 'joyousness' ← 'blahs' score 0.746
+[mcq] 'joyousness': scanned 500, scored 497, in band 220, pool 10 → sampled 3
+
+1. What does “joyousness” mean?
+   1. a general feeling of boredom and dissatisfaction
+   2. a man of great strength or bravery
+   3. the emotion of great happiness
+   4. great merriment
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “For weeks he would not go there, would forget the hideous painted thing, and get back his light heart, his wonderful joyousness, his passionate absorption in mere existence.”
+[mcq] 'pattered' ← 'statant' score 0.680
+[mcq] 'pattered' ← 'involute' score 0.545
+[mcq] 'pattered' ← 'gnarly' score 0.531
+[mcq] 'pattered': scanned 500, scored 490, in band 31, pool 10 → sampled 3
+
+2. What does “pattered” mean?
+   1. especially of petals or leaves in bud; having margins rolled inward
+   2. standing on four feet
+   3. used of old persons or old trees; covered with knobs or knots
+   4. rain gently
+Your answer (1–4, p to hear it, q to quit):   ✗ it means: rain gently
+  seen in: “Her little feet pattered overhead.”
+[mcq] 'grotesqueness' ← 'mayhem' score 0.630
+[mcq] 'grotesqueness' ← 'glide' score 0.623
+[mcq] 'grotesqueness' ← 'clerihew' score 0.598
+[mcq] 'grotesqueness': scanned 500, scored 493, in band 81, pool 10 → sampled 3
+
+3. What does “grotesqueness” mean?
+   1. a witty satiric verse containing two rhymed couplets and mentioning a famous person
+   2. a vowellike sound that serves as a consonant
+   3. the willful and unlawful crippling or mutilation of another person
+   4. ludicrous or incongruous unnaturalness or distortion
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “The waving of crooked, false-jewelled fingers gave grotesqueness to the words.”
+[mcq] 'wilfulness' ✗ 'undiscipline' score 0.892 (near-synonym)
+[mcq] 'wilfulness' ← 'diagnosing' score 0.740
+[mcq] 'wilfulness' ← 'anachronism' score 0.720
+[mcq] 'wilfulness' ← 'shiftlessness' score 0.741
+[mcq] 'wilfulness': scanned 500, scored 497, in band 341, pool 10 → sampled 3
+
+4. What does “wilfulness” mean?
+   1. something located at a time when it could not have existed or occurred
+   2. identifying the nature or cause of some phenomenon
+   3. the trait of being prone to disobedience and lack of discipline
+   4. a failure to be active as a consequence of lack of initiative or ambition
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: ““You disarm me, Gladys,” he cried, catching the wilfulness of her mood.”
+[mcq] 'brickfield' ← 'scaup' score 0.630
+[mcq] 'brickfield' ← 'jacksonville' score 0.676
+[mcq] 'brickfield' ← 'unlawfulness' score 0.657
+[mcq] 'brickfield': scanned 500, scored 498, in band 165, pool 10 → sampled 3
+
+5. What does “brickfield” mean?
+   1. diving ducks of North America having a bluish-grey bill
+   2. Florida's largest city; a port and important commercial center in northeastern Florida
+   3. a place where bricks are made and sold
+   4. the quality of failing to conform to law
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “Then they passed by lonely brickfields.”
+[mcq] 'mislay' ← 'intersect' score 0.845
+[mcq] 'mislay' ← 'adjure' score 0.734
+[mcq] 'mislay' ← 'criticise' score 0.716
+[mcq] 'mislay': scanned 500, scored 482, in band 180, pool 10 → sampled 3
+
+6. What does “mislay” mean?
+   1. ask for or request earnestly
+   2. find fault with; express criticism of; point out real or perceived flaws
+   3. place (something) where one cannot find it again
+   4. meet at a point
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “| remember your telling me years ago that you had sent it down to Selby, and that it had got mislaid or stolen on the way.”
+[mcq] 'viler' ← 'grifter' score 0.545
+[mcq] 'viler' ← 'vindication' score 0.547
+[mcq] 'viler' ← 'rapscallion' score 0.675
+[mcq] 'viler': scanned 500, scored 498, in band 38, pool 10 → sampled 3
+
+7. What does “viler” mean?
+   1. a deceitful and unreliable scoundrel
+   2. the act of vindicating or defending against criticism or censure etc.
+   3. a person who swindles you by means of deception or fraud
+   4. morally reprehensible
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “Was the face on the canvas viler than before?”
+[mcq] 'stoutness' ← 'denizen' score 0.623
+[mcq] 'stoutness' ← 'analogue' score 0.697
+[mcq] 'stoutness' ← 'probity' score 0.665
+[mcq] 'stoutness': scanned 500, scored 495, in band 184, pool 10 → sampled 3
+
+8. What does “stoutness” mean?
+   1. the property of being strong and resolute
+   2. complete and confirmed integrity; having strong moral principles
+   3. something having the property of being analogous to something else
+   4. a person who inhabits a particular place
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “Opposite was the Duchess of Harley, a lady of admirable good-nature and good temper, much liked by everyone who knew her, and of those ample architectural proportions that in women who are not duchesses are described by contemporary historians as stoutness.”
+[mcq] 'wreathe' ← 'quiver' score 0.598
+[mcq] 'wreathe' ← 'limn' score 0.608
+[mcq] 'wreathe' ← 'shinny' score 0.625
+[mcq] 'wreathe': scanned 500, scored 489, in band 43, pool 10 → sampled 3
+
+9. What does “wreathe” mean?
+   1. trace the shape of
+   2. move with slow, sinuous movements
+   3. shake with fast, tremulous movements
+   4. climb awkwardly, as if by scrambling
+Your answer (1–4, p to hear it, q to quit):   ✗ it means: move with slow, sinuous movements
+  seen in: “She left the room, wreathed in smiles.”
+[mcq] 'comeliness' ← 'sake' score 0.743
+[mcq] 'comeliness' ← 'etui' score 0.760
+[mcq] 'comeliness' ← 'pilosity' score 0.786
+[mcq] 'comeliness': scanned 500, scored 498, in band 271, pool 10 → sampled 3
+
+10. What does “comeliness” mean?
+   1. the quality of having hair
+   2. a reason for wanting something done
+   3. the quality of being good looking and attractive
+   4. small ornamental ladies' bag for small articles
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “Innocent and into whose torpid veins the blood of three lads was infused by a Jewish doctor; Sigismondo Malatesta, the lover of Isotta and the lord of Rimini, whose effigy was burned at Rome as the enemy of God and man, who strangled Polyssena with a napkin, and gave poison to Ginevra d’Este in a cup of emerald, and in honour of a shameful passion built a pagan church for Christian worship; Charles VI, who had so wildly adored his brother’s wife that a leper had warned him of the insanity that was coming on him, and who, when his brain had sickened and grown strange, could only be soothed by Saracen cards painted with the images of love and death and madness; and, in his trimmed jerkin and jewelled cap and acanthuslike curls, Grifonetto Baglioni, who slew Astorre with his bride, and Simonetto with his page, and whose comeliness was such that, as he lay dying in the yellow piazza of Perugia, those who had hated him could not choose but weep, and Atalanta, who had cursed him, blessed him.”
+
+Session over: 8/10 correct.

@@ -13,22 +13,31 @@ import tomllib
 from pathlib import Path
 
 DEFAULTS = {
-    "session_length": 10,  # words per session (reviews + new)
-    "new_ratio": 0.3,  # fraction of each session reserved for new words
+    "new_words": 7,  # new words per session
+    "seen_words": 3,  # previously seen words (due reviews) per session
+    "similarity_floor": 0.45,  # distractor band, see docs/DESIGN.md
+    "similarity_ceiling": 0.85,
 }
 
 _TEMPLATE = """\
 # PreLexy configuration. CLI flags override these per session
-# (e.g. `prelexy play --length 20 --new-ratio 0.5`).
+# (e.g. `prelexy play --new 12 --seen 8`).
 
-# Words per practice session (due reviews + new words).
-session_length = 10
+# How many new words each practice session introduces.
+new_words = 7
 
-# Fraction of each session reserved for new words, 0.0-1.0. This takes
-# precedence over the review backlog: with 0.3 and a length of 10, at
-# least 3 slots go to new words whenever any exist. When there are no
-# new (or no due) words left, the remainder fills from the other kind.
-new_ratio = 0.3
+# How many previously seen words (due reviews) each session practices.
+# When one kind runs out, the other fills the gap, so sessions stay
+# new_words + seen_words long while there is anything to practice.
+seen_words = 3
+
+# Distractor similarity band (0.0-1.0), applied to the similarity between
+# the correct definition and a candidate definition. Above the ceiling a
+# candidate reads as a near-synonym and is excluded; the floor is a soft
+# preference for plausible-but-wrong options. Watch real scores with
+# `prelexy --debug play` before tuning.
+similarity_floor = 0.45
+similarity_ceiling = 0.85
 """
 
 
@@ -52,9 +61,15 @@ def load_config(path: Path | None = None) -> dict:
 
 
 def _validate(config: dict) -> None:
-    length = config["session_length"]
-    if not isinstance(length, int) or isinstance(length, bool) or length < 1:
-        raise ValueError(f"session_length must be a positive integer, got {length!r}")
-    ratio = config["new_ratio"]
-    if not isinstance(ratio, (int, float)) or isinstance(ratio, bool) or not 0.0 <= ratio <= 1.0:
-        raise ValueError(f"new_ratio must be between 0.0 and 1.0, got {ratio!r}")
+    for key in ("new_words", "seen_words"):
+        value = config[key]
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise ValueError(f"{key} must be a non-negative integer, got {value!r}")
+    floor, ceiling = config["similarity_floor"], config["similarity_ceiling"]
+    for key, value in (("similarity_floor", floor), ("similarity_ceiling", ceiling)):
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not 0.0 <= value <= 1.0:
+            raise ValueError(f"{key} must be between 0.0 and 1.0, got {value!r}")
+    if floor >= ceiling:
+        raise ValueError(
+            f"similarity_floor ({floor}) must be below similarity_ceiling ({ceiling})"
+        )

@@ -58,6 +58,10 @@ conda env update -f environment.yml --prune
 ## Usage
 
 ```bash
+# optional: clean OCR artifacts (| for I, split hyphenation, page junk)
+# out of a text first — writes <name>.cleaned.txt beside the input
+python -m prelexy clean data/corpora/dorian_gray_oscar_wilde.txt
+
 # extract the vocabulary of a text into the local database
 python -m prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
 
@@ -76,6 +80,9 @@ python -m prelexy play --profile alice --length 20
 # pronounce any word outside a session
 python -m prelexy say vermilion
 
+# any command with diagnostic detail on stderr (distractor scores, session mix)
+python -m prelexy --debug question vermilion
+
 # run the test suite
 python -m pytest
 ```
@@ -89,16 +96,25 @@ use a different one.
 `~/.config/prelexy/config.toml` is created with commented defaults on first
 run. It currently holds:
 
-- `session_length` — words per practice session (reviews + new), default 10
-- `new_ratio` — fraction of each session reserved for new words (0.0–1.0),
-  default 0.3. This trumps the review backlog: reviews never crowd new words
-  out entirely, and when either kind runs out the other fills the gap.
+- `new_words` — new words per practice session, default 7
+- `seen_words` — previously seen words (due reviews) per session, default 3.
+  The quotas trump the review backlog: reviews never crowd new words out,
+  and when either kind runs out the other fills the gap.
+- `similarity_floor` / `similarity_ceiling` — the distractor band applied to
+  definition-vs-definition similarity. Above the ceiling a candidate reads
+  as a near-synonym and is excluded; the floor is a soft preference for
+  plausible-but-wrong options. Check real scores with
+  `python -m prelexy --debug play` before tuning.
 
-CLI flags override the file per session:
+CLI flags override the word counts per session:
 
 ```bash
-python -m prelexy play --length 20 --new-ratio 0.5
+python -m prelexy play --new 12 --seen 8
 ```
+
+(If you have a config file from an earlier version, retired keys like
+`session_length`/`new_ratio` are ignored; delete the file to regenerate the
+current template.)
 
 ## Scope
 
@@ -111,6 +127,10 @@ entirely free (offline dictionaries first, free APIs only as a cached fallback).
 
 - `prelexy/` — the Python package (CLI, text processing, game engine)
 - `data/corpora/` — input texts to learn from
-- `docs/` — design ([DESIGN.md](docs/DESIGN.md)) and decision log
-  ([DECISIONS.md](docs/DECISIONS.md))
+- `docs/` — design ([DESIGN.md](docs/DESIGN.md)), decision log
+  ([DECISIONS.md](docs/DECISIONS.md)), work queue
+  ([BACKLOG.md](docs/BACKLOG.md)), session journal
+  ([JOURNAL.md](docs/JOURNAL.md)), and verification ledger
+  ([VERIFICATION.md](docs/VERIFICATION.md))
 - [`ROADMAP.md`](ROADMAP.md) — goals, phases, definition of done
+- `CLAUDE.md`, `.claude/` — working rules and setup for Claude Code sessions

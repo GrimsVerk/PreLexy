@@ -125,9 +125,7 @@ def test_play_profile_flag_bypasses_menu(tmp_path, monkeypatch):
 
 
 def test_question_command_previews_mcq(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "prelexy.textproc.load_nlp", lambda language="en": (_ for _ in ()).throw(OSError)
-    )
+    isolate_play(monkeypatch, tmp_path)  # question now reads the config too
     db = tmp_path / "db.sqlite"
     with Store(db) as store:
         source = store.add_source("t", "en", "book", None)

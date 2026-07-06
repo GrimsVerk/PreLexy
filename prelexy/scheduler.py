@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from prelexy import debug
 from prelexy.store import item_zipf
 
 
@@ -66,11 +67,13 @@ class SM2Scheduler:
     MIN_EASE = 1.3
     KNOWN_AFTER = 3  # consecutive successes
 
-    def __init__(self, new_ratio: float = 0.3, rng=None):
-        # new_ratio: fraction of each session reserved for new words. It
-        # trumps the review backlog — reviews never crowd new words out
-        # entirely; when either pool runs short the other fills the gap.
-        self.new_ratio = new_ratio
+    def __init__(self, new_words: int = 7, seen_words: int = 3, rng=None):
+        # Per-session quotas: new_words fresh words plus seen_words due
+        # reviews. Quotas trump the review backlog — reviews never crowd
+        # new words out — and when either pool runs short the other fills
+        # the gap, so sessions stay full while anything remains.
+        self.new_words = new_words
+        self.seen_words = seen_words
         self.rng = rng or random.Random()
 
     def next_items(self, store, profile_id, language, now, limit):
@@ -87,9 +90,15 @@ class SM2Scheduler:
         due.sort(key=lambda row: row["due_at"] or "")  # un-dated legacy rows first
         # shuffle rarity ties so fresh sessions stop being alphabetical
         new.sort(key=lambda row: (item_zipf(row), self.rng.random()))
-        n_new = round(limit * self.new_ratio) if new else 0
-        n_due = min(len(due), limit - n_new)
-        n_new = min(len(new), limit - n_due)
+        target = min(limit, self.new_words + self.seen_words)
+        n_due = min(len(due), self.seen_words)
+        n_new = min(len(new), target - n_due)  # own quota + any review shortfall
+        n_due = min(len(due), target - n_new)  # reviews refill if new ran short
+        debug.log(
+            "scheduler",
+            f"{len(due)} due, {len(new)} new, quotas {self.seen_words} seen + "
+            f"{self.new_words} new → serving {n_due} reviews + {n_new} new",
+        )
         return due[:n_due] + new[:n_new]
 
     def record_review(self, state, outcome, now):

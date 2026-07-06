@@ -180,3 +180,86 @@ friction, and googling a word mid-quiz reveals its definition. OS engines
 are free and offline, matching the project constraints; quality is
 good enough for single words. Future upgrade: cached human recordings from
 Wiktionary.
+
+## 016 — Minimal channel-based debug facility (2026-07)
+
+**Decision:** One tiny module (`prelexy/debug.py`): `log(channel, message)`
+prints dimmed to stderr only when enabled via `prelexy --debug` or
+`PRELEXY_DEBUG=1`. Channels are bare strings per subsystem; no logging
+framework, no levels, no registration.
+**Why:** Playtest debugging (distractor quality) needed visibility into
+selection internals, and more subsystems will need the same as the game
+grows (owner request: keep it expandable). Stderr keeps game output and
+pipes clean; the no-ceremony design means adding diagnostics anywhere is a
+one-liner, which is what makes it likely to actually happen.
+
+## 017 — Distractor similarity measured between definitions, not words (2026-07)
+
+**Decision:** The band applies to `text_similarity(correct_gloss,
+candidate_gloss)` — averaged content-token vectors of the definition
+texts — instead of word-vector similarity of the hidden words. Glosses that
+name the target word are excluded. Band bounds moved to provisional
+0.45/0.85 pending calibration with `--debug` scores from real play.
+**Why:** Owner's vector check confirmed 5 of 6 rare targets have no lexeme
+vector in `en_core_web_md`, so word-level scoring silently degraded to the
+random fallback for almost every question — the band never applied. Gloss
+text is ordinary prose (near-total vector coverage), and it is what the
+player actually reads: definition confusability IS the question's
+difficulty. This also supersedes the word-level near-synonym ceiling —
+near-synonyms have near-identical definitions.
+
+## 018 — Distractors sampled from the hardest-available pool (2026-07)
+
+**Decision:** The full candidate scan is scored and sorted; distractors are
+sampled at random from the 10 highest-scoring candidates (in-band ones
+preferred, most-similar-available when the floor leaves fewer than three).
+Replaces first-three-in-band selection.
+**Why:** Debug scores from real play showed first-found selection settling
+at the weak end of the band (scans stopping after 5–15 candidates at
+scores ~0.45–0.6), keeping questions too easy. Owner ruling: keep options
+random between sessions but make them as difficult as available; the
+top-10 pool does both, and it makes the floor a soft preference rather
+than a cliff.
+
+## 019 — Config: absolute word quotas + the distractor band (2026-07)
+
+**Decision:** The config file now holds `new_words` (default 7) and
+`seen_words` (default 3) — absolute per-session quotas replacing
+`session_length` + `new_ratio` — plus `similarity_floor` and
+`similarity_ceiling`. CLI flags `--new`/`--seen` override per session;
+retired keys in existing config files are ignored. `config.DEFAULTS` is the
+single source for the built-in band values (mcq reads its constants from
+it). Supersedes the knob set in 014 (the trumps-backlog and refill
+semantics stay).
+**Why:** Owner ruling: two absolute counts are more direct than a total
+plus a ratio, and the band belongs in config because tuning it is an
+ongoing playtest activity — with `--debug` providing the scores to tune by.
+
+## 020 — Claude Code guardrails: CLAUDE.md + Approved-only backlog (2026-07)
+
+**Decision:** Working rules for AI sessions live in `CLAUDE.md` (branch
+discipline, scope rules, rulings-are-law, free/offline constraints, seam
+protection, conventions). `docs/BACKLOG.md` holds the work queue in three
+sections — autonomous sessions implement **Approved items only**; new ideas
+go to Proposed as text; Deferred items are owner-parked and untouchable.
+`.claude/session-setup.sh` makes fresh sandboxes test-capable; the
+`.claude/settings.json` permission rules (allow the test/run/commit loop,
+deny any push to main and force pushes) are applied by the owner directly,
+since an agent should not write its own permission grants.
+**Why:** The owner wants sessions running unattended without drifting off
+topic or off rules. Rule drift, scope drift, and capability-gap drift each
+get a mechanism; the Approved-only rule mirrors how owner and agent already
+work (agent proposes, owner rules).
+
+## 021 — Rolling context capture (2026-07)
+
+**Decision:** Context relevant to future sessions or a different agent is
+written into the repo as it surfaces, in the same unit of work — chat is
+not storage. Prefer the existing file whose purpose fits (routing table in
+CLAUDE.md); create a new file only when nothing fits, with a clear purpose
+statement at the top.
+**Why:** Owner ruling. A conversation's context window is ephemeral and
+agent-specific; the repo is the only memory that transfers. The one-time
+capture of 2026-07-06 (journal, verification ledger, field notes) closed a
+~15% context gap that would otherwise silently reopen with every new
+session.

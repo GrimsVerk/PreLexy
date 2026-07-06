@@ -142,28 +142,42 @@ def test_sm2_next_items_serves_due_then_new_and_respects_spacing(store):
     assert [row["form"] for row in picked][:3] == ["legacy", "overdue", "notyet"]
 
 
-def test_sm2_new_ratio_trumps_review_backlog(store):
+def test_sm2_quotas_trump_review_backlog(store):
     profile = store.get_or_create_profile("p")
     for i in range(20):  # a big review backlog
         item = add_word(store, f"due{i}", zipf=3.0)
         store.upsert_item_state(
             profile, item, "learning", (NOW - timedelta(days=1)).isoformat(), {}
         )
-    for i in range(5):
+    for i in range(30):
         add_word(store, f"new{i}", zipf=2.0)
 
-    picked = SM2Scheduler(new_ratio=0.3).next_items(store, profile, "en", NOW, limit=10)
+    picked = SM2Scheduler(new_words=7, seen_words=3).next_items(
+        store, profile, "en", NOW, limit=10
+    )
     forms = [row["form"] for row in picked]
     assert len(forms) == 10
-    assert sum(form.startswith("new") for form in forms) == 3
-    assert sum(form.startswith("due") for form in forms) == 7
+    assert sum(form.startswith("new") for form in forms) == 7
+    assert sum(form.startswith("due") for form in forms) == 3
 
-    # with no new words left, the ratio yields and reviews fill the session
-    empty_new = SM2Scheduler(new_ratio=0.3).next_items(store, profile, "nl", NOW, 10)
-    assert empty_new == []
-    all_new_profile = store.get_or_create_profile("fresh")
-    picked = SM2Scheduler(new_ratio=0.3).next_items(store, all_new_profile, "en", NOW, 10)
-    assert len(picked) == 10  # nothing due yet: new words fill everything
+    # with no new words left, reviews fill the whole session
+    all_seen = store.get_or_create_profile("p")
+    empty = SM2Scheduler(new_words=7, seen_words=3).next_items(store, all_seen, "nl", NOW, 10)
+    assert empty == []
+    picked = SM2Scheduler(new_words=25, seen_words=3).next_items(
+        store, profile, "en", NOW, limit=28
+    )
+    forms = [row["form"] for row in picked]
+    assert sum(form.startswith("due") for form in forms) == 3
+    assert sum(form.startswith("new") for form in forms) == 25
+
+    # and when new words run short, reviews refill the gap
+    picked = SM2Scheduler(new_words=50, seen_words=3).next_items(
+        store, profile, "en", NOW, limit=53
+    )
+    forms = [row["form"] for row in picked]
+    assert sum(form.startswith("new") for form in forms) == 30  # all there are
+    assert sum(form.startswith("due") for form in forms) == 20  # backlog refills
 
 
 def test_sm2_shuffles_rarity_ties_between_sessions(store):

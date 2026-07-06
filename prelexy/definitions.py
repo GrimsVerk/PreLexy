@@ -42,7 +42,8 @@ def ensure_sense(store, item, allow_api: bool = True) -> Sense | None:
     cached = store.senses_for(item["id"])
     if cached:
         top = cached[0]
-        return Sense(top["gloss"], top["gloss_language"], top["provider"])
+        # re-clean on read so glosses cached before the sanitizer existed heal
+        return Sense(clean_gloss(top["gloss"]), top["gloss_language"], top["provider"])
     sense = wordnet_sense(item["form"], item["pos"], item["language"])
     if sense is None and allow_api:
         sense = api_sense(item["form"], item["pos"], item["language"])
@@ -76,7 +77,23 @@ def wordnet_sense(form: str, pos: str | None, language: str = "en") -> Sense | N
     synsets = wordnet.synsets(form, pos=_WORDNET_POS.get(pos)) or wordnet.synsets(form)
     if not synsets:
         return None
-    return Sense(gloss=synsets[0].definition(), gloss_language="en", provider="wordnet")
+    gloss = clean_gloss(synsets[0].definition())
+    if not gloss:
+        return None
+    return Sense(gloss=gloss, gloss_language="en", provider="wordnet")
+
+
+def clean_gloss(gloss: str) -> str:
+    """Strip WordNet gloss residue.
+
+    Raw WordNet glosses embed quoted usage examples with author
+    attributions; nltk moves the quotes into .examples() but can leave the
+    empty separators and the attribution behind, e.g.
+    "lean and wrinkled by shrinkage as from age or illness; ; ; ; -W.F.Starkie".
+    Real multi-part definitions ("a; b") are preserved.
+    """
+    parts = [part.strip() for part in gloss.split(";")]
+    return "; ".join(part for part in parts if part and not part.startswith("-"))
 
 
 def api_sense(form: str, pos: str | None, language: str = "en") -> Sense | None:

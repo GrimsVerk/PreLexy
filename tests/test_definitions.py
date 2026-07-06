@@ -36,6 +36,38 @@ API_PAYLOAD = [
 ]
 
 
+@pytest.mark.parametrize(
+    ("dirty", "clean"),
+    [
+        (
+            "lean and wrinkled by shrinkage as from age or illness; ; ; ; -W.F.Starkie",
+            "lean and wrinkled by shrinkage as from age or illness",
+        ),
+        ("deserving or inciting pity; ; ; - Galsworthy", "deserving or inciting pity"),
+        ("suitable to your needs; ; - T.L.Peacock", "suitable to your needs"),
+        ("a choice or delicious dish", "a choice or delicious dish"),
+        (
+            "of grass or vegetation; not cut down",  # real multi-part defs survive
+            "of grass or vegetation; not cut down",
+        ),
+    ],
+)
+def test_clean_gloss(dirty, clean):
+    assert definitions.clean_gloss(dirty) == clean
+
+
+def test_wordnet_sense_glosses_are_clean():
+    sense = wordnet_sense("wizened", "ADJ")
+    assert sense.gloss == "lean and wrinkled by shrinkage as from age or illness"
+
+
+def test_ensure_sense_cleans_previously_cached_glosses(store):
+    item_id = store.get_or_create_item("en", "pitiable", pos="ADJ")
+    store.add_sense(item_id, "deserving or inciting pity; ; ; - Galsworthy", "en", "wordnet")
+    sense = ensure_sense(store, store.find_item("en", "pitiable"))
+    assert sense.gloss == "deserving or inciting pity"
+
+
 def test_wordnet_sense_finds_real_words_with_pos():
     sense = wordnet_sense("sagacious", "ADJ")
     assert sense is not None

@@ -11,16 +11,20 @@ v1 is done when this works end to end:
 
 ### Success criteria
 
-- [ ] `prelexy ingest <file>` extracts lemma-based items from an English text,
+- [x] `prelexy ingest <file>` extracts lemma-based items from an English text,
       filters noise (stopwords, proper nouns, dictionary-membership check), ranks
-      candidates by rarity, and stores them
+      candidates by rarity, and stores them *(owner-verified 2026-07)*
 - [ ] `prelexy play` runs an MCQ session with real definitions and plausible
       distractors, and shows the example sentence from the source text
-- [ ] Progress is per profile and survives program restarts
-- [ ] Reviews come due on schedule, and the scheduler is swappable behind an
-      interface without touching any other code
+      *(works; "plausible" pending band calibration — docs/VERIFICATION.md)*
+- [x] Progress is per profile and survives program restarts
+      *(owner-verified across days)*
+- [x] Reviews come due on schedule, and the scheduler is swappable behind an
+      interface without touching any other code *(owner-verified; swap was a
+      one-line change)*
 - [ ] Works fully offline after initial setup (API used only as a fallback for
-      missing definitions, with results cached locally)
+      missing definitions, with results cached locally) *(offline works; the
+      API fallback path has never fired live — low risk, fails soft)*
 
 ### Phases
 
@@ -39,18 +43,60 @@ v1 is done when this works end to end:
    due reviews plus new items.
 5. **Polish** — ranking quality, distractor quality tuning, UX friction, docs.
 
-## Post-v1
+## Version sequence
 
-- **v1.x — L2 mode (tier 2):** surface-form extraction policy (learn "was", not
-  its lemma — conjugations are absorbed from input volume, not tables); bilingual
-  definitions with the gloss in the learner's strong language (likely
-  Wiktionary-derived data); per-profile language settings.
-- **v2 — code-docs mode (tier 3, design-only today):** ingest programming/library
-  documentation; custom-trained embeddings plugged in behind the existing
-  `SimilarityProvider` interface; `language` values like `python`. No
-  implementation until tiers 1–2 are solid.
-- **Exploratory:** an RL-based personalized scheduler trained on each player's
-  review log, plugged in behind the `Scheduler` interface.
+Development is strictly sequential: **finish v1 polish, then build v2, then
+build v3** (docs/BACKLOG.md mirrors this as Stages 1–3). The only exception
+is the stuck rule in CLAUDE.md: if everything remaining in the current
+stage is blocked or awaiting the owner, continue into the next stage and
+journal why.
+
+## v2 — learn a new language from zero (tier 2)
+
+v2 is done when this works end to end:
+
+> Point PreLexy at a real Dutch podcast transcript → it extracts and ranks
+> the **exact surface forms** used (learn "was", never an unheard
+> conjugation — grammar is absorbed from input volume, DECISIONS 002) →
+> MCQ sessions where the options are glosses **in the learner's strong
+> language** (English for the owner) → per-profile spaced repetition —
+> while English mode keeps working, in the same database.
+
+Any language is supported when the whole stack supports it: a spaCy
+pipeline, wordfreq data, a bilingual gloss source, and a TTS voice.
+Languages missing a piece are recorded in BACKLOG "Deferred" ("maybe
+later") with what's missing — never half-implemented. **Dutch is the
+required first language** (the owner's target; used for all real-world
+testing).
+
+Phases: (1) language-support registry + graceful unsupported errors;
+(2) Dutch NLP plumbing and a non-English noise gate; (3) bilingual gloss
+chain (OMW coverage spike → kaikki.org Wiktionary extract → cached free
+API); (4) distractor pool for non-English targets (options are English
+glosses, so existing gloss similarity is reused); (5) per-profile language
+settings + config `default_language`; (6) `.srt`/`.vtt` transcript
+ingestion; (7) owner verification with a real transcript.
+
+## v3 — learn programming languages from official docs (tier 3)
+
+v3 is done when this works end to end:
+
+> Ingest official documentation (Python stdlib first, then any library) →
+> drill methods and functions as "pick the correct description" with
+> spaced repetition — without breaking the natural-language modes.
+
+Items are qualified names (`list.pop`); glosses come from the docs
+themselves (no dictionary needed); distractors come from the same corpus
+through the existing `SimilarityProvider` seam — first pass with gloss-text
+similarity on the English descriptions, custom-trained code embeddings only
+if that proves inadequate (new dependency → owner approval). The stage
+opens with a design spike that lands in docs/DESIGN.md for owner review
+before implementation.
+
+## Exploratory (no version assigned)
+
+- An RL-based personalized scheduler trained on each player's review log,
+  plugged in behind the `Scheduler` interface.
 
 ## Out of scope (all versions, until explicitly revisited)
 
