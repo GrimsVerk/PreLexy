@@ -220,3 +220,17 @@ scores ~0.45–0.6), keeping questions too easy. Owner ruling: keep options
 random between sessions but make them as difficult as available; the
 top-10 pool does both, and it makes the floor a soft preference rather
 than a cliff.
+
+## 019 — Config: absolute word quotas + the distractor band (2026-07)
+
+**Decision:** The config file now holds `new_words` (default 7) and
+`seen_words` (default 3) — absolute per-session quotas replacing
+`session_length` + `new_ratio` — plus `similarity_floor` and
+`similarity_ceiling`. CLI flags `--new`/`--seen` override per session;
+retired keys in existing config files are ignored. `config.DEFAULTS` is the
+single source for the built-in band values (mcq reads its constants from
+it). Supersedes the knob set in 014 (the trumps-backlog and refill
+semantics stay).
+**Why:** Owner ruling: two absolute counts are more direct than a total
+plus a ratio, and the band belongs in config because tuning it is an
+ongoing playtest activity — with `--debug` providing the scores to tune by.

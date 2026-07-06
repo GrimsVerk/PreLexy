@@ -105,6 +105,17 @@ def say(word, language):
         raise click.ClickException(INSTALL_HINT)
 
 
+def _load_config_or_die() -> dict:
+    import tomllib
+
+    from prelexy.config import config_path, load_config
+
+    try:
+        return load_config()
+    except (OSError, ValueError, tomllib.TOMLDecodeError) as error:
+        raise click.ClickException(f"Bad config file ({config_path()}): {error}")
+
+
 def _choose_profile(store) -> int:
     """Ask who is playing: pick an existing profile or create one."""
     profiles = store.list_profiles()
@@ -140,6 +151,7 @@ def question(form, language, db_path):
     from prelexy.similarity import SpacyVectors
     from prelexy.textproc import load_nlp
 
+    config = _load_config_or_die()
     with Store(db_path) as store:
         item = store.find_item(language, form)
         if item is None:
@@ -149,8 +161,13 @@ def question(form, language, db_path):
         try:
             similarity = SpacyVectors(load_nlp(language))
         except (OSError, ValueError):
-            similarity = None  # no vectors: distractors matched by POS and rarity only
-        built = build_question(store, item, similarity=similarity)
+            similarity = None  # no vectors: random same-POS fallback
+        built = build_question(
+            store,
+            item,
+            similarity=similarity,
+            band=(config["similarity_floor"], config["similarity_ceiling"]),
+        )
         if built is None:
             raise click.ClickException(
                 f"Couldn't build a question for {form!r} — no definition or no "
@@ -174,28 +191,22 @@ def question(form, language, db_path):
     "Without this flag, play asks who is playing.",
 )
 @click.option("--language", default="en", show_default=True)
-@click.option("--length", "n_questions", default=None, type=click.IntRange(min=1),
-              help="Words this session [default: session_length from the config file]")
-@click.option("--new-ratio", "new_ratio", default=None, type=click.FloatRange(0.0, 1.0),
-              help="Fraction of the session reserved for new words "
-                   "[default: new_ratio from the config file]")
+@click.option("--new", "new_words", default=None, type=click.IntRange(min=0),
+              help="New words this session [default: new_words from the config file]")
+@click.option("--seen", "seen_words", default=None, type=click.IntRange(min=0),
+              help="Previously seen words (due reviews) this session "
+                   "[default: seen_words from the config file]")
 @_db_option
-def play(profile_name, language, n_questions, new_ratio, db_path):
+def play(profile_name, language, new_words, seen_words, db_path):
     """Start a practice session."""
-    import tomllib
-
-    from prelexy.config import config_path, load_config
     from prelexy.scheduler import SM2Scheduler
     from prelexy.session import run_session
     from prelexy.similarity import SpacyVectors
     from prelexy.textproc import load_nlp
 
-    try:
-        config = load_config()
-    except (OSError, ValueError, tomllib.TOMLDecodeError) as error:
-        raise click.ClickException(f"Bad config file ({config_path()}): {error}")
-    n_questions = n_questions if n_questions is not None else config["session_length"]
-    new_ratio = new_ratio if new_ratio is not None else config["new_ratio"]
+    config = _load_config_or_die()
+    new_words = new_words if new_words is not None else config["new_words"]
+    seen_words = seen_words if seen_words is not None else config["seen_words"]
 
     try:
         similarity = SpacyVectors(load_nlp(language))
@@ -211,7 +222,8 @@ def play(profile_name, language, n_questions, new_ratio, db_path):
             store,
             profile_id,
             language,
-            SM2Scheduler(new_ratio=new_ratio),
+            SM2Scheduler(new_words=new_words, seen_words=seen_words),
             similarity=similarity,
-            n_questions=n_questions,
+            n_questions=new_words + seen_words,
+            band=(config["similarity_floor"], config["similarity_ceiling"]),
         )

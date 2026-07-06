@@ -20,16 +20,17 @@ import random
 from dataclasses import dataclass
 
 from prelexy import debug
+from prelexy.config import DEFAULTS
 from prelexy.definitions import ensure_sense, wordnet_lemma_names, wordnet_sense
 
 # The distractor band, applied to definition-text similarity: above the
 # ceiling the two definitions nearly coincide (near-synonym — ambiguous,
-# unfair); below the floor the candidate gloss is from another domain
-# entirely (too obviously wrong). PROVISIONAL values — averaged-vector text
-# similarities run higher than word similarities; calibrate against real
-# scores from `prelexy --debug question <word>`.
-SIMILARITY_FLOOR = 0.45
-SIMILARITY_CEILING = 0.85
+# unfair); the floor is a soft preference for plausible-but-wrong options.
+# PROVISIONAL values — calibrate against real scores from
+# `prelexy --debug question <word>`. Configurable via config.toml; these
+# module constants are the single built-in default (from config.DEFAULTS).
+SIMILARITY_FLOOR = DEFAULTS["similarity_floor"]
+SIMILARITY_CEILING = DEFAULTS["similarity_ceiling"]
 
 N_OPTIONS = 4
 
@@ -51,17 +52,18 @@ class Question:
     answer: int  # index into options of the correct gloss
 
 
-def build_question(store, item, similarity=None, rng=None) -> Question | None:
+def build_question(store, item, similarity=None, rng=None, band=None) -> Question | None:
     """Build an MCQ for an item row.
 
-    Returns None when no definition can be found for the item, or when no
-    usable distractor exists at all.
+    `band` overrides the (floor, ceiling) module defaults, e.g. from the
+    config file. Returns None when no definition can be found for the item,
+    or when no usable distractor exists at all.
     """
     rng = rng or random.Random()
     sense = ensure_sense(store, item)
     if sense is None:
         return None
-    distractors = _distractors(item, sense.gloss, similarity, rng)
+    distractors = _distractors(item, sense.gloss, similarity, rng, band)
     if not distractors:
         return None
     options = [sense.gloss, *distractors]
@@ -75,7 +77,7 @@ def build_question(store, item, similarity=None, rng=None) -> Question | None:
     )
 
 
-def _distractors(item, correct_gloss, similarity, rng) -> list[str]:
+def _distractors(item, correct_gloss, similarity, rng, band=None) -> list[str]:
     """Up to N_OPTIONS-1 distractor glosses, sampled from the hardest available.
 
     Every scanned candidate below the near-synonym ceiling is scored against
@@ -86,6 +88,7 @@ def _distractors(item, correct_gloss, similarity, rng) -> list[str]:
     Unscored candidates (no provider, or gloss without usable vectors) are
     only a top-up of last resort.
     """
+    floor, ceiling = band or (SIMILARITY_FLOOR, SIMILARITY_CEILING)
     target_lemma = (item["lemma"] or item["form"]).lower()
     needed = N_OPTIONS - 1
     scored: list[tuple[float, str, str]] = []  # (score, word, gloss)
@@ -112,7 +115,7 @@ def _distractors(item, correct_gloss, similarity, rng) -> list[str]:
             if similarity is None and len(unscored) == needed:
                 break
             continue
-        if score >= SIMILARITY_CEILING:
+        if score >= ceiling:
             debug.log(
                 "mcq", f"{item['form']!r} ✗ {candidate!r} score {score:.3f} (near-synonym)"
             )
@@ -128,11 +131,11 @@ def _distractors(item, correct_gloss, similarity, rng) -> list[str]:
         return picked
 
     scored.sort(reverse=True)  # hardest first
-    in_band = [entry for entry in scored if entry[0] > SIMILARITY_FLOOR]
+    in_band = [entry for entry in scored if entry[0] > floor]
     pool = (in_band if len(in_band) >= needed else scored)[:_POOL_SIZE]
     sampled = rng.sample(pool, min(needed, len(pool)))
     for score, candidate, _ in sampled:
-        marker = "" if score > SIMILARITY_FLOOR else " (below floor)"
+        marker = "" if score > floor else " (below floor)"
         debug.log("mcq", f"{item['form']!r} ← {candidate!r} score {score:.3f}{marker}")
     debug.log(
         "mcq",
