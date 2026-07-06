@@ -3,6 +3,7 @@ from pathlib import Path
 
 import click
 
+from prelexy import debug
 from prelexy.store import Store
 from prelexy.textproc import extract_candidates
 
@@ -17,8 +18,12 @@ _db_option = click.option(
 
 
 @click.group()
-def cli():
+@click.option("--debug", "debug_flag", is_flag=True,
+              help="Print diagnostic detail to stderr (e.g. distractor scores).")
+def cli(debug_flag):
     """PreLexy — learn the vocabulary of the texts you actually read."""
+    if debug_flag:
+        debug.enable()
 
 
 @cli.command()

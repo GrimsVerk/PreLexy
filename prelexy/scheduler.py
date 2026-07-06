@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from prelexy import debug
 from prelexy.store import item_zipf
 
 
@@ -90,6 +91,11 @@ class SM2Scheduler:
         n_new = round(limit * self.new_ratio) if new else 0
         n_due = min(len(due), limit - n_new)
         n_new = min(len(new), limit - n_due)
+        debug.log(
+            "scheduler",
+            f"{len(due)} due, {len(new)} new, limit {limit}, ratio {self.new_ratio} "
+            f"→ serving {n_due} reviews + {n_new} new",
+        )
         return due[:n_due] + new[:n_new]
 
     def record_review(self, state, outcome, now):

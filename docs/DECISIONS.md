@@ -180,3 +180,15 @@ friction, and googling a word mid-quiz reveals its definition. OS engines
 are free and offline, matching the project constraints; quality is
 good enough for single words. Future upgrade: cached human recordings from
 Wiktionary.
+
+## 016 — Minimal channel-based debug facility (2026-07)
+
+**Decision:** One tiny module (`prelexy/debug.py`): `log(channel, message)`
+prints dimmed to stderr only when enabled via `prelexy --debug` or
+`PRELEXY_DEBUG=1`. Channels are bare strings per subsystem; no logging
+framework, no levels, no registration.
+**Why:** Playtest debugging (distractor quality) needed visibility into
+selection internals, and more subsystems will need the same as the game
+grows (owner request: keep it expandable). Stderr keeps game output and
+pipes clean; the no-ceremony design means adding diagnostics anywhere is a
+one-liner, which is what makes it likely to actually happen.

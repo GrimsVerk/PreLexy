@@ -76,6 +76,9 @@ python -m prelexy play --profile alice --length 20
 # pronounce any word outside a session
 python -m prelexy say vermilion
 
+# any command with diagnostic detail on stderr (distractor scores, session mix)
+python -m prelexy --debug question vermilion
+
 # run the test suite
 python -m pytest
 ```

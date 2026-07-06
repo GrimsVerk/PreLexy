@@ -183,6 +183,16 @@ custom-trained code embeddings (needed because `pop` the Python method is nothin
 like `pop` the English word) plug in here without touching the MCQ generator,
 which depends only on this interface.
 
+## Diagnostics
+
+`prelexy --debug <command>` (or `PRELEXY_DEBUG=1`) turns on diagnostic
+output, dimmed on stderr so it never mixes with game output. The facility
+(`prelexy/debug.py`) is deliberately minimal and extensible: any module
+calls `debug.log(channel, message)` unconditionally — silent unless enabled,
+one short channel name per subsystem ("mcq", "scheduler", …), no
+registration. When a new subsystem misbehaves, add log calls under a new
+channel rather than inventing a new mechanism.
+
 ## Pronunciation
 
 `prelexy/speech.py` speaks a single word through the operating system's own
