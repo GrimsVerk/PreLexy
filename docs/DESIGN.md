@@ -183,6 +183,15 @@ custom-trained code embeddings (needed because `pop` the Python method is nothin
 like `pop` the English word) plug in here without touching the MCQ generator,
 which depends only on this interface.
 
+## Pronunciation
+
+`prelexy/speech.py` speaks a single word through the operating system's own
+engine (macOS `say`, Windows SAPI, Linux `espeak-ng`) — free, offline, no
+Python dependencies. Reached with `p` at the answer prompt (deliberately
+does not reveal anything about the definition) or `prelexy say <word>`.
+Upgrade path: Wiktionary hosts human recordings for many words; fetch on
+demand, cache locally, fall back to the OS engine.
+
 ## Open questions
 
 - Distractor similarity band and ranking thresholds — decide empirically (phase 2/5).

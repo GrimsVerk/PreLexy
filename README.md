@@ -68,9 +68,13 @@ python -m prelexy words --limit 20
 python -m prelexy question vermilion
 
 # play a practice session — asks who is playing (pick a saved profile
-# or create one); --profile skips the menu
+# or create one); --profile skips the menu. During a question, answer
+# with p to hear the word pronounced, q to quit.
 python -m prelexy play
 python -m prelexy play --profile alice --length 20
+
+# pronounce any word outside a session
+python -m prelexy say vermilion
 
 # run the test suite
 python -m pytest

@@ -16,6 +16,7 @@ import click
 
 from prelexy.mcq import build_question
 from prelexy.scheduler import ReviewOutcome
+from prelexy.speech import INSTALL_HINT, pronounce
 
 EXERCISE = "mcq_definition"
 
@@ -93,14 +94,19 @@ def _ask(question, number: int) -> tuple[int, int] | None:
     for index, option in enumerate(question.options):
         click.echo(f"   {index + 1}. {option}")
     started = time.monotonic()
+    prompt_text = f"Your answer (1–{len(question.options)}, p to hear it, q to quit)"
     while True:
         try:
-            raw = click.prompt("Your answer (q to quit)", type=str).strip().lower()
+            raw = click.prompt(prompt_text, type=str).strip().lower()
         except (click.exceptions.Abort, EOFError):
             return None
         if raw == "q":
             return None
+        if raw == "p":
+            if not pronounce(question.form):
+                click.echo(f"  ({INSTALL_HINT})")
+            continue
         if raw.isdigit() and 1 <= int(raw) <= len(question.options):
             latency_ms = int((time.monotonic() - started) * 1000)
             return int(raw) - 1, latency_ms
-        click.echo(f"  Please answer 1–{len(question.options)}, or q.")
+        click.echo(f"  Please answer 1–{len(question.options)}, p, or q.")

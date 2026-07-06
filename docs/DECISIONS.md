@@ -166,3 +166,17 @@ manners. The owner wants these knobs tweakable between sessions without
 editing code; stdlib `tomllib` keeps it dependency-free. Tie shuffling fixes
 the "every fresh database serves 'accurse' first" determinism that zipf-0
 ties created.
+
+## 015 — Pronunciation-on-demand via the OS speech engine (2026-07)
+
+**Decision:** Word pronunciation joins the scope (the ROADMAP audio
+exclusion now covers only audio *beyond* pronunciation). `p` at the answer
+prompt speaks the current word; `prelexy say <word>` works outside
+sessions. Implementation: the operating system's own engine — macOS `say`,
+Windows SAPI via PowerShell, Linux `espeak-ng`/`espeak` — through
+subprocess, no new Python dependencies, graceful install hint when absent.
+**Why:** "I don't even know how to pronounce that" was a real playtest
+friction, and googling a word mid-quiz reveals its definition. OS engines
+are free and offline, matching the project constraints; quality is
+good enough for single words. Future upgrade: cached human recordings from
+Wiktionary.

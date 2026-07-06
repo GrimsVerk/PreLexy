@@ -57,6 +57,16 @@ def test_ingest_then_words_roundtrip(tmp_path, monkeypatch):
     assert lines[2].startswith("run")
 
 
+def test_say_command_reports_missing_engine(monkeypatch):
+    monkeypatch.setattr("prelexy.speech.pronounce", lambda word, language="en": False)
+    result = CliRunner().invoke(cli, ["say", "vermilion"])
+    assert result.exit_code != 0
+    assert "No speech engine found" in result.output
+
+    monkeypatch.setattr("prelexy.speech.pronounce", lambda word, language="en": True)
+    assert CliRunner().invoke(cli, ["say", "vermilion"]).exit_code == 0
+
+
 def test_words_on_empty_db_explains_ingest(tmp_path):
     runner = CliRunner()
     result = runner.invoke(cli, ["words", "--db", str(tmp_path / "empty.db")])

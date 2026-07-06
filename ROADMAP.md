@@ -55,6 +55,8 @@ v1 is done when this works end to end:
 ## Out of scope (all versions, until explicitly revisited)
 
 - GUI, web, or mobile interfaces — terminal only
-- Audio playback or speech
+- Audio beyond word pronunciation (hearing how the current word is
+  pronounced — `p` during a session, `prelexy say <word>` — is in scope;
+  general audio playback and speech interfaces are not)
 - Cloud sync or online accounts — profiles are local to the machine
 - Paid data sources or APIs — the project stays entirely free

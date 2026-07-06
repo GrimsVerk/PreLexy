@@ -89,6 +89,17 @@ def words(language, limit, db_path):
         )
 
 
+@cli.command()
+@click.argument("word")
+@click.option("--language", default="en", show_default=True)
+def say(word, language):
+    """Pronounce a word aloud using the system speech engine."""
+    from prelexy.speech import INSTALL_HINT, pronounce
+
+    if not pronounce(word, language):
+        raise click.ClickException(INSTALL_HINT)
+
+
 def _choose_profile(store) -> int:
     """Ask who is playing: pick an existing profile or create one."""
     profiles = store.list_profiles()

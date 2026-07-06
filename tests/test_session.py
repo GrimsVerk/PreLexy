@@ -121,6 +121,31 @@ def test_undefinable_words_get_suspended(store, monkeypatch):
     assert play(store, profile).suspended == 0
 
 
+def test_p_pronounces_and_still_records_one_review(store, monkeypatch):
+    profile = store.get_or_create_profile("p")
+    add_word(store, "sagacious", zipf=2.0, gloss="having keen judgement")  # served first
+    add_word(store, "gaunt", zipf=2.6, gloss="very thin")
+    spoken = []
+    monkeypatch.setattr(session, "pronounce", lambda word, language="en": spoken.append(word) or True)
+    feed_answers(monkeypatch, ["p", "1", "q"])
+
+    summary = play(store, profile)
+    assert spoken == ["sagacious"]
+    assert summary.asked == 1
+    assert store._conn.execute("SELECT COUNT(*) c FROM review_log").fetchone()["c"] == 1
+
+
+def test_p_without_engine_shows_hint(store, monkeypatch, capsys):
+    profile = store.get_or_create_profile("p")
+    add_word(store, "sagacious", gloss="having keen judgement")
+    add_word(store, "gaunt", gloss="very thin")
+    monkeypatch.setattr(session, "pronounce", lambda word, language="en": False)
+    feed_answers(monkeypatch, ["p", "q"])
+
+    play(store, profile)
+    assert "No speech engine found" in capsys.readouterr().out
+
+
 def test_empty_store_says_so(store, capsys):
     profile = store.get_or_create_profile("p")
     summary = play(store, profile)
