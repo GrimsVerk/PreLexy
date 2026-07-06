@@ -55,4 +55,24 @@ choices and owner rulings.
 - Use AskUserQuestion only when truly blocked. Otherwise state what you
   need in plain chat and continue on best judgment; the owner reads chat.
 - Real-model verification happens on the owner's machine: ask for
-  `prelexy --debug` transcripts rather than claiming something verified.
+  `prelexy --debug` transcripts rather than claiming something verified,
+  and keep `docs/VERIFICATION.md` up to date whenever a state changes.
+
+## Unattended sessions
+
+- Work the "Approved" items in `docs/BACKLOG.md` top to bottom, and keep
+  going until the list is done. Do not stop and wait unless truly blocked
+  on something only the owner can provide.
+- **Stuck rule:** after 3–5 failed attempts at the same problem, stop
+  attacking it. Log everything tried (and why it failed) in
+  `docs/JOURNAL.md`, then move on to the next goal. If the stuck thing
+  gates *all* other goals, build the simplest possible stand-in so the
+  rest can proceed, mark it clearly (journal entry + code comment), and
+  leave the real fix for the owner.
+- **Friction log:** record every permission prompt, denial, or classifier
+  block in the session's journal entry — this is the data for tuning the
+  guardrails later.
+- Every working session appends a dated entry to `docs/JOURNAL.md`:
+  commits made, discoveries, friction, hand-off notes.
+- Prefer separate commands over long `&&` chains: separate commands match
+  the permission allowlist; chains fall through to the classifier.

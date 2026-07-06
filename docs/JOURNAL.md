@@ -46,6 +46,10 @@ and are referenced from entries.
   `.claude/settings.json` (self-modification) — correct behaviour; the
   owner pasted it instead. Earlier friction: batch `git rm`/`git mv`
   restructure denied until the owner granted permission in chat.
+- Friction datum #2: *editing* settings.json (allowlist additions:
+  git mv/rm/checkout/switch/stash/pull, mkdir, printf, setup script) was
+  permitted when done right after an explicit owner instruction in chat —
+  the classifier weighs conversational intent heavily.
 - Awaiting owner: verification run (commands in docs/VERIFICATION.md),
   most importantly whether `prelexy say` produces audio, post-change
   `--debug play` scores for band calibration, and real-model pytest.

@@ -6,7 +6,12 @@
       "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git show*)",
       "Bash(git add*)", "Bash(git commit*)",
       "Bash(git push origin claude*)", "Bash(git push -u origin claude*)",
-      "Bash(git fetch*)", "Bash(git branch*)"
+      "Bash(git fetch*)", "Bash(git branch*)",
+      "Bash(git pull origin claude*)",
+      "Bash(git mv*)", "Bash(git rm*)",
+      "Bash(git checkout*)", "Bash(git switch*)", "Bash(git stash*)",
+      "Bash(mkdir*)", "Bash(printf*)",
+      "Bash(bash .claude/session-setup.sh*)"
     ],
     "deny": [
       "Bash(git push origin main*)", "Bash(git push * main*)",
