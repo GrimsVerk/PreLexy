@@ -11,9 +11,11 @@ and are referenced from entries.
 ## Field notes
 
 - The owner's live database was ingested from the **uncleaned** Dorian Gray
-  file. Re-ingesting the cleaned version into the same DB would double
-  occurrence counts (items dedupe, occurrences don't) — fresh DB or stay on
-  the original.
+  file (visible as "| remember" in context sentences). Re-ingesting the
+  cleaned version into the same DB would double occurrence counts (items
+  dedupe, occurrences don't) — fix is a fresh DB + ingest of the cleaned
+  file, owner's call. The cleaned file exists untracked on the owner's
+  machine at `data/corpora/dorian_gray_oscar_wilde.cleaned.txt`.
 - `data/corpora/dorian_gray_oscar_wilde.txt` is the Project Gutenberg copy;
   the imperfect OCR is upstream, not local damage.
 - `en_core_web_md` has **no vectors for most rare literary words** (owner
@@ -58,3 +60,24 @@ and are referenced from entries.
   `--debug play` scores for band calibration, and real-model pytest.
   Owner will then merge everything into main; from that point the `claude`
   branch accumulates only the unattended work done while they are away.
+
+### 2026-07-06 (later) — owner verification results, version plans
+
+- Owner ran the full verification batch (docs/playtests/2026-07-06-*):
+  103/103 tests pass on the real model; top-10 pool confirmed (scores
+  0.53–0.85, was 0.45–0.6); quotas live ("3 seen + 7 new"); glosses clean;
+  cleaner counts match sandbox; **pronunciation produces audio** (chat).
+  VERIFICATION ledger updated — everything owner-verifiable is now
+  owner-verified except band calibration (data now exists) and the
+  free-API fallback (fails soft, low risk).
+- Calibration data points for Stage 1: in-band counts range 31–341 per
+  500 scanned; 'gleefulness' (0.716) surfaced as a de-facto near-synonym
+  of 'joyousness' below the 0.85 ceiling → consider lowering the ceiling;
+  sparse-neighborhood words (pattered: 31 in band) produce easier options
+  than dense ones (comeliness: 271) — expected, acceptable.
+- 'comeliness' served a ~1,400-character context sentence → confirms the
+  shortest-complete-occurrence backlog item.
+- Restructured docs/BACKLOG.md into sequential stages (v1 polish → v2
+  languages → v3 code docs) per owner instruction; ROADMAP v2/v3 plans
+  written. Owner merges to main next; unattended work then accumulates on
+  `claude`.

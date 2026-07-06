@@ -15,12 +15,14 @@ observed working end-to-end anywhere.
 | SM-2 spacing (intervals, due-first serving) | owner | different-day exact repeat = 1-day intervals maturing |
 | Profile picker | owner | 2026-07-06 transcript shows the menu |
 | Gloss-vs-gloss scoring + `--debug` scores | owner | 2026-07-06 transcript, all questions in band |
-| Distractor band values (0.45 / 0.85) | UNCALIBRATED | needs `[mcq]` score data from post-top-10 playtests |
-| Top-10 hardest-pool sampling | sandbox | owner: next `--debug play` should show scores clustering higher |
-| Config quotas (new 7 / seen 3) + band keys | sandbox | owner: regenerate config (command 0), then play |
-| Gloss sanitizer ("; ; ; -Author" residue) | sandbox (real WordNet) | owner: glosses should be clean next play |
-| `clean` command | sandbox (real corpus: 1415 pipes, 53 hyphens) | owner: command 4 below |
-| Pronunciation (`say`, `p` in session) | UNVERIFIED | no audio in sandbox — owner: command 3, report yes/no in chat |
+| Full test suite on the real model | owner | playtests/2026-07-06-pytest.txt: 103 passed, 0 skipped |
+| Top-10 hardest-pool sampling | owner | playtests/2026-07-06-play.txt: 500 scanned, pool 10, scores 0.53–0.85 (was 0.45–0.6) |
+| Near-synonym ceiling exclusion | owner | same transcript: 'undiscipline' 0.892 excluded for 'wilfulness' |
+| Config quotas (new 7 / seen 3) + band keys | owner | scheduler line: "quotas 3 seen + 7 new" |
+| Gloss sanitizer ("; ; ; -Author" residue) | owner | no residue in any 2026-07-06 transcript |
+| `clean` command | owner | playtests/2026-07-06-clean.txt matches sandbox counts exactly |
+| Pronunciation (`say`, `p` in session) | owner | owner confirmed audio in chat, 2026-07-06 |
+| Distractor band values (0.45 / 0.85) | UNCALIBRATED (data available) | playtests show in-band counts 31–341/500; 'gleefulness' 0.716 slipped under the ceiling as a near-synonym of 'joyousness' → ceiling may need lowering; Stage-1 backlog item |
 | Free-API definition fallback | UNVERIFIED (fails soft) | only fires for words WordNet lacks; low risk, mocked in tests |
 | SessionStart hook + setup script | sandbox (script itself) | hook wiring confirmed on next fresh Claude session |
 
