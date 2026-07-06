@@ -116,11 +116,14 @@ ask **"pick the correct definition"** from four options.
   (DECISIONS 017) — rare literary words are usually absent from the pruned
   vector table, but their definitions are ordinary prose, so gloss-vs-gloss
   scoring has near-total coverage and measures the thing the player actually
-  reads. Candidates must sit inside the band
-  `SIMILARITY_FLOOR < s < SIMILARITY_CEILING` (`prelexy/mcq.py`) — above the
-  ceiling the definitions nearly coincide (near-synonym: ambiguous, unfair),
-  below the floor the gloss is from another domain (too obviously wrong).
-  Band values are provisional; calibrate against real scores from
+  reads. The whole scan is scored and sorted, and distractors are **sampled
+  from the 10 highest-scoring candidates** (DECISIONS 018) — varied between
+  sessions, biased toward the hardest available. Candidates above
+  `SIMILARITY_CEILING` are always excluded (near-synonym: the definitions
+  nearly coincide — ambiguous, unfair); `SIMILARITY_FLOOR` is a soft
+  preference — in-band candidates win, but when the floor leaves fewer than
+  three, the most similar available fill the pool. Band values are
+  provisional; calibrate against real scores from
   `prelexy --debug question <word>`. Rarity plays no part (DECISIONS 013).
   Excluded: the target's lemma, duplicate glosses, and glosses that name
   the target word. Only when no provider is loaded at all do candidates

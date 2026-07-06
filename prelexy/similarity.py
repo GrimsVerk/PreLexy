@@ -33,6 +33,9 @@ class SpacyVectors:
     def __init__(self, nlp):
         self._nlp = nlp
         self._vocab = nlp.vocab
+        # distractor scans compare one correct gloss against hundreds of
+        # candidates; caching text vectors makes that target-side free
+        self._text_vectors: dict[str, np.ndarray | None] = {}
 
     def similarity(self, a: str, b: str) -> float | None:
         lex_a, lex_b = self._vocab[a], self._vocab[b]
@@ -47,21 +50,24 @@ class SpacyVectors:
         return float(np.dot(vec_a, vec_b))
 
     def _text_vector(self, text: str):
-        """Unit vector of the averaged content-token vectors.
+        """Unit vector of the averaged content-token vectors (cached).
 
         Stopwords and punctuation are excluded: averaging them in inflates
         the similarity of any two English sentences.
         """
+        if text in self._text_vectors:
+            return self._text_vectors[text]
         doc = self._nlp.make_doc(text)  # tokenizer only — no pipeline needed
         vectors = [
             token.vector
             for token in doc
             if token.has_vector and not token.is_stop and not token.is_punct
         ]
-        if not vectors:
-            return None
-        mean = np.mean(vectors, axis=0)
-        norm = np.linalg.norm(mean)
-        if norm == 0:
-            return None
-        return mean / norm
+        result = None
+        if vectors:
+            mean = np.mean(vectors, axis=0)
+            norm = np.linalg.norm(mean)
+            if norm > 0:
+                result = mean / norm
+        self._text_vectors[text] = result
+        return result

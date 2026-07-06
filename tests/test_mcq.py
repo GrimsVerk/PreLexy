@@ -109,6 +109,54 @@ def test_unscored_candidates_only_top_up(store, monkeypatch):
     assert gloss_of("gaunt") in question.options
 
 
+def test_pool_biases_toward_hardest_candidates(store, monkeypatch):
+    import prelexy.mcq as mcq_module
+
+    correct = "having keen judgement"
+    item = add_target(store, gloss=correct)
+    # 12 in-band candidates with ascending scores: the 2 weakest fall
+    # outside the top-10 pool and must never be sampled.
+    words = ["gaunt", "sallow", "listless", "sombre", "wan", "ashen",
+             "haggard", "drawn", "pallid", "peaked", "sickly", "drab"]
+    table, glosses = {}, {}
+    for rank, word in enumerate(words):
+        gloss = f"gloss number {rank} for {word}"
+        glosses[word] = gloss
+        table[frozenset((correct, gloss))] = SIMILARITY_FLOOR + 0.01 * (rank + 1)
+    monkeypatch.setattr(
+        mcq_module,
+        "wordnet_sense",
+        lambda cand, pos, lang: definitions.Sense(glosses[cand], "en", "wordnet"),
+    )
+    use_candidates(monkeypatch, words)
+
+    seen = set()
+    for seed in range(20):
+        question = build_question(
+            store, item, similarity=FakeSimilarity(table), rng=random.Random(seed)
+        )
+        seen.update(question.options)
+    assert glosses["gaunt"] not in seen  # weakest two: outside the pool
+    assert glosses["sallow"] not in seen
+    assert glosses["drab"] in seen  # the hardest is reachable
+
+
+def test_below_floor_candidates_fill_when_band_is_empty(store, monkeypatch):
+    correct = "having keen judgement"
+    item = add_target(store, gloss=correct)
+    use_candidates(monkeypatch, ["gaunt", "sallow", "listless", "crimson"])
+    similarity = FakeSimilarity(
+        {
+            frozenset((correct, gloss_of("gaunt"))): SIMILARITY_FLOOR - 0.20,
+            frozenset((correct, gloss_of("sallow"))): SIMILARITY_FLOOR - 0.05,
+            frozenset((correct, gloss_of("listless"))): SIMILARITY_FLOOR - 0.10,
+            frozenset((correct, gloss_of("crimson"))): SIMILARITY_FLOOR - 0.15,
+        }
+    )
+    question = build_question(store, item, similarity=similarity, rng=random.Random(0))
+    assert len(question.options) == 4  # most-similar-available, not none
+
+
 def test_gloss_naming_the_target_is_excluded(store, monkeypatch):
     # "sagacious" defines itself as "acutely insightful and wise" — for the
     # target "wise" that option would give the game away.

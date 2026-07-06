@@ -207,3 +207,16 @@ text is ordinary prose (near-total vector coverage), and it is what the
 player actually reads: definition confusability IS the question's
 difficulty. This also supersedes the word-level near-synonym ceiling —
 near-synonyms have near-identical definitions.
+
+## 018 — Distractors sampled from the hardest-available pool (2026-07)
+
+**Decision:** The full candidate scan is scored and sorted; distractors are
+sampled at random from the 10 highest-scoring candidates (in-band ones
+preferred, most-similar-available when the floor leaves fewer than three).
+Replaces first-three-in-band selection.
+**Why:** Debug scores from real play showed first-found selection settling
+at the weak end of the band (scans stopping after 5–15 candidates at
+scores ~0.45–0.6), keeping questions too easy. Owner ruling: keep options
+random between sessions but make them as difficult as available; the
+top-10 pool does both, and it makes the floor a soft preference rather
+than a cliff.

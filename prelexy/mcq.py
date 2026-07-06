@@ -33,8 +33,13 @@ SIMILARITY_CEILING = 0.85
 
 N_OPTIONS = 4
 
-# Candidates examined per question before settling for what was found.
+# Candidates examined per question.
 _SCAN_LIMIT = 500
+
+# Distractors are sampled from the _POOL_SIZE highest-scoring candidates of
+# the whole scan (owner request): options stay varied between sessions while
+# biasing toward the hardest available.
+_POOL_SIZE = 10
 
 
 @dataclass
@@ -71,51 +76,73 @@ def build_question(store, item, similarity=None, rng=None) -> Question | None:
 
 
 def _distractors(item, correct_gloss, similarity, rng) -> list[str]:
-    """Up to N_OPTIONS-1 distractor glosses, band-scored candidates preferred.
+    """Up to N_OPTIONS-1 distractor glosses, sampled from the hardest available.
 
-    Each candidate's gloss is scored against the correct gloss. Candidates
-    without a score (no provider, or no usable content vector) accumulate
-    as a fallback used only to top up.
+    Every scanned candidate below the near-synonym ceiling is scored against
+    the correct gloss, and distractors are drawn at random from the
+    _POOL_SIZE highest-scoring ones. Candidates inside the band are
+    preferred; when the floor leaves fewer than needed, the most similar
+    available fill the pool anyway — maximum difficulty, kept random.
+    Unscored candidates (no provider, or gloss without usable vectors) are
+    only a top-up of last resort.
     """
     target_lemma = (item["lemma"] or item["form"]).lower()
     needed = N_OPTIONS - 1
-    banded: list[str] = []
+    scored: list[tuple[float, str, str]] = []  # (score, word, gloss)
     unscored: list[str] = []
+    seen_glosses = {correct_gloss}
     scanned = 0
-    for scanned, candidate in enumerate(
-        _wordnet_candidates(item["pos"], item["language"], rng), start=1
-    ):
-        if len(banded) == needed or scanned > _SCAN_LIMIT:
-            break
+    for candidate in _wordnet_candidates(item["pos"], item["language"], rng):
+        scanned += 1
         if candidate == target_lemma:
             continue
         sense = wordnet_sense(candidate, item["pos"], item["language"])
-        if sense is None or sense.gloss == correct_gloss:
+        if sense is None or sense.gloss in seen_glosses:
             continue
         if target_lemma in sense.gloss.lower().split():
             continue  # a gloss that names the target gives the game away
+        seen_glosses.add(sense.gloss)
         score = (
             similarity.text_similarity(correct_gloss, sense.gloss)
             if similarity
             else None
         )
-        if score is not None and not (SIMILARITY_FLOOR < score < SIMILARITY_CEILING):
+        if score is None:
+            unscored.append(sense.gloss)
+            if similarity is None and len(unscored) == needed:
+                break
             continue
-        if sense.gloss not in banded and sense.gloss not in unscored:
-            (banded if score is not None else unscored).append(sense.gloss)
+        if score >= SIMILARITY_CEILING:
             debug.log(
-                "mcq",
-                f"{item['form']!r} ← {candidate!r} "
-                + (f"score {score:.3f} (in band)" if score is not None else "unscored (fallback pool)"),
+                "mcq", f"{item['form']!r} ✗ {candidate!r} score {score:.3f} (near-synonym)"
             )
-        if similarity is None and len(unscored) == needed:
-            break
+            continue
+        scored.append((score, candidate, sense.gloss))
+
+    if not scored:
+        picked = unscored[:needed]
+        debug.log(
+            "mcq",
+            f"{item['form']!r}: scanned {scanned}, nothing scored → {len(picked)} fallback",
+        )
+        return picked
+
+    scored.sort(reverse=True)  # hardest first
+    in_band = [entry for entry in scored if entry[0] > SIMILARITY_FLOOR]
+    pool = (in_band if len(in_band) >= needed else scored)[:_POOL_SIZE]
+    sampled = rng.sample(pool, min(needed, len(pool)))
+    for score, candidate, _ in sampled:
+        marker = "" if score > SIMILARITY_FLOOR else " (below floor)"
+        debug.log("mcq", f"{item['form']!r} ← {candidate!r} score {score:.3f}{marker}")
     debug.log(
         "mcq",
-        f"{item['form']!r}: scanned {scanned}, {len(banded)} in band, "
-        f"{len(unscored)} fallback → using {min(needed, len(banded) + len(unscored))}",
+        f"{item['form']!r}: scanned {scanned}, scored {len(scored)}, "
+        f"in band {len(in_band)}, pool {len(pool)} → sampled {len(sampled)}",
     )
-    return (banded + unscored)[:needed]
+    glosses = [gloss for _, _, gloss in sampled]
+    if len(glosses) < needed:
+        glosses += [g for g in unscored if g not in glosses][: needed - len(glosses)]
+    return glosses
 
 
 def _wordnet_candidates(pos, language, rng) -> list[str]:
