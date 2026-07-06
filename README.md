@@ -67,7 +67,8 @@ python -m prelexy words --limit 20
 # preview a multiple-choice question for a stored word
 python -m prelexy question vermilion
 
-# play a practice session (progress is saved per profile)
+# play a practice session — asks who is playing (pick a saved profile
+# or create one); --profile skips the menu
 python -m prelexy play
 python -m prelexy play --profile alice --length 20
 

@@ -213,6 +213,9 @@ class Store:
 
     # -- learner ----------------------------------------------------------
 
+    def list_profiles(self) -> list[sqlite3.Row]:
+        return self._conn.execute("SELECT * FROM profiles ORDER BY name").fetchall()
+
     def get_or_create_profile(self, name: str) -> int:
         self._conn.execute("INSERT OR IGNORE INTO profiles (name) VALUES (?)", (name,))
         return self._conn.execute(

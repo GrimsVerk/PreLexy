@@ -1,7 +1,17 @@
 from click.testing import CliRunner
 
 from prelexy.cli import cli
+from prelexy.store import Store
 from prelexy.textproc import Candidate
+
+
+def isolate_play(monkeypatch, tmp_path):
+    """Point the config at a temp dir and skip the spaCy model load."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setattr(
+        "prelexy.textproc.load_nlp",
+        lambda language="en": (_ for _ in ()).throw(OSError("no model")),
+    )
 
 
 def fake_extract(text, language="en", nlp=None):
@@ -54,9 +64,57 @@ def test_words_on_empty_db_explains_ingest(tmp_path):
     assert "ingest" in result.output
 
 
-def test_question_command_previews_mcq(tmp_path, monkeypatch):
-    from prelexy.store import Store
+def test_play_prompts_to_create_first_profile(tmp_path, monkeypatch):
+    isolate_play(monkeypatch, tmp_path)
+    db = tmp_path / "db.sqlite"
+    runner = CliRunner()
+    result = runner.invoke(cli, ["play", "--db", str(db)], input="alice\n")
+    assert result.exit_code == 0, result.output
+    assert "No profiles yet" in result.output
+    assert "Nothing to practice" in result.output
+    with Store(db) as store:
+        assert [row["name"] for row in store.list_profiles()] == ["alice"]
 
+
+def test_play_menu_picks_existing_profile_without_creating_one(tmp_path, monkeypatch):
+    isolate_play(monkeypatch, tmp_path)
+    db = tmp_path / "db.sqlite"
+    with Store(db) as store:
+        store.get_or_create_profile("alice")
+        store.get_or_create_profile("bob")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["play", "--db", str(db)], input="2\n")
+    assert result.exit_code == 0, result.output
+    assert "Who is playing?" in result.output
+    with Store(db) as store:
+        assert len(store.list_profiles()) == 2
+
+
+def test_play_menu_rejects_bad_input_then_creates_new_profile(tmp_path, monkeypatch):
+    isolate_play(monkeypatch, tmp_path)
+    db = tmp_path / "db.sqlite"
+    with Store(db) as store:
+        store.get_or_create_profile("alice")
+    runner = CliRunner()
+    result = runner.invoke(cli, ["play", "--db", str(db)], input="7\nn\ncarol\n")
+    assert result.exit_code == 0, result.output
+    assert "Pick 1–1" in result.output
+    with Store(db) as store:
+        assert [row["name"] for row in store.list_profiles()] == ["alice", "carol"]
+
+
+def test_play_profile_flag_bypasses_menu(tmp_path, monkeypatch):
+    isolate_play(monkeypatch, tmp_path)
+    db = tmp_path / "db.sqlite"
+    runner = CliRunner()
+    result = runner.invoke(cli, ["play", "--db", str(db), "--profile", "dave"])
+    assert result.exit_code == 0, result.output
+    assert "Who is playing?" not in result.output
+    with Store(db) as store:
+        assert [row["name"] for row in store.list_profiles()] == ["dave"]
+
+
+def test_question_command_previews_mcq(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "prelexy.textproc.load_nlp", lambda language="en": (_ for _ in ()).throw(OSError)
     )

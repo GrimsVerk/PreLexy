@@ -89,6 +89,27 @@ def words(language, limit, db_path):
         )
 
 
+def _choose_profile(store) -> int:
+    """Ask who is playing: pick an existing profile or create one."""
+    profiles = store.list_profiles()
+    if not profiles:
+        name = click.prompt("No profiles yet — pick a name for yours", default="default")
+        return store.get_or_create_profile(name.strip() or "default")
+    click.echo("Who is playing?")
+    for index, row in enumerate(profiles):
+        click.echo(f"  {index + 1}. {row['name']}")
+    click.echo("  n. new profile")
+    while True:
+        raw = click.prompt("Profile", type=str).strip()
+        if raw.lower() == "n":
+            name = click.prompt("Name for the new profile").strip()
+            if name:
+                return store.get_or_create_profile(name)
+        elif raw.isdigit() and 1 <= int(raw) <= len(profiles):
+            return profiles[int(raw) - 1]["id"]
+        click.echo(f"  Pick 1–{len(profiles)}, or n for a new profile.")
+
+
 @cli.command()
 @click.argument("form")
 @click.option("--language", default="en", show_default=True)
@@ -132,9 +153,9 @@ def question(form, language, db_path):
 @click.option(
     "--profile",
     "profile_name",
-    default="default",
-    show_default=True,
-    help="Player profile; each profile tracks its own progress.",
+    default=None,
+    help="Player profile; each profile tracks its own progress. "
+    "Without this flag, play asks who is playing.",
 )
 @click.option("--language", default="en", show_default=True)
 @click.option("--length", "n_questions", default=None, type=click.IntRange(min=1),
@@ -165,7 +186,11 @@ def play(profile_name, language, n_questions, new_ratio, db_path):
     except (OSError, ValueError):
         similarity = None  # no vectors: distractor band is skipped
     with Store(db_path) as store:
-        profile_id = store.get_or_create_profile(profile_name)
+        profile_id = (
+            store.get_or_create_profile(profile_name)
+            if profile_name
+            else _choose_profile(store)
+        )
         run_session(
             store,
             profile_id,
