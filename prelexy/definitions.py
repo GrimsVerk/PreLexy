@@ -13,6 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from functools import lru_cache
 
 from prelexy.textproc import get_wordnet
 
@@ -48,6 +49,23 @@ def ensure_sense(store, item, allow_api: bool = True) -> Sense | None:
     if sense is not None:
         store.add_sense(item["id"], sense.gloss, sense.gloss_language, sense.provider)
     return sense
+
+
+@lru_cache(maxsize=None)
+def wordnet_lemma_names(pos: str | None, language: str = "en") -> tuple[str, ...]:
+    """All single-word WordNet lemma names for a POS tag (e.g. "ADJ").
+
+    The distractor pool: ~20k adjectives / ~100k nouns, so options never
+    have to come from the words currently being studied.
+    """
+    if language != "en":
+        return ()
+    wordnet = get_wordnet()
+    return tuple(
+        name
+        for name in wordnet.all_lemma_names(_WORDNET_POS.get(pos))
+        if name.isalpha()
+    )
 
 
 def wordnet_sense(form: str, pos: str | None, language: str = "en") -> Sense | None:

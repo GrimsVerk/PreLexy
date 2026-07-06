@@ -68,7 +68,7 @@ def test_session_records_reviews_and_state(store, monkeypatch):
         assert states[log["item_id"]] == expected
         assert log["exercise"] == "mcq_definition"
         assert log["latency_ms"] >= 0
-        assert log["response"] in {"having keen judgement", "very thin"}
+        assert log["response"]  # the chosen gloss text, from WordNet at large
 
 
 def test_quit_stops_early_without_logging(store, monkeypatch):

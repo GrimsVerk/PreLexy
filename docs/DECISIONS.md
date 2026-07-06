@@ -133,3 +133,20 @@ mapping keeps the algorithm's behaviour (growing intervals, ease
 personalisation per word) without inventing fake grades. Anything cleverer
 (FSRS, RL personalisation) plugs into the same seam later, trained on the
 review log.
+
+## 013 — Distractors: similarity band over all of WordNet; rarity removed (2026-07)
+
+**Decision:** Distractor candidates are sampled from all single-word WordNet
+lemmas of the target's POS and selected purely by embedding similarity inside
+a (floor, ceiling) band; rarity no longer participates. Fallback when
+similarity is unavailable for a pair: random same-POS candidates. Supersedes
+010 (ceiling-only, store-pool, rarity-matched).
+**Why:** The first real playtest showed the store-pool + rarity approach
+collapses: ultra-rare literary words tie at zipf 0, so the "closest in
+rarity" neighbors were always the same alphabetically-first words — which
+were also the session's own words, making questions solvable by elimination.
+The decisive argument against rarity: the player never sees the distractor
+word, only its definition, so the hidden word's rarity contributes nothing
+to how tempting its gloss is. Domain-plausibility comes from embedding
+closeness — the original design intent, now viable because the WordNet-wide
+pool is large enough for a similarity floor. (Owner ruling, 2026-07-06.)

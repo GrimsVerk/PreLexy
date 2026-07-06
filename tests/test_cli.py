@@ -79,7 +79,7 @@ def test_question_command_previews_mcq(tmp_path, monkeypatch):
     assert "What does “sagacious” mean?" in result.output
     assert "A sagacious old man." in result.output
     assert "having keen judgement" in result.output
-    assert "very thin" in result.output
+    assert " 4. " in result.output  # full set of options from the WordNet pool
     assert "*" in result.output
 
     result = runner.invoke(cli, ["question", "nonexistent", "--db", str(db)])
