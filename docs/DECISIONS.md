@@ -192,3 +192,18 @@ selection internals, and more subsystems will need the same as the game
 grows (owner request: keep it expandable). Stderr keeps game output and
 pipes clean; the no-ceremony design means adding diagnostics anywhere is a
 one-liner, which is what makes it likely to actually happen.
+
+## 017 — Distractor similarity measured between definitions, not words (2026-07)
+
+**Decision:** The band applies to `text_similarity(correct_gloss,
+candidate_gloss)` — averaged content-token vectors of the definition
+texts — instead of word-vector similarity of the hidden words. Glosses that
+name the target word are excluded. Band bounds moved to provisional
+0.45/0.85 pending calibration with `--debug` scores from real play.
+**Why:** Owner's vector check confirmed 5 of 6 rare targets have no lexeme
+vector in `en_core_web_md`, so word-level scoring silently degraded to the
+random fallback for almost every question — the band never applied. Gloss
+text is ordinary prose (near-total vector coverage), and it is what the
+player actually reads: definition confusability IS the question's
+difficulty. This also supersedes the word-level near-synonym ceiling —
+near-synonyms have near-identical definitions.

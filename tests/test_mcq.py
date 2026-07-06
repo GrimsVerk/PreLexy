@@ -18,13 +18,20 @@ def no_network(monkeypatch):
 
 
 class FakeSimilarity:
-    """Similarity by lookup table; None (= no vector) for unknown pairs."""
+    """Similarity by lookup table; None (= no usable vector) otherwise."""
 
     def __init__(self, table):
         self.table = table
 
     def similarity(self, a, b):
         return self.table.get(frozenset((a, b)))
+
+    def text_similarity(self, a, b):
+        return self.table.get(frozenset((a, b)))
+
+
+def gloss_of(word):
+    return definitions.wordnet_sense(word, "ADJ").gloss
 
 
 @pytest.fixture
@@ -62,45 +69,54 @@ def test_options_vary_between_sessions(store):
     assert set(first.options) != set(second.options)
 
 
-def test_band_governs_selection(store, monkeypatch):
-    item = add_target(store)
+def test_band_governs_selection_by_gloss_similarity(store, monkeypatch):
+    correct = "having keen judgement"
+    item = add_target(store, gloss=correct)
     use_candidates(monkeypatch, ["wise", "gaunt", "sallow", "listless", "crimson"])
     similarity = FakeSimilarity(
         {
-            frozenset(("sagacious", "wise")): SIMILARITY_CEILING + 0.1,  # near-synonym
-            frozenset(("sagacious", "gaunt")): IN_BAND,
-            frozenset(("sagacious", "sallow")): IN_BAND,
-            frozenset(("sagacious", "listless")): IN_BAND,
-            frozenset(("sagacious", "crimson")): SIMILARITY_FLOOR - 0.1,  # other domain
+            frozenset((correct, gloss_of("wise"))): SIMILARITY_CEILING + 0.05,  # near-synonym
+            frozenset((correct, gloss_of("gaunt"))): IN_BAND,
+            frozenset((correct, gloss_of("sallow"))): IN_BAND,
+            frozenset((correct, gloss_of("listless"))): IN_BAND,
+            frozenset((correct, gloss_of("crimson"))): SIMILARITY_FLOOR - 0.05,  # other domain
         }
     )
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
-    wise_gloss = definitions.wordnet_sense("wise", "ADJ").gloss
-    crimson_gloss = definitions.wordnet_sense("crimson", "ADJ").gloss
-    assert wise_gloss not in question.options
-    assert crimson_gloss not in question.options
+    assert gloss_of("wise") not in question.options
+    assert gloss_of("crimson") not in question.options
     assert len(question.options) == 4
 
 
 def test_unscored_candidates_only_top_up(store, monkeypatch):
-    item = add_target(store)
-    # 'gaunt' has no vector (None); the three scored in-band words must win.
+    correct = "having keen judgement"
+    item = add_target(store, gloss=correct)
+    # 'gaunt' has no score (no usable vector); the three in-band glosses win.
     use_candidates(monkeypatch, ["gaunt", "sallow", "listless", "sombre"])
     similarity = FakeSimilarity(
         {
-            frozenset(("sagacious", "sallow")): IN_BAND,
-            frozenset(("sagacious", "listless")): IN_BAND,
-            frozenset(("sagacious", "sombre")): IN_BAND,
+            frozenset((correct, gloss_of("sallow"))): IN_BAND,
+            frozenset((correct, gloss_of("listless"))): IN_BAND,
+            frozenset((correct, gloss_of("sombre"))): IN_BAND,
         }
     )
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
-    gaunt_gloss = definitions.wordnet_sense("gaunt", "ADJ").gloss
-    assert gaunt_gloss not in question.options
+    assert gloss_of("gaunt") not in question.options
 
     # with one in-band word missing, the unscored candidate fills the gap
     use_candidates(monkeypatch, ["gaunt", "sallow", "listless"])
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
-    assert gaunt_gloss in question.options
+    assert gloss_of("gaunt") in question.options
+
+
+def test_gloss_naming_the_target_is_excluded(store, monkeypatch):
+    # "sagacious" defines itself as "acutely insightful and wise" — for the
+    # target "wise" that option would give the game away.
+    item = add_target(store, form="wise", gloss="having or prompted by wisdom")
+    use_candidates(monkeypatch, ["sagacious", "gaunt", "sallow", "listless"])
+    question = build_question(store, item, rng=random.Random(0))
+    assert gloss_of("sagacious") not in question.options
+    assert len(question.options) == 4
 
 
 def test_target_lemma_never_a_distractor(store, monkeypatch):

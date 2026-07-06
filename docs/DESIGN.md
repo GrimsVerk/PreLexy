@@ -111,16 +111,20 @@ ask **"pick the correct definition"** from four options.
 - **Distractors:** top WordNet glosses of other same-POS words sampled from
   *all of WordNet* (~20k adjectives, ~100k nouns) — never from the words
   currently being studied, which made questions solvable by elimination.
-  Selection is purely by embedding similarity: candidates must sit inside
-  the band `SIMILARITY_FLOOR < s < SIMILARITY_CEILING` (`prelexy/mcq.py`) —
-  above the ceiling is a near-synonym (ambiguous, unfair), below the floor
-  is another domain entirely (too obviously wrong). Rarity plays no part:
-  the player only sees the gloss, never the distractor word, so hidden-word
-  rarity cannot make an option more or less tempting (DECISIONS 013).
-  The target's lemma and duplicate glosses are excluded. When similarity is
-  unavailable (no vector model, or no vector for a word — common for rare
-  literary words even in `md`), candidates fall back to random same-POS
-  picks. Fully offline; band bounds are tunable constants.
+  Selection is purely by embedding similarity **between the definitions
+  themselves**: the correct gloss versus each candidate's gloss
+  (DECISIONS 017) — rare literary words are usually absent from the pruned
+  vector table, but their definitions are ordinary prose, so gloss-vs-gloss
+  scoring has near-total coverage and measures the thing the player actually
+  reads. Candidates must sit inside the band
+  `SIMILARITY_FLOOR < s < SIMILARITY_CEILING` (`prelexy/mcq.py`) — above the
+  ceiling the definitions nearly coincide (near-synonym: ambiguous, unfair),
+  below the floor the gloss is from another domain (too obviously wrong).
+  Band values are provisional; calibrate against real scores from
+  `prelexy --debug question <word>`. Rarity plays no part (DECISIONS 013).
+  Excluded: the target's lemma, duplicate glosses, and glosses that name
+  the target word. Only when no provider is loaded at all do candidates
+  fall back to random same-POS picks. Fully offline.
 
 Other exercise types (cloze from the source sentence, reverse lookup) are natural
 later additions; the `review_log.exercise` field already accommodates them.
@@ -174,14 +178,16 @@ but due dates, not statuses, drive scheduling. Sessions serve due reviews
 
 ```python
 class SimilarityProvider(Protocol):
-    def similarity(self, a: Item, b: Item) -> float: ...
-    def neighbours(self, item: Item, k: int) -> list[tuple[Item, float]]: ...
+    def similarity(self, a: str, b: str) -> float | None: ...       # word vs word
+    def text_similarity(self, a: str, b: str) -> float | None: ...  # text vs text
 ```
 
-One provider per language. Today: spaCy `en_core_web_md` vectors. Tier 3's
-custom-trained code embeddings (needed because `pop` the Python method is nothing
-like `pop` the English word) plug in here without touching the MCQ generator,
-which depends only on this interface.
+One provider per language. Today: spaCy `en_core_web_md` vectors;
+`text_similarity` averages content-token vectors (stopwords and punctuation
+excluded — averaging them in inflates the similarity of any two English
+sentences). Tier 3's custom-trained code embeddings (needed because `pop`
+the Python method is nothing like `pop` the English word) plug in here
+without touching the MCQ generator, which depends only on this interface.
 
 ## Diagnostics
 

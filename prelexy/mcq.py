@@ -2,14 +2,16 @@
 
 The question is "pick the correct definition". Distractors are real WordNet
 definitions of other same-POS words drawn from all of WordNet — never from
-the words currently being studied — and are picked purely by embedding
-similarity: inside the (floor, ceiling) band, close enough to be plausible
-but not a near-synonym. Rarity plays no part: the player only ever sees the
-gloss, never the distractor word itself, so the hidden word's rarity cannot
-make an option more or less tempting.
+the words currently being studied — picked purely by embedding similarity
+**between the definitions themselves**: the correct gloss versus each
+candidate's gloss. Comparing definitions rather than words matters twice
+over: rare literary words are usually missing from the vector table (so
+word-level similarity was silently falling back to random), and the gloss
+is the thing the player actually reads — its confusability IS the
+difficulty. Rarity plays no part.
 
-When similarity is unavailable (no vector model loaded, or no vector for a
-word), candidates fall back to random same-POS picks.
+When similarity is unavailable entirely (no vector model loaded), candidates
+fall back to random same-POS picks.
 """
 
 from __future__ import annotations
@@ -17,14 +19,17 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
+from prelexy import debug
 from prelexy.definitions import ensure_sense, wordnet_lemma_names, wordnet_sense
 
-# The distractor similarity band. Above the ceiling a candidate is a
-# near-synonym of the target (an ambiguous option is unfair); below the
-# floor its gloss is from another domain entirely (too obviously wrong).
-# Tune empirically as playtesting data accumulates.
-SIMILARITY_FLOOR = 0.35
-SIMILARITY_CEILING = 0.7
+# The distractor band, applied to definition-text similarity: above the
+# ceiling the two definitions nearly coincide (near-synonym — ambiguous,
+# unfair); below the floor the candidate gloss is from another domain
+# entirely (too obviously wrong). PROVISIONAL values — averaged-vector text
+# similarities run higher than word similarities; calibrate against real
+# scores from `prelexy --debug question <word>`.
+SIMILARITY_FLOOR = 0.45
+SIMILARITY_CEILING = 0.85
 
 N_OPTIONS = 4
 
@@ -66,30 +71,50 @@ def build_question(store, item, similarity=None, rng=None) -> Question | None:
 
 
 def _distractors(item, correct_gloss, similarity, rng) -> list[str]:
-    """Up to N_OPTIONS-1 distractor glosses, in-band candidates preferred.
+    """Up to N_OPTIONS-1 distractor glosses, band-scored candidates preferred.
 
-    Candidates without a similarity score (no provider, or no vector for
-    the pair) accumulate as a fallback used only to top up.
+    Each candidate's gloss is scored against the correct gloss. Candidates
+    without a score (no provider, or no usable content vector) accumulate
+    as a fallback used only to top up.
     """
     target_lemma = (item["lemma"] or item["form"]).lower()
     needed = N_OPTIONS - 1
     banded: list[str] = []
     unscored: list[str] = []
-    for scanned, candidate in enumerate(_wordnet_candidates(item["pos"], item["language"], rng)):
-        if len(banded) == needed or scanned == _SCAN_LIMIT:
+    scanned = 0
+    for scanned, candidate in enumerate(
+        _wordnet_candidates(item["pos"], item["language"], rng), start=1
+    ):
+        if len(banded) == needed or scanned > _SCAN_LIMIT:
             break
         if candidate == target_lemma:
-            continue
-        score = similarity.similarity(item["form"], candidate) if similarity else None
-        if score is not None and not (SIMILARITY_FLOOR < score < SIMILARITY_CEILING):
             continue
         sense = wordnet_sense(candidate, item["pos"], item["language"])
         if sense is None or sense.gloss == correct_gloss:
             continue
+        if target_lemma in sense.gloss.lower().split():
+            continue  # a gloss that names the target gives the game away
+        score = (
+            similarity.text_similarity(correct_gloss, sense.gloss)
+            if similarity
+            else None
+        )
+        if score is not None and not (SIMILARITY_FLOOR < score < SIMILARITY_CEILING):
+            continue
         if sense.gloss not in banded and sense.gloss not in unscored:
             (banded if score is not None else unscored).append(sense.gloss)
+            debug.log(
+                "mcq",
+                f"{item['form']!r} ← {candidate!r} "
+                + (f"score {score:.3f} (in band)" if score is not None else "unscored (fallback pool)"),
+            )
         if similarity is None and len(unscored) == needed:
             break
+    debug.log(
+        "mcq",
+        f"{item['form']!r}: scanned {scanned}, {len(banded)} in band, "
+        f"{len(unscored)} fallback → using {min(needed, len(banded) + len(unscored))}",
+    )
     return (banded + unscored)[:needed]
 
 
