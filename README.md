@@ -79,6 +79,22 @@ The database lives at `~/.local/share/prelexy/prelexy.db` by default; every
 command accepts `--db <path>` (or the `PRELEXY_DB` environment variable) to
 use a different one.
 
+## Configuration
+
+`~/.config/prelexy/config.toml` is created with commented defaults on first
+run. It currently holds:
+
+- `session_length` — words per practice session (reviews + new), default 10
+- `new_ratio` — fraction of each session reserved for new words (0.0–1.0),
+  default 0.3. This trumps the review backlog: reviews never crowd new words
+  out entirely, and when either kind runs out the other fills the gap.
+
+CLI flags override the file per session:
+
+```bash
+python -m prelexy play --length 20 --new-ratio 0.5
+```
+
 ## Scope
 
 **In scope:** multiple languages, multiple user profiles on the same machine,

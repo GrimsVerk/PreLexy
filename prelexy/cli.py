@@ -133,27 +133,40 @@ def question(form, language, db_path):
     help="Player profile; each profile tracks its own progress.",
 )
 @click.option("--language", default="en", show_default=True)
-@click.option("--length", "n_questions", default=10, show_default=True,
-              help="Questions per session.")
+@click.option("--length", "n_questions", default=None, type=click.IntRange(min=1),
+              help="Words this session [default: session_length from the config file]")
+@click.option("--new-ratio", "new_ratio", default=None, type=click.FloatRange(0.0, 1.0),
+              help="Fraction of the session reserved for new words "
+                   "[default: new_ratio from the config file]")
 @_db_option
-def play(profile_name, language, n_questions, db_path):
+def play(profile_name, language, n_questions, new_ratio, db_path):
     """Start a practice session."""
+    import tomllib
+
+    from prelexy.config import config_path, load_config
     from prelexy.scheduler import SM2Scheduler
     from prelexy.session import run_session
     from prelexy.similarity import SpacyVectors
     from prelexy.textproc import load_nlp
 
     try:
+        config = load_config()
+    except (OSError, ValueError, tomllib.TOMLDecodeError) as error:
+        raise click.ClickException(f"Bad config file ({config_path()}): {error}")
+    n_questions = n_questions if n_questions is not None else config["session_length"]
+    new_ratio = new_ratio if new_ratio is not None else config["new_ratio"]
+
+    try:
         similarity = SpacyVectors(load_nlp(language))
     except (OSError, ValueError):
-        similarity = None  # no vectors: distractors matched by POS and rarity only
+        similarity = None  # no vectors: distractor band is skipped
     with Store(db_path) as store:
         profile_id = store.get_or_create_profile(profile_name)
         run_session(
             store,
             profile_id,
             language,
-            SM2Scheduler(),
+            SM2Scheduler(new_ratio=new_ratio),
             similarity=similarity,
             n_questions=n_questions,
         )

@@ -150,3 +150,19 @@ word, only its definition, so the hidden word's rarity contributes nothing
 to how tempting its gloss is. Domain-plausibility comes from embedding
 closeness — the original design intent, now viable because the WordNet-wide
 pool is large enough for a similarity floor. (Owner ruling, 2026-07-06.)
+
+## 014 — Config file; new-word ratio trumps the review backlog (2026-07)
+
+**Decision:** A TOML config file at `$XDG_CONFIG_HOME/prelexy/config.toml`
+(auto-created with commented defaults) holds `session_length` and
+`new_ratio`; CLI flags override it per session. In session composition,
+`new_ratio` reserves slots for new words even when a review backlog exists;
+when either pool runs short the other fills the gap. New-word ordering
+shuffles rarity ties per session (seedable rng) instead of falling back to
+alphabetical order.
+**Why:** The playtest showed a matured backlog can fill an entire session
+with the exact same words — technically correct scheduling, terrible
+manners. The owner wants these knobs tweakable between sessions without
+editing code; stdlib `tomllib` keeps it dependency-free. Tie shuffling fixes
+the "every fresh database serves 'accurse' first" determinism that zipf-0
+ties created.
