@@ -105,6 +105,17 @@ def item_zipf(row) -> float:
     return json.loads(row["metadata"]).get("zipf", 0.0)
 
 
+def _sentence_complete(text: str) -> bool:
+    """Whether a context excerpt reads as a whole sentence."""
+    text = text.strip()
+    if len(text) < 20:
+        return False
+    first = text.lstrip("“”\"'‘’(")[:1]
+    if not first or not first.isupper():
+        return False
+    return text.rstrip("“”\"'‘’)")[-1:] in ".!?…"
+
+
 class Store:
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path else default_db_path()
@@ -179,10 +190,21 @@ class Store:
         ).fetchone()
 
     def example_for(self, item_id: int) -> str | None:
-        row = self._conn.execute(
-            "SELECT context FROM occurrences WHERE item_id = ? LIMIT 1", (item_id,)
-        ).fetchone()
-        return row["context"] if row else None
+        """The item's best example sentence: shortest complete-looking one.
+
+        OCR page breaks truncate some occurrences mid-sentence and others
+        run to enormous lengths (a 1,400-character monster in the
+        2026-07-06 playtest); prefer the shortest occurrence that reads as
+        a whole sentence, falling back to the shortest of whatever exists.
+        """
+        rows = self._conn.execute(
+            "SELECT context FROM occurrences WHERE item_id = ?", (item_id,)
+        ).fetchall()
+        if not rows:
+            return None
+        contexts = [row["context"] for row in rows]
+        complete = [c for c in contexts if _sentence_complete(c)]
+        return min(complete or contexts, key=len)
 
     def list_items(self, language: str) -> list[sqlite3.Row]:
         """All items for a language, each with its total occurrence count."""

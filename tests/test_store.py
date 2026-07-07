@@ -135,6 +135,29 @@ def test_items_for_review_joins_state_per_profile(db):
         assert bob_rows["run"]["status"] is None
 
 
+def test_example_for_prefers_shortest_complete_sentence(db):
+    monster = "He longed to see the curious table-napkins wrought for " + "x" * 300 + "."
+    truncated = "But the staginess of her acting"  # no terminal punctuation
+    ocr_start = "| remember your telling me years ago that it was lost."
+    good = "Her little feet pattered overhead like a summer rain."
+    with Store(db) as store:
+        source = store.add_source("t", "en", "book", None)
+        item = store.get_or_create_item("en", "patter")
+        store.add_occurrences(
+            item, source, [(monster, 0), (truncated, 10), (ocr_start, 20), (good, 30)]
+        )
+        assert store.example_for(item) == good
+
+        # with no complete-looking sentence at all, the shortest one wins
+        fragmentary = store.get_or_create_item("en", "fragment")
+        store.add_occurrences(
+            fragmentary, source, [("and the coat that Charles of", 0), (truncated, 5)]
+        )
+        assert store.example_for(fragmentary) == "and the coat that Charles of"
+
+        assert store.example_for(store.get_or_create_item("en", "unseen")) is None
+
+
 def test_writes_persist_after_clean_exit(db):
     with Store(db) as store:
         store.add_source("kept", "en", "book", "/kept.txt")
