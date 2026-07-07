@@ -41,12 +41,10 @@ per-profile glossing), `.srt`/`.vtt` ingestion, Dutch espeak voice.
 Coarse on purpose — item 1 refines this stage before code is written.
 Constraint from day one (CLAUDE.md rule 5): nothing in v1/v2 may break.
 
-1. **Design spike → docs/DESIGN.md section + DECISIONS entries.** What an
-   item is for code (qualified names: `list.pop`, `itertools.chain`);
-   what a gloss is (the doc entry's summary sentence — docs are their own
-   dictionary, no WordNet); ingestion sources (official Python docs
-   first; Sphinx `objects.inv` inventories as structured entry points).
-   Owner reviews the design before implementation continues.
+1. **Design spike → docs/DESIGN.md section + DECISIONS entries.**
+   ✅ Spike written 2026-07-06 — see DESIGN.md "Code documentation mode
+   (v3) — PROPOSED", including four open questions. **AWAITING OWNER
+   REVIEW before any item below starts.**
 2. **Docs ingester.** Extraction policy for `language="python"`; parse
    inventory + doc text into items/occurrences (usage examples as context
    sentences).

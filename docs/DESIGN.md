@@ -221,6 +221,58 @@ Subtitle files (`.srt`/`.vtt`) are converted to prose at ingest: cue
 numbers, timestamps, headers, and tags dropped; cue texts joined (sentences
 span cues) and re-paragraphed at sentence ends.
 
+## Code documentation mode (v3) — PROPOSED DESIGN, awaiting owner review
+
+Nothing below is implemented; this is the Stage-3 design spike
+(BACKLOG Stage 3.1). Implementation starts only after the owner reviews it.
+
+**Items.** Qualified names from official documentation — `list.pop`,
+`itertools.chain`, `pandas.DataFrame.merge` — under `language="python"`
+(the namespace ruling, DECISIONS 003; the `sources` row distinguishes
+stdlib from a library corpus). `items.metadata` carries
+`{"kind": "method|function|class", "module": "itertools",
+"signature": "..."}`. No schema changes anywhere.
+
+**Ingestion.** `prelexy ingest-docs <local-docs-dir>` pointed at a
+downloaded Sphinx HTML tree (CPython and most scientific-Python docs are
+Sphinx-built and downloadable — free and offline, matching rule 4):
+
+1. Parse `objects.inv` (the intersphinx inventory at the docs root): a
+   zlib-compressed index of every documented object with its role
+   (`py:function`, `py:method`, …) and page anchor. Stdlib `zlib` reads
+   it — no new dependency.
+2. For each inventory entry, open the referenced HTML page and take the
+   first sentence of the object's description as the gloss (provider
+   `docs` — the docs are their own dictionary; no WordNet, no membership
+   gate) plus the signature; example code lines become occurrences.
+   Stdlib `html.parser` suffices for Sphinx's regular `dl/dt/dd`
+   structure — no new dependency.
+
+**Questions.** The same "pick the correct description" MCQ. Distractor
+pool = same-kind items from the same corpus (the store-based pool returns
+for code mode; rarity stays banned per ruling 013). Because the options
+are English prose descriptions, the existing gloss-text similarity works
+unchanged — the feared "pop the method vs pop the word" embedding problem
+largely evaporates when comparing descriptions instead of identifiers.
+Custom-trained code embeddings stay deferred unless description similarity
+proves inadequate (new dependency → owner approval, rule 4).
+
+**Scheduling/profiles.** Untouched — items are opaque to the scheduler by
+design (DECISIONS 005).
+
+**Registry fit.** Natural-language registry entries require spaCy/OMW/TTS;
+code languages need none of those. Proposal: a `kind` field on the
+registry entry (`natural` | `code`) with per-kind required pieces.
+
+**Open questions for the owner:**
+1. Ordering of new items — proposal: module grouping (pick modules at
+   ingest, learn one module's API at a time); alternatives: frequency of
+   mention across the corpus, or inventory order.
+2. Should questions show the signature line above the options?
+3. First corpus — proposal: a small stdlib subset (`itertools`,
+   `functools`, `collections`).
+4. Accept the registry `kind` split above?
+
 ## Diagnostics
 
 `prelexy --debug <command>` (or `PRELEXY_DEBUG=1`) turns on diagnostic

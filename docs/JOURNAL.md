@@ -81,3 +81,40 @@ and are referenced from entries.
   languages → v3 code docs) per owner instruction; ROADMAP v2/v3 plans
   written. Owner merges to main next; unattended work then accumulates on
   `claude`.
+
+### 2026-07-06 — unattended run: Stage 1 complete, Stage 2 built, v3 spike
+
+- Pre-work per owner instruction: reviewed the two rate-limit-era commits
+  (249da44, 5e28c8a) — content accurate; fixed two stale ROADMAP phase
+  annotations found during the review (d4fd489). Owner had merged
+  claude↔main (PRs #2/#3); rebased onto the merge.
+- **Stage 1 (all eight items):** named-entity distractor exclusion +
+  non-instance gloss preference ("china" → porcelain); distractor pool
+  follows the gloss's POS (gartered/tabooed leak); GitHub Actions CI;
+  gloss length gate (2.5×/40-char slack); shortest-complete example
+  sentences (also dodges OCR-pipe contexts); band calibration verdict —
+  values confirmed, WordNet synonym/relative guard added instead of band
+  movement (DECISIONS 022); the six config settings wired end to end
+  (default_profile/default_language/db_path/tts_voice/pool_size/
+  show_context); cleaned-corpora gitignore.
+- **Stage 2 (items 1–7):** language registry (en+nl; unsupported → error
+  naming missing pieces); wordfreq membership gate for non-English; OMW
+  bilingual glosses — Dutch words get English definitions offline, with
+  surface→lemma fallback ("liep"→"lopen") (DECISIONS 023); kaikki.org
+  Wiktionary importer for OMW's thin adjectives; Dutch distractor pools +
+  language-aware synonym guard (huis/woning); profile language memory;
+  .srt/.vtt ingestion with sentence-safe re-paragraphing. A Dutch MCQ
+  builds fully offline in tests. Item 8 (real-model/transcript run)
+  AWAITING OWNER — commands in VERIFICATION.
+- **Stage 3:** design spike written into DESIGN.md ("Code documentation
+  mode (v3) — PROPOSED"): objects.inv + Sphinx HTML ingestion, docs as
+  their own dictionary, description-similarity distractors, no schema
+  changes, zero new dependencies; four open questions listed. AWAITING
+  OWNER REVIEW — per backlog, no v3 implementation until then.
+- Suite grew 102 → 137 passing (+1 model skip). No permission prompts,
+  denials, or classifier blocks this run (friction log: one transient
+  classifier outage, retried fine; one non-fast-forward push resolved by
+  rebase after the owner's merges).
+- Hand-off: owner returns → (1) v1-feel playtest + v2 Dutch commands in
+  VERIFICATION, (2) review the v3 design + its four questions, (3) check
+  CI runs on GitHub Actions. Everything else is done or owner-gated.
