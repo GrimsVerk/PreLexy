@@ -200,12 +200,13 @@ def test_ensure_sense_falls_back_to_api_and_caches(store, monkeypatch):
 
 KAIKKI_SAMPLE = "\n".join(
     [
-        '{"word": "mooi", "pos": "noun", "senses": [{"glosses": ["a beauty (wrong POS)"]}]}',
-        '{"word": "mooi", "pos": "adj", "senses": [{"glosses": ["beautiful, handsome"]}]}',
-        '{"word": "gezellig", "pos": "adj", "senses": [{"glosses": ["cozy, convivial"]}]}',
-        '{"word": "liep", "pos": "verb", "senses": [{"glosses": ["should not be used"]}]}',
+        '{"word": "mooi", "pos": "noun", "lang_code": "nl", "senses": [{"glosses": ["a beauty (wrong POS)"]}]}',
+        '{"word": "mooi", "pos": "adj", "lang_code": "nl", "senses": [{"glosses": ["beautiful, handsome"]}]}',
+        '{"word": "gezellig", "pos": "adj", "lang_code": "nl", "senses": [{"glosses": ["cozy, convivial"]}]}',
+        '{"word": "gezellig", "pos": "adj", "lang_code": "de", "senses": [{"glosses": ["WRONG LANGUAGE"]}]}',
+        '{"word": "liep", "pos": "verb", "lang_code": "nl", "senses": [{"glosses": ["should not be used"]}]}',
         "not json at all",
-        '{"word": "onbekend", "pos": "adj", "senses": []}',
+        '{"word": "onbekend", "pos": "adj", "lang_code": "nl", "senses": []}',
     ]
 )
 
@@ -227,6 +228,45 @@ def test_import_kaikki_glosses_fills_gaps_with_pos_preference(store, tmp_path):
     assert ensure_sense(store, store.find_item("nl", "gezellig")).gloss == "cozy, convivial"
     assert ensure_sense(store, store.find_item("nl", "liep")).gloss == "existing gloss"
     assert store.senses_for(mooi)[0]["gloss_language"] == "en"
+
+
+def test_import_kaikki_streams_gzip_and_filters_language(store, tmp_path):
+    import gzip
+
+    store.get_or_create_item("nl", "gezellig", lemma="gezellig", pos="ADJ")
+    extract = tmp_path / "raw-wiktextract-data.jsonl.gz"
+    with gzip.open(extract, "wt", encoding="utf-8") as fh:
+        fh.write(KAIKKI_SAMPLE)
+    filled, missing = definitions.import_kaikki_glosses(store, extract, "nl")
+    assert (filled, missing) == (1, 1)
+    sense = ensure_sense(store, store.find_item("nl", "gezellig"))
+    assert sense.gloss == "cozy, convivial"  # the de entry was skipped
+
+
+def test_import_kaikki_prefers_real_glosses_over_form_of(store, tmp_path):
+    # "abonneert" (surface) only has a form-of entry; its lemma "abonneren"
+    # has the real gloss — the real gloss must win (2026-07-07 playtest).
+    store.get_or_create_item("nl", "abonneert", lemma="abonneren", pos="VERB")
+    store.get_or_create_item("nl", "graatje", lemma="graatje", pos="NOUN")
+    extract = tmp_path / "kaikki.jsonl"
+    extract.write_text(
+        "\n".join(
+            [
+                '{"word": "abonneert", "pos": "verb", "lang_code": "nl",'
+                ' "senses": [{"form_of": [{"word": "abonneren"}],'
+                ' "glosses": ["inflection of abonneren:"]}]}',
+                '{"word": "abonneren", "pos": "verb", "lang_code": "nl",'
+                ' "senses": [{"glosses": ["to subscribe"]}]}',
+                # graatje only exists as a form-of entry: used, minus the colon
+                '{"word": "graatje", "pos": "noun", "lang_code": "nl",'
+                ' "senses": [{"tags": ["form-of"], "glosses": ["diminutive of graat:"]}]}',
+            ]
+        )
+    )
+    filled, missing = definitions.import_kaikki_glosses(store, extract, "nl")
+    assert (filled, missing) == (2, 2)
+    assert ensure_sense(store, store.find_item("nl", "abonneert")).gloss == "to subscribe"
+    assert ensure_sense(store, store.find_item("nl", "graatje")).gloss == "diminutive of graat"
 
 
 def test_ensure_sense_offline_only_skips_api(store):

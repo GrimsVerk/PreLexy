@@ -212,13 +212,17 @@ _KAIKKI_POS = {"noun": "NOUN", "verb": "VERB", "adj": "ADJ", "adv": "ADV"}
 
 
 def import_kaikki_glosses(store, path, language: str) -> tuple[int, int]:
-    """Fill missing definitions from a kaikki.org Wiktionary extract (JSONL).
+    """Fill missing definitions from a kaikki.org Wiktionary dump (JSONL).
 
-    kaikki.org publishes machine-readable Wiktionary dumps (one JSON entry
-    per line, glosses in English) — the coverage supplement for OMW's gaps
-    (DECISIONS 023: Dutch adjectives). Streams the file once and fills only
-    items that have no cached sense, preferring entries whose POS matches
-    the item's. Returns (filled, missing_before).
+    Works with both the deprecated per-language extracts and the
+    future-proof raw wiktextract dump (kaikki.org/dictionary/rawdata.html):
+    `.gz` files are streamed directly (no 20 GB decompress to disk), and
+    entries are filtered by `lang_code` since the raw dump mixes all
+    languages. Fills only items that have no cached sense; entry
+    preference: real gloss + POS match > real gloss > form-of gloss (an
+    item's lemma entry usually supplies the real gloss — see
+    2026-07-07 playtest, "inflection of abonneren"). Returns
+    (filled, missing_before).
     """
     missing = store.items_missing_senses(language)
     by_word: dict[str, list] = {}
@@ -227,37 +231,59 @@ def import_kaikki_glosses(store, path, language: str) -> tuple[int, int]:
         if item["lemma"] and item["lemma"] != item["form"]:
             by_word.setdefault(item["lemma"], []).append(item)
 
-    best: dict[int, tuple[bool, str]] = {}  # item id → (pos matched, gloss)
-    with open(path, encoding="utf-8") as fh:
+    # item id → ((real gloss, pos matched), gloss); higher tuple wins
+    best: dict[int, tuple[tuple[bool, bool], str]] = {}
+    with _open_extract(path) as fh:
         for line in fh:
             try:
                 entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            entry_lang = entry.get("lang_code")
+            if entry_lang is not None and entry_lang != language:
+                continue
             word = entry.get("word")
             if word not in by_word:
                 continue
-            gloss = _kaikki_gloss(entry)
+            gloss, is_form_of = _kaikki_gloss(entry)
             if not gloss:
                 continue
             entry_pos = _KAIKKI_POS.get(entry.get("pos"))
             for item in by_word[word]:
-                pos_matched = bool(entry_pos and entry_pos == item["pos"])
+                rank = (not is_form_of, bool(entry_pos and entry_pos == item["pos"]))
                 current = best.get(item["id"])
-                if current is None or (pos_matched and not current[0]):
-                    best[item["id"]] = (pos_matched, gloss)
+                if current is None or rank > current[0]:
+                    best[item["id"]] = (rank, gloss)
 
     for item_id, (_, gloss) in best.items():
         store.add_sense(item_id, gloss, STRONG_LANGUAGE, "wiktionary")
     return len(best), len(missing)
 
 
-def _kaikki_gloss(entry) -> str | None:
+def _open_extract(path):
+    """Open a kaikki extract for text reading, gz or plain, by magic bytes."""
+    import gzip
+
+    with open(path, "rb") as probe:
+        magic = probe.read(2)
+    if magic == b"\x1f\x8b":
+        return gzip.open(path, "rt", encoding="utf-8")
+    return open(path, encoding="utf-8")
+
+
+def _kaikki_gloss(entry) -> tuple[str | None, bool]:
+    """Best gloss in an entry and whether it is only a form-of reference."""
+    form_of_gloss = None
     for sense in entry.get("senses") or []:
         glosses = sense.get("glosses") or []
-        if glosses and isinstance(glosses[0], str) and glosses[0].strip():
-            return glosses[0].strip()
-    return None
+        gloss = glosses[0].strip() if glosses and isinstance(glosses[0], str) else ""
+        if not gloss:
+            continue
+        if sense.get("form_of") or "form-of" in (sense.get("tags") or []):
+            form_of_gloss = form_of_gloss or gloss.rstrip(":")
+            continue
+        return gloss, False
+    return form_of_gloss, True
 
 
 def _fetch_api_json(url: str):
