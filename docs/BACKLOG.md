@@ -72,7 +72,11 @@ Constraint from day one (CLAUDE.md rule 5): nothing in v1/v2 may break.
 ## Deferred (owner: later — do not start)
 
 - `stats` command (counts by status, due dates)
-- Wiktionary human pronunciation recordings (cached), replacing OS TTS
+- **TTS quality upgrade** (owner 2026-07-07: OS voices work but sound bad
+  in both languages — implement later). Candidates: Wiktionary human
+  recordings (cached, real pronunciation) and/or a neural offline engine
+  (e.g. Piper — free, ~50MB voice models; new dependency → owner approval
+  at implementation time).
 - FSRS or RL-personalized scheduler trained on the review log
 - **Unsupported languages** (grows as v2's registry rejects them): any
   language missing a spaCy pipeline, wordfreq data, a gloss source, or a

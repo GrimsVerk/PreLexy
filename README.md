@@ -65,7 +65,9 @@ conda env update -f environment.yml --prune
 # out of a text first — writes <name>.cleaned.txt beside the input
 python -m prelexy clean data/corpora/dorian_gray_oscar_wilde.txt
 
-# extract the vocabulary of a text into the local database
+# extract the vocabulary of a text into the local database — one ingest
+# for everything: books, plain transcripts, and .srt/.vtt subtitles
+# (e.g. an English film's subtitles), in any supported language
 python -m prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
 
 # list the stored words, rarest first
