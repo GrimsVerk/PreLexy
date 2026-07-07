@@ -68,13 +68,15 @@ later") with what's missing — never half-implemented. **Dutch is the
 required first language** (the owner's target; used for all real-world
 testing).
 
-Phases: (1) language-support registry + graceful unsupported errors;
-(2) Dutch NLP plumbing and a non-English noise gate; (3) bilingual gloss
-chain (OMW coverage spike → kaikki.org Wiktionary extract → cached free
-API); (4) distractor pool for non-English targets (options are English
-glosses, so existing gloss similarity is reused); (5) per-profile language
-settings + config `default_language`; (6) `.srt`/`.vtt` transcript
-ingestion; (7) owner verification with a real transcript.
+Phases: (1) language-support registry + graceful unsupported errors
+*(implemented)*; (2) Dutch NLP plumbing and a non-English noise gate
+*(implemented)*; (3) bilingual gloss chain: OMW → kaikki.org Wiktionary
+importer → cached free API *(implemented — DECISIONS 023)*; (4) distractor
+pool for non-English targets *(implemented — English-gloss similarity
+reused)*; (5) per-profile language settings + config `default_language`
+*(implemented)*; (6) `.srt`/`.vtt` transcript ingestion *(implemented)*;
+(7) owner verification with a real transcript *(AWAITING OWNER —
+docs/VERIFICATION.md has the commands)*.
 
 ## v3 — learn programming languages from official docs (tier 3)
 

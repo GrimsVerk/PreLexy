@@ -196,6 +196,31 @@ sentences). Tier 3's custom-trained code embeddings (needed because `pop`
 the Python method is nothing like `pop` the English word) plug in here
 without touching the MCQ generator, which depends only on this interface.
 
+## Languages (v2)
+
+`prelexy/languages.py` is the registry: a language is supported when the
+whole stack supports it — spaCy pipelines, wordfreq data, an OMW code for
+glosses/candidate pools, and an espeak voice. Anything else raises
+`UnsupportedLanguageError` naming the missing pieces (such languages are
+listed in BACKLOG "Deferred"). English and Dutch are registered.
+
+The bilingual gloss chain (DECISIONS 023): senses cache → Open
+Multilingual Wordnet (`synsets(word, lang='nld')` — the synsets are
+language-independent, so `.definition()` is already the English gloss) →
+`prelexy import-glosses` with a kaikki.org Wiktionary extract for OMW's
+coverage gaps (thin Dutch adjectives) → free API (English only). Surface
+forms fall back to their lemma at lookup ("liep" → "lopen"): the learner
+practices the exact form heard, defined through its lemma. Distractor
+pools come from OMW lemma names of the target's language; the options are
+strong-language (English) text, so gloss similarity always uses the
+English vectors. Profiles remember their last language; `strong_language`
+is stored per profile for future per-profile glossing but glossing is
+currently always English.
+
+Subtitle files (`.srt`/`.vtt`) are converted to prose at ingest: cue
+numbers, timestamps, headers, and tags dropped; cue texts joined (sentences
+span cues) and re-paragraphed at sentence ends.
+
 ## Diagnostics
 
 `prelexy --debug <command>` (or `PRELEXY_DEBUG=1`) turns on diagnostic

@@ -25,6 +25,40 @@ observed working end-to-end anywhere.
 | Distractor band values (0.45 / 0.85) | calibrated (sandbox analysis of owner data) | DECISIONS 022: values confirmed against 2026-07-06 playtests; synonym guard added for the gleefulness case; residual: cousin synonyms. Re-check feel at next owner playtest |
 | Free-API definition fallback | UNVERIFIED (fails soft) | only fires for words WordNet lacks; low risk, mocked in tests |
 | SessionStart hook + setup script | sandbox (script itself) | hook wiring confirmed on next fresh Claude session |
+| Stage 1 polish set (instance/POS/length/synonym guards, contexts, config) | sandbox | owner: next `--debug play` should feel harder and read cleaner |
+| v2: OMW English glosses for Dutch words | sandbox (real OMW data) | offline end-to-end Dutch MCQ in tests; owner run pending |
+| v2: kaikki gloss importer | sandbox (synthetic extract) | owner: real kaikki Dutch file (commands below) |
+| v2: subtitle (.srt/.vtt) ingestion | sandbox | owner: ingest a real podcast transcript |
+| v2: profile language memory | sandbox | owner: play once with --language nl, then without |
+| v2: Dutch end-to-end (real model + real transcript) | AWAITING OWNER | ROADMAP v2 success criterion — commands below |
+| v2: Dutch pronunciation voice quality | AWAITING OWNER | `prelexy say fiets --language nl` — report in chat |
+
+## Owner verification commands — v2 (Dutch)
+
+```bash
+# one-time: the Dutch spaCy model
+python -m spacy download nl_core_news_md
+
+# ingest a real Dutch podcast transcript (.txt, .srt, or .vtt all work)
+python -m prelexy ingest path/to/episode.srt --language nl
+python -m prelexy words --language nl --limit 20
+
+# optional but recommended: fill OMW's gloss gaps from Wiktionary.
+# Download the Dutch extract (kaikki.org → Dictionaries → Dutch,
+# "senses" JSONL, ~100+ MB), then:
+python -m prelexy import-glosses path/to/kaikki.org-dictionary-Dutch.jsonl --language nl
+
+# play in Dutch (remembered per profile after the first time)
+STAMP=$(date +%F)
+python -m prelexy --debug play --language nl 2>&1 | tee docs/playtests/$STAMP-play-nl.txt
+
+# Dutch pronunciation (report in chat how it sounds)
+python -m prelexy say fiets --language nl
+
+git add docs/playtests
+git commit -m "Dutch playtest transcripts $STAMP"
+git push origin claude
+```
 
 ## Owner verification commands
 

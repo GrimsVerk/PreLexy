@@ -13,74 +13,28 @@ parked by the owner — do not start them, do not delete them.
 
 ## Approved
 
-### Stage 1 — v1 polish (English mode)
+### Stage 1 — v1 polish (English mode) — ✅ COMPLETED 2026-07-06
 
-1. **Exclude instance synsets from the distractor pool.** Named entities
-   ("Argentine revolutionary leader … Guevara") are absurd distractors;
-   WordNet marks them as instances (`instance_hypernyms()`), cheap to
-   filter at candidate time.
-2. **Fix the POS-fallback gloss-style leak.** When the target's gloss
-   comes from a fallback POS (adjective "gartered" got the verb gloss
-   "fasten with…"), its phrasing fingerprints it among same-POS distractor
-   glosses. Draw the candidate pool from the POS the gloss actually came
-   from.
-3. **GitHub Actions CI**: pytest on every push (downloads NLTK data in the
-   workflow; no spaCy model, so the one model test skips — same as the
-   sandbox). Gives the owner an impartial green/red.
-4. **Length/style-match distractor glosses** to the correct one — a crisp
-   answer among sprawling encyclopedic options (or vice versa) is a tell.
-5. **Context sentences: prefer the shortest sentence-complete
-   occurrence.** Playtest evidence: 'comeliness' served a ~1,400-character
-   sentence; OCR page breaks truncate others mid-sentence.
-6. **Band calibration** from `docs/playtests/` data: first pass now
-   (observed: in-band counts 31–341/500; 'gleefulness' at 0.716 acted as a
-   near-synonym under the 0.85 ceiling → likely lower the ceiling; propose
-   new defaults in config + mcq). Final pass needs a post-change owner
-   playtest — note that in VERIFICATION and move on.
-7. **Config additions:** `default_profile` (skip the picker),
-   `default_language`, `db_path`, pronunciation voice/engine, `pool_size`,
-   context-sentence toggle.
-8. **gitignore `*.cleaned.txt`** — cleaned corpora are derived artifacts.
+All eight items done (instance-synset exclusion, POS-follow pool, CI,
+length gate, shortest-complete contexts, band calibration + synonym guard
+per DECISIONS 022, the six config settings, cleaned-corpora gitignore).
+Details: docs/JOURNAL.md entry of 2026-07-06 and the commit history.
+Owner re-verification of question feel: next playtest.
 
 ### Stage 2 — v2: learn a new language from zero (test language: Dutch)
+### — items 1–7 ✅ COMPLETED 2026-07-06; item 8 AWAITING OWNER
 
-Design anchors: DECISIONS 002 (surface forms, not lemmas), the `senses.
-gloss_language` field (glosses shown in the learner's strong language —
-English for the owner), ROADMAP "v2" for success criteria. The sandbox
-cannot download spaCy models for any language — develop against hand-built
-Docs as in tests/test_textproc.py; real-model verification is the owner's.
+Implemented: language registry (unsupported → clear error naming missing
+pieces), Dutch plumbing + wordfreq noise gate, OMW bilingual glosses with
+surface→lemma fallback (DECISIONS 023), kaikki.org Wiktionary importer
+(`prelexy import-glosses`), Dutch distractor pools with the synonym guard,
+profile language memory (+ stored `strong_language` for future
+per-profile glossing), `.srt`/`.vtt` ingestion, Dutch espeak voice.
 
-1. **Language-support registry.** One table (code) declaring what each
-   language needs: spaCy pipeline names, wordfreq availability, gloss
-   source, espeak voice. `--language xx` for an unsupported language →
-   clear error listing exactly which pieces are missing; such languages
-   are recorded under Deferred ("maybe later"), not half-implemented.
-2. **Dutch NLP plumbing.** spaCy model mapping (`nl_core_news_md`
-   preferred, `sm` fallback); dictionary-membership gate for non-English
-   (wordfreq zipf > 0 as the noise filter, since WordNet is
-   English-only); surface-form policy already exists in
-   `textproc.item_form`.
-3. **Bilingual gloss chain.** Spike first: Open Multilingual Wordnet via
-   nltk (`synsets(word, lang='nld')` → English gloss) — measure coverage
-   on real Dutch words. Richer path: kaikki.org Wiktionary extract for
-   Dutch (free, downloadable once, parsed into the senses cache).
-   Cached free API as last resort. Chain order and findings → DECISIONS.
-4. **Distractors for non-English targets.** Candidate pool from the Dutch
-   lemma source (OMW/kaikki), same POS; since options are *English*
-   glosses, the existing gloss-vs-gloss similarity (English vectors)
-   works unchanged — reuse it.
-5. **Profile language settings.** `strong_language` and active language
-   per profile (profiles.settings JSON); `default_language` from config;
-   en and nl items coexisting in one DB (already keyed by language —
-   verify with tests end to end).
-6. **Subtitle/transcript formats.** Accept `.srt`/`.vtt` in ingest/clean
-   (strip timestamps and cue numbers) — podcast transcripts often ship as
-   subtitles.
-7. **Dutch pronunciation.** espeak voice mapping exists (`nl`); verify the
-   full path and cover with tests.
-8. **Owner verification.** Needs a real Dutch podcast transcript from the
-   owner + a playtest; add v2 rows to docs/VERIFICATION.md with the exact
-   commands. Until then, verify with a small hand-made Dutch sample.
+8. **Owner verification (open).** Needs the Dutch spaCy model, a real
+   podcast transcript, optionally a kaikki Dutch extract, and a playtest —
+   exact commands in docs/VERIFICATION.md ("v2 (Dutch)" section). Dutch
+   TTS quality also needs the owner's ear.
 
 ### Stage 3 — v3: learn programming languages from official docs
 

@@ -30,10 +30,13 @@ ranks vocabulary from a text into a local SQLite database, `words` lists it,
 WordNet with a cached free-API fallback), and `play` runs an interactive
 practice session that tracks per-profile progress, logs every answer, and
 schedules reviews with spaced repetition (SM-2): correct answers push a word
-further into the future, misses bring it back tomorrow. Phases 1–4 are
-implemented; what remains for v1 is polish. See [ROADMAP.md](ROADMAP.md) for
-goals and phases, and [docs/DESIGN.md](docs/DESIGN.md) for the architecture
-and data model.
+further into the future, misses bring it back tomorrow.
+
+Learning a new language (v2) works too: ingest a Dutch podcast transcript
+(plain text or `.srt`/`.vtt`) and practice the exact words it uses, with
+definitions in English — `--language nl` once, remembered per profile.
+See [ROADMAP.md](ROADMAP.md) for goals and phases, and
+[docs/DESIGN.md](docs/DESIGN.md) for the architecture and data model.
 
 ## Setup
 
@@ -79,6 +82,13 @@ python -m prelexy play --profile alice --length 20
 
 # pronounce any word outside a session
 python -m prelexy say vermilion
+
+# learn a language: ingest a transcript, optionally top up definitions
+# from a kaikki.org Wiktionary extract, then play (needs the language's
+# spaCy model: python -m spacy download nl_core_news_md)
+python -m prelexy ingest episode.srt --language nl
+python -m prelexy import-glosses kaikki.org-dictionary-Dutch.jsonl --language nl
+python -m prelexy play --language nl
 
 # any command with diagnostic detail on stderr (distractor scores, session mix)
 python -m prelexy --debug question vermilion
