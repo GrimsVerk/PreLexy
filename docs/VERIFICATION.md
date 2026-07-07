@@ -34,6 +34,27 @@ observed working end-to-end anywhere.
 | v2: Dutch end-to-end (real model + real transcript) | owner | playtests/2026-07-07-play-nl.txt: 3/3 with English glosses on a real podcast transcript (1,685 items). Known issues → Stage 2b: 7/10 words had no gloss and were suspended (need un-suspend on import + raw-data importer); form-of glosses ("inflection of abonneren:") are useless as answers |
 | v2: Dutch pronunciation | owner (works; quality poor) | owner 2026-07-07: audio plays, voice bad in both languages — TTS upgrade parked in Deferred |
 
+## Owner verification commands — Stage 2b (raw glosses + YouTube)
+
+```bash
+# yt-dlp does the YouTube fetching (one-time)
+pip install yt-dlp
+
+# the future-proof gloss source: the raw wiktextract dump (~2–3 GB
+# download, all languages; the importer streams the .gz directly and
+# filters to your language — no need to decompress). If the URL moved,
+# use the "raw wiktextract data" link on kaikki.org/dictionary/rawdata.html
+curl -L -o raw-wiktextract-data.jsonl.gz \
+  https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz
+python -m prelexy import-glosses raw-wiktextract-data.jsonl.gz --language nl
+# expect: form-of answers gone, previously set-aside words back in play
+
+# pods: save your channel once, then sync whenever
+python -m prelexy pods add https://www.youtube.com/@tweakers/podcasts --language nl
+python -m prelexy pods sync --ingest
+python -m prelexy play   # Dutch remembered on your profile
+```
+
 ## Owner verification commands — v2 (Dutch)
 
 ```bash

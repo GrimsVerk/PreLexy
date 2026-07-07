@@ -85,12 +85,20 @@ python -m prelexy play --profile alice --length 20
 # pronounce any word outside a session
 python -m prelexy say vermilion
 
-# learn a language: ingest a transcript, optionally top up definitions
-# from a kaikki.org Wiktionary extract, then play (needs the language's
-# spaCy model: python -m spacy download nl_core_news_md)
+# learn a language from a podcast: save the channel once, sync new
+# episodes' transcripts straight from YouTube (needs `pip install yt-dlp`
+# and the language's spaCy model: python -m spacy download nl_core_news_md)
+python -m prelexy pods add https://www.youtube.com/@tweakers/podcasts --language nl
+python -m prelexy pods sync --ingest
+python -m prelexy play --language nl   # remembered per profile afterwards
+
+# one-off fetch and manual ingest also work
+python -m prelexy fetch https://www.youtube.com/watch?v=... --language nl --ingest
 python -m prelexy ingest episode.srt --language nl
-python -m prelexy import-glosses kaikki.org-dictionary-Dutch.jsonl --language nl
-python -m prelexy play --language nl
+
+# top up definitions from Wiktionary (raw wiktextract dump from
+# kaikki.org/dictionary/rawdata.html; .gz streamed directly)
+python -m prelexy import-glosses raw-wiktextract-data.jsonl.gz --language nl
 
 # any command with diagnostic detail on stderr (distractor scores, session mix)
 python -m prelexy --debug question vermilion

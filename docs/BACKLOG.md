@@ -34,7 +34,14 @@ per-profile glossing), `.srt`/`.vtt` ingestion, Dutch espeak voice.
 8. ~~Owner verification~~ ✅ 2026-07-07: 3/3 on a real podcast transcript;
    Dutch TTS works (quality parked in Deferred). Findings drive Stage 2b.
 
-### Stage 2b — v2 hardening from the 2026-07-07 Dutch playtest (approved)
+### Stage 2b — v2 hardening from the 2026-07-07 Dutch playtest
+### — ✅ COMPLETED 2026-07-07 (owner verification of real downloads open)
+
+All five items implemented and sandbox-tested (raw wiktextract streaming
++ lang_code filter, form-of resolution, un-suspend on import, `prelexy
+fetch`, `prelexy pods add/list/remove/sync`). Real-network verification
+(actual kaikki download, actual YouTube fetch) is the owner's — commands
+in docs/VERIFICATION.md "Stage 2b". Original items follow for reference.
 
 1. **Raw wiktextract support in `import-glosses`.** kaikki's per-language
    extracts are deprecated; the future-proof source is the raw wiktextract
