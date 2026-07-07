@@ -115,6 +115,11 @@ and are referenced from entries.
   denials, or classifier blocks this run (friction log: one transient
   classifier outage, retried fine; one non-fast-forward push resolved by
   rebase after the owner's merges).
+- CI initially failed on every run — setup-python's `cache: pip` needs a
+  requirements.txt/pyproject.toml to key on and dies before pytest when
+  none exists. Dropped the cache option; run `362b31f` is **green on
+  GitHub's runner** (checked via the Actions API from the sandbox).
+  Lesson for the ledger: "CI added" ≠ "CI verified" until a run passes.
 - Hand-off: owner returns → (1) v1-feel playtest + v2 Dutch commands in
   VERIFICATION, (2) review the v3 design + its four questions, (3) check
   CI runs on GitHub Actions. Everything else is done or owner-gated.

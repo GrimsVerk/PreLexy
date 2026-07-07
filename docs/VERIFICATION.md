@@ -26,6 +26,7 @@ observed working end-to-end anywhere.
 | Free-API definition fallback | UNVERIFIED (fails soft) | only fires for words WordNet lacks; low risk, mocked in tests |
 | SessionStart hook + setup script | sandbox (script itself) | hook wiring confirmed on next fresh Claude session |
 | Stage 1 polish set (instance/POS/length/synonym guards, contexts, config) | sandbox | owner: next `--debug play` should feel harder and read cleaner |
+| GitHub Actions CI | verified (GitHub runner) | run 362b31f green after dropping the pip-cache option; earlier runs all failed pre-pytest |
 | v2: OMW English glosses for Dutch words | sandbox (real OMW data) | offline end-to-end Dutch MCQ in tests; owner run pending |
 | v2: kaikki gloss importer | sandbox (synthetic extract) | owner: real kaikki Dutch file (commands below) |
 | v2: subtitle (.srt/.vtt) ingestion | sandbox | owner: ingest a real podcast transcript |
