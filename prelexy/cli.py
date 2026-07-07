@@ -62,13 +62,19 @@ def cli(debug_flag):
 @click.option("--title", default=None, help="Source title [default: the file name]")
 @click.option(
     "--kind",
-    default="book",
-    show_default=True,
+    default=None,
     type=click.Choice(["book", "subtitles", "transcript", "docs"]),
+    help="[default: book, or subtitles for .srt/.vtt files]",
 )
 @_db_option
 def ingest(file, language, title, kind, db_path):
-    """Extract learnable vocabulary from FILE and store it."""
+    """Extract learnable vocabulary from FILE and store it.
+
+    Plain text, .srt, and .vtt are accepted; subtitle files are converted
+    to prose (timestamps and cue numbers stripped) before extraction.
+    """
+    from prelexy.clean import SUBTITLE_SUFFIXES, strip_subtitles
+
     config = _load_config_or_die()
     language = _resolve_language(language, config)
     path = str(file.resolve())
@@ -78,6 +84,10 @@ def ingest(file, language, title, kind, db_path):
                 f"{file} was already ingested; re-ingesting would double its counts."
             )
         text = file.read_text(encoding="utf-8", errors="replace")
+        if file.suffix.lower() in SUBTITLE_SUFFIXES:
+            text = strip_subtitles(text)
+            kind = kind or "subtitles"
+        kind = kind or "book"
         click.echo(f"Extracting from {file.name} … (first run loads models, be patient)")
         try:
             candidates = extract_candidates(text, language)
@@ -138,12 +148,18 @@ def words(language, limit, db_path):
     help="Where to write [default: <name>.cleaned.<ext> beside the input]",
 )
 def clean(file, output):
-    """Clean common OCR artifacts from a text file before ingesting it."""
-    from prelexy.clean import clean_text
+    """Clean a text file before ingesting it.
+
+    Fixes common OCR artifacts; .srt/.vtt subtitle files are additionally
+    converted to plain prose first.
+    """
+    from prelexy.clean import SUBTITLE_SUFFIXES, clean_text, strip_subtitles
 
     text = file.read_text(encoding="utf-8", errors="replace")
+    if file.suffix.lower() in SUBTITLE_SUFFIXES:
+        text = strip_subtitles(text)
     cleaned, counts = clean_text(text)
-    output = output or file.with_suffix(".cleaned" + file.suffix)
+    output = output or file.with_suffix(".cleaned.txt")
     output.write_text(cleaned, encoding="utf-8")
     click.echo(f"Wrote {output}")
     for rule, count in counts.items():

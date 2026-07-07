@@ -90,6 +90,28 @@ def test_words_on_empty_db_explains_ingest(tmp_path):
     assert "ingest" in result.output
 
 
+def test_ingest_converts_subtitle_files(tmp_path, monkeypatch):
+    received = {}
+
+    def capturing_extract(text, language="en", nlp=None):
+        received["text"] = text
+        return fake_extract(text, language, nlp)
+
+    monkeypatch.setattr("prelexy.cli.extract_candidates", capturing_extract)
+    db = tmp_path / "db.sqlite"
+    episode = tmp_path / "episode.srt"
+    episode.write_text(
+        "1\n00:00:01,000 --> 00:00:04,000\nHallo, welkom bij de podcast.\n"
+    )
+    result = CliRunner().invoke(cli, ["ingest", str(episode), "--db", str(db)])
+    assert result.exit_code == 0, result.output
+    assert "-->" not in received["text"]
+    assert "Hallo, welkom" in received["text"]
+    with Store(db) as store:
+        source = store.find_source_by_path(str(episode.resolve()))
+        assert source["kind"] == "subtitles"
+
+
 def test_play_prompts_to_create_first_profile(tmp_path, monkeypatch):
     isolate_play(monkeypatch, tmp_path)
     db = tmp_path / "db.sqlite"
