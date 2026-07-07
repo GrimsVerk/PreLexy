@@ -253,6 +253,20 @@ class Store:
             "SELECT id FROM profiles WHERE name = ?", (name,)
         ).fetchone()["id"]
 
+    def get_profile_settings(self, profile_id: int) -> dict:
+        row = self._conn.execute(
+            "SELECT settings FROM profiles WHERE id = ?", (profile_id,)
+        ).fetchone()
+        return json.loads(row["settings"]) if row else {}
+
+    def update_profile_settings(self, profile_id: int, **updates) -> None:
+        settings = self.get_profile_settings(profile_id)
+        settings.update(updates)
+        self._conn.execute(
+            "UPDATE profiles SET settings = ? WHERE id = ?",
+            (json.dumps(settings), profile_id),
+        )
+
     def upsert_item_state(
         self,
         profile_id: int,

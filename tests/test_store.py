@@ -91,6 +91,18 @@ def test_get_or_create_profile_is_idempotent(db):
         assert store.get_or_create_profile("guest") != first
 
 
+def test_profile_settings_roundtrip_and_merge(db):
+    with Store(db) as store:
+        profile = store.get_or_create_profile("anna")
+        assert store.get_profile_settings(profile) == {}
+        store.update_profile_settings(profile, language="nl")
+        store.update_profile_settings(profile, strong_language="en")
+        assert store.get_profile_settings(profile) == {
+            "language": "nl",
+            "strong_language": "en",
+        }
+
+
 def test_upsert_item_state_inserts_then_updates(db):
     with Store(db) as store:
         profile = store.get_or_create_profile("p")

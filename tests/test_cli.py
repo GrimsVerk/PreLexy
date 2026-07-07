@@ -151,6 +151,44 @@ def test_play_uses_default_profile_from_config(tmp_path, monkeypatch):
         assert [row["name"] for row in store.list_profiles()] == ["erika"]
 
 
+def test_play_remembers_the_profiles_language(tmp_path, monkeypatch):
+    isolate_play(monkeypatch, tmp_path)
+    db = tmp_path / "db.sqlite"
+    with Store(db) as store:
+        en_item = store.get_or_create_item(
+            "en", "sagacious", lemma="sagacious", pos="ADJ", metadata={"zipf": 2.0}
+        )
+        store.add_sense(en_item, "having keen judgement", "en", "wordnet")
+        nl_item = store.get_or_create_item(
+            "nl", "fiets", lemma="fiets", pos="NOUN", metadata={"zipf": 4.0}
+        )
+        store.add_sense(nl_item, "a two-wheeled vehicle", "en", "wordnet")
+    runner = CliRunner()
+
+    # first session names the language explicitly
+    result = runner.invoke(
+        cli, ["play", "--db", str(db), "--profile", "anna", "--language", "nl"],
+        input="q\n",
+    )
+    assert result.exit_code == 0, result.output
+    assert "fiets" in result.output
+
+    # the next session inherits it without any flag
+    result = runner.invoke(
+        cli, ["play", "--db", str(db), "--profile", "anna"], input="q\n"
+    )
+    assert result.exit_code == 0, result.output
+    assert "fiets" in result.output
+    assert "sagacious" not in result.output
+
+    # a different profile still gets the config default (en)
+    result = runner.invoke(
+        cli, ["play", "--db", str(db), "--profile", "bert"], input="q\n"
+    )
+    assert result.exit_code == 0, result.output
+    assert "sagacious" in result.output
+
+
 def test_default_language_and_db_path_come_from_config(tmp_path, monkeypatch):
     config_db = tmp_path / "from-config.db"
     write_config(

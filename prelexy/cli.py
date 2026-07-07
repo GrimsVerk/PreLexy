@@ -33,15 +33,18 @@ def _resolve_db(db_path, config):
     return None
 
 
-def _resolve_language(language, config):
+def _validate_language(code):
     from prelexy.languages import UnsupportedLanguageError, get_language
 
-    code = language or config["default_language"]
     try:
         get_language(code)
     except UnsupportedLanguageError as error:
         raise click.ClickException(str(error))
     return code
+
+
+def _resolve_language(language, config):
+    return _validate_language(language or config["default_language"])
 
 
 @click.group()
@@ -280,7 +283,12 @@ def question(form, language, db_path):
     help="Player profile; each profile tracks its own progress. Without this "
     "flag, the config file's default_profile applies, else play asks.",
 )
-@_language_option
+@click.option(
+    "--language",
+    default=None,
+    help="Language to practice [default: the profile's last language, "
+    "else default_language from the config file]",
+)
 @click.option("--new", "new_words", default=None, type=click.IntRange(min=0),
               help="New words this session [default: new_words from the config file]")
 @click.option("--seen", "seen_words", default=None, type=click.IntRange(min=0),
@@ -295,7 +303,6 @@ def play(profile_name, language, new_words, seen_words, db_path):
     from prelexy.textproc import load_nlp
 
     config = _load_config_or_die()
-    language = _resolve_language(language, config)
     new_words = new_words if new_words is not None else config["new_words"]
     seen_words = seen_words if seen_words is not None else config["seen_words"]
     profile_name = profile_name or config["default_profile"] or None
@@ -312,6 +319,10 @@ def play(profile_name, language, new_words, seen_words, db_path):
             if profile_name
             else _choose_profile(store)
         )
+        settings = store.get_profile_settings(profile_id)
+        language = _validate_language(
+            language or settings.get("language") or config["default_language"]
+        )
         run_session(
             store,
             profile_id,
@@ -323,4 +334,11 @@ def play(profile_name, language, new_words, seen_words, db_path):
             pool_size=config["pool_size"],
             show_context=config["show_context"],
             tts_voice=config["tts_voice"] or None,
+        )
+        # remembered for next time; strong_language is stored for future
+        # per-profile glossing (glosses currently always use English)
+        store.update_profile_settings(
+            profile_id,
+            language=language,
+            strong_language=settings.get("strong_language", definitions_language()),
         )
