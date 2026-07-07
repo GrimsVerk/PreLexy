@@ -26,6 +26,7 @@ class SessionSummary:
     asked: int = 0
     correct: int = 0
     suspended: int = 0
+    had_items: bool = False  # did the language have anything to serve?
 
 
 def run_session(
@@ -44,9 +45,9 @@ def run_session(
 ) -> SessionSummary:
     now = datetime.now(timezone.utc)
     items = scheduler.next_items(store, profile_id, language, now, n_questions)
-    summary = SessionSummary()
+    summary = SessionSummary(had_items=bool(items))
     if not items:
-        click.echo("Nothing to practice — ingest a text first, or you're all caught up.")
+        _report_nothing_to_practice(store, language)
         return summary
 
     for item in items:
@@ -95,6 +96,20 @@ def run_session(
             f"({summary.suspended} word(s) had no usable definition and were set aside.)"
         )
     return summary
+
+
+def _report_nothing_to_practice(store, language: str) -> None:
+    """Explain the empty session and point at languages that do have items."""
+    counts = store.language_item_counts()
+    if not counts.get(language):
+        click.echo(f"Nothing stored for {language!r} yet — ingest a text first.")
+    else:
+        click.echo(f"Nothing due in {language!r} right now — you're all caught up.")
+    others = [(lang, n) for lang, n in counts.items() if lang != language and n]
+    if others:
+        summary = ", ".join(f"{lang} ({n} items)" for lang, n in others)
+        click.echo(f"Other languages with words: {summary}")
+        click.echo(f"Practice one with: prelexy play --language {others[0][0]}")
 
 
 def _ask(

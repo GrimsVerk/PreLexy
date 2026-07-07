@@ -188,4 +188,17 @@ def test_empty_store_says_so(store, capsys):
     profile = store.get_or_create_profile("p")
     summary = play(store, profile)
     assert summary.asked == 0
-    assert "Nothing to practice" in capsys.readouterr().out
+    assert summary.had_items is False
+    assert "Nothing stored for 'en'" in capsys.readouterr().out
+
+
+def test_empty_session_points_at_other_languages(store, capsys):
+    profile = store.get_or_create_profile("p")
+    # a Dutch corpus exists, but we ask to play empty English
+    for i in range(3):
+        store.get_or_create_item("nl", f"woord{i}", lemma=f"woord{i}", pos="NOUN")
+    summary = play(store, profile)  # plays "en"
+    assert summary.had_items is False
+    out = capsys.readouterr().out
+    assert "nl (3 items)" in out
+    assert "prelexy play --language nl" in out

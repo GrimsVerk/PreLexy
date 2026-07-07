@@ -584,7 +584,7 @@ def play(profile_name, language, new_words, seen_words, db_path):
         language = _validate_language(
             language or settings.get("language") or config["default_language"]
         )
-        run_session(
+        summary = run_session(
             store,
             profile_id,
             language,
@@ -597,10 +597,14 @@ def play(profile_name, language, new_words, seen_words, db_path):
             tts_voice=config["tts_voice"] or None,
             code_own_pool=config["code_pool_own_language"],
         )
-        # remembered for next time; strong_language is stored for future
-        # per-profile glossing (glosses currently always use English)
-        store.update_profile_settings(
-            profile_id,
-            language=language,
-            strong_language=settings.get("strong_language", definitions_language()),
-        )
+        # remember the language only when it actually had items — a session
+        # that served nothing must not pin the profile to an empty language
+        # (2026-07-07: a failed `play --language python` hid a synced Dutch
+        # corpus behind an empty default profile). strong_language is stored
+        # for future per-profile glossing (glosses currently always English).
+        if summary.had_items:
+            store.update_profile_settings(
+                profile_id,
+                language=language,
+                strong_language=settings.get("strong_language", definitions_language()),
+            )

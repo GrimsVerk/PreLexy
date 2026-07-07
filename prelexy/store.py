@@ -254,6 +254,15 @@ class Store:
         ).fetchall()
         return [(row["form"], row["gloss"]) for row in rows]
 
+    def language_item_counts(self) -> dict[str, int]:
+        """Item count per language, most-populated first — for empty-session
+        guidance so the player knows what else is available to practice."""
+        rows = self._conn.execute(
+            "SELECT language, COUNT(*) AS n FROM items "
+            "GROUP BY language ORDER BY n DESC"
+        ).fetchall()
+        return {row["language"]: row["n"] for row in rows}
+
     def items_missing_senses(self, language: str) -> list[sqlite3.Row]:
         """Items with no cached definition — targets for a gloss import."""
         return self._conn.execute(
