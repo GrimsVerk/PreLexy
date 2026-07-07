@@ -222,6 +222,105 @@ def _ingest_paths(files, language, config, db_path):
                 )
 
 
+@cli.command("ingest-docs")
+@click.argument("docs_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.option("--language", default="python", show_default=True,
+              help="Code language namespace for the items.")
+@click.option("--modules", default=None,
+              help="Comma-separated module filter, e.g. 'itertools,functools' "
+                   "[default: the whole corpus]")
+@_db_option
+def ingest_docs(docs_dir, language, modules, db_path):
+    """Ingest a downloaded Sphinx HTML documentation tree.
+
+    Reads objects.inv at DOCS_DIR's root and stores every documented
+    function/method/class as a learnable item, with the doc's first
+    description sentence as its definition and its signature as the
+    after-answer context. Whole corpus by default; --modules narrows
+    for focused study (DECISIONS 024).
+    """
+    from prelexy.docsproc import extract_glosses, parse_inventory
+    from prelexy.languages import get_language
+
+    config = _load_config_or_die()
+    if get_language(language).kind != "code":
+        raise click.ClickException(
+            f"{language!r} is not a code language — use `prelexy ingest` for texts."
+        )
+    inventory = docs_dir / "objects.inv"
+    if not inventory.exists():
+        raise click.ClickException(
+            f"No objects.inv in {docs_dir} — point at the root of a Sphinx HTML "
+            "docs download (e.g. the python-3.x-docs-html archive, unpacked)."
+        )
+    try:
+        entries = parse_inventory(inventory)
+    except ValueError as error:
+        raise click.ClickException(str(error))
+    if modules:
+        wanted = {m.strip() for m in modules.split(",") if m.strip()}
+        entries = [
+            e for e in entries
+            if e.module in wanted or any(e.module.startswith(m + ".") for m in wanted)
+        ]
+    if not entries:
+        raise click.ClickException("Nothing learnable matched in the inventory.")
+
+    by_page: dict[str, list] = {}
+    for entry in entries:
+        by_page.setdefault(entry.page, []).append(entry)
+
+    path = str(docs_dir.resolve())
+    stored = unglossed = missing_pages = 0
+    with Store(_resolve_db(db_path, config)) as store:
+        if store.find_source_by_path(path) is not None:
+            raise click.ClickException(
+                f"{docs_dir} was already ingested; re-ingesting would double its counts."
+            )
+        source_id = store.add_source(docs_dir.name, language, "docs", path)
+        order = 0
+        for page, page_entries in by_page.items():
+            html_file = docs_dir / page
+            if not html_file.is_file():
+                missing_pages += 1
+                continue
+            glosses = extract_glosses(
+                html_file.read_text(encoding="utf-8", errors="replace"),
+                {e.anchor for e in page_entries},
+            )
+            for entry in page_entries:
+                found = glosses.get(entry.anchor)
+                if found is None:
+                    unglossed += 1
+                    continue
+                signature, gloss = found
+                item_id = store.get_or_create_item(
+                    language,
+                    entry.name,
+                    lemma=entry.name,
+                    pos=entry.role,
+                    metadata={
+                        "kind": entry.role,
+                        "module": entry.module,
+                        "signature": signature,
+                        "order": order,
+                    },
+                )
+                store.add_occurrences(
+                    item_id, source_id, [(signature or entry.name, order)]
+                )
+                if not store.senses_for(item_id):
+                    store.add_sense(item_id, gloss, "en", "docs")
+                stored += 1
+                order += 1
+    click.echo(f"Stored {stored} documented objects from {len(by_page)} pages.")
+    if unglossed or missing_pages:
+        click.echo(
+            f"(skipped: {unglossed} without extractable descriptions, "
+            f"{missing_pages} missing pages)"
+        )
+
+
 @cli.group()
 def pods():
     """Save podcast channels and sync their transcripts."""
