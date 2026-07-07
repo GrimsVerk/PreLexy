@@ -1,0 +1,43 @@
+Who is playing?
+  1. default
+  n. new profile
+Profile: [scheduler] 0 due, 1685 new, quotas 3 seen + 7 new → serving 0 reviews + 10 new
+[mcq] 'abonneert' ← 'inleven' score 0.457
+[mcq] 'abonneert' ← 'omschrijven' score 0.483
+[mcq] 'abonneert' ← 'aanhalen' score 0.474
+[mcq] 'abonneert': scanned 500, scored 406, in band 6, pool 6 → sampled 3
+
+1. What does “abonneert” mean?
+   1. repeat a passage from
+   2. inflection of abonneren:
+   3. set boundaries to and delimit
+   4. be understanding of
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “Maar eh we zijn over die 100k en dus nogmaals dank aan iedereen die abonneert op het kanaal voor de podcasts of de andere video's.”
+[mcq] 'bodemprijzen' ← 'roer' score 0.648
+[mcq] 'bodemprijzen' ← 'achterzak' score 0.576
+[mcq] 'bodemprijzen' ← 'ribbel' score 0.662
+[mcq] 'bodemprijzen': scanned 500, scored 170, in band 34, pool 10 → sampled 3
+
+2. What does “bodemprijzen” mean?
+   1. a pocket in rear of trousers
+   2. price floor
+   3. a position of leadership
+   4. a long narrow natural elevation or striation
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “Dit dit zijn bodemprijzen.”
+[mcq] 'graatje' ← 'massamoord' score 0.367 (below floor)
+[mcq] 'graatje' ← 'sufkont' score 0.409 (below floor)
+[mcq] 'graatje' ← 'goochelkunst' score 0.386 (below floor)
+[mcq] 'graatje': scanned 500, scored 231, in band 1, pool 10 → sampled 3
+
+3. What does “graatje” mean?
+   1. diminutive of graat
+   2. the savage and excessive killing of many people
+   3. an illusory feat; considered magical by naive observers
+   4. a stupid incompetent person
+Your answer (1–4, p to hear it, q to quit):   ✓ correct
+  seen in: “Eh dan is het binnen opgelopen tot een graatje of 55 ofzo.”
+
+Session over: 3/3 correct.
+(7 word(s) had no usable definition and were set aside.)
