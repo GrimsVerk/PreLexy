@@ -222,6 +222,96 @@ def _ingest_paths(files, language, config, db_path):
                 )
 
 
+@cli.group()
+def pods():
+    """Save podcast channels and sync their transcripts."""
+
+
+@pods.command("add")
+@click.argument("url")
+@_language_option
+@_db_option
+def pods_add(url, language, db_path):
+    """Save a channel/playlist URL (e.g. youtube.com/@tweakers/podcasts)."""
+    config = _load_config_or_die()
+    language = _resolve_language(language, config)
+    with Store(_resolve_db(db_path, config)) as store:
+        subscriptions = store.get_meta("pod_subscriptions", [])
+        if any(sub["url"] == url for sub in subscriptions):
+            raise click.ClickException(f"{url} is already saved.")
+        subscriptions.append({"url": url, "language": language})
+        store.set_meta("pod_subscriptions", subscriptions)
+    click.echo(
+        f"Saved ({language}). {len(subscriptions)} pod(s) — "
+        "`prelexy pods sync --ingest` fetches new episodes."
+    )
+
+
+@pods.command("list")
+@_db_option
+def pods_list(db_path):
+    """Show the saved pods."""
+    config = _load_config_or_die()
+    with Store(_resolve_db(db_path, config)) as store:
+        subscriptions = store.get_meta("pod_subscriptions", [])
+    if not subscriptions:
+        click.echo("No pods saved yet — `prelexy pods add <channel-url>`.")
+        return
+    for sub in subscriptions:
+        click.echo(f"  [{sub['language']}] {sub['url']}")
+
+
+@pods.command("remove")
+@click.argument("url")
+@_db_option
+def pods_remove(url, db_path):
+    """Forget a saved pod."""
+    config = _load_config_or_die()
+    with Store(_resolve_db(db_path, config)) as store:
+        subscriptions = store.get_meta("pod_subscriptions", [])
+        remaining = [sub for sub in subscriptions if sub["url"] != url]
+        if len(remaining) == len(subscriptions):
+            raise click.ClickException(f"{url} is not a saved pod.")
+        store.set_meta("pod_subscriptions", remaining)
+    click.echo(f"Removed. {len(remaining)} pod(s) left.")
+
+
+@pods.command("sync")
+@click.option(
+    "--dest",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("data/pods"),
+    show_default=True,
+)
+@click.option("--ingest", "do_ingest", is_flag=True,
+              help="Ingest every new transcript immediately.")
+@_db_option
+def pods_sync(dest, do_ingest, db_path):
+    """Fetch new episodes' subtitles from every saved pod.
+
+    yt-dlp's download archive remembers what has already been fetched,
+    so re-running only pulls what's new.
+    """
+    from prelexy.pods import INSTALL_HINT, fetch_subtitles
+
+    config = _load_config_or_die()
+    with Store(_resolve_db(db_path, config)) as store:
+        subscriptions = store.get_meta("pod_subscriptions", [])
+    if not subscriptions:
+        raise click.ClickException("No pods saved — `prelexy pods add <channel-url>` first.")
+    archive = Path(dest) / "archive.txt"
+    total = 0
+    for sub in subscriptions:
+        click.echo(f"Syncing [{sub['language']}] {sub['url']}")
+        new_files = fetch_subtitles(sub["url"], sub["language"], dest, archive=archive)
+        if new_files is None:
+            raise click.ClickException(INSTALL_HINT)
+        total += len(new_files)
+        if do_ingest and new_files:
+            _ingest_paths(new_files, sub["language"], config, db_path)
+    click.echo(f"Sync complete: {total} new subtitle file(s).")
+
+
 @cli.command("import-glosses")
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @_language_option

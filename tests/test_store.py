@@ -91,6 +91,19 @@ def test_get_or_create_profile_is_idempotent(db):
         assert store.get_or_create_profile("guest") != first
 
 
+def test_meta_roundtrip(db):
+    with Store(db) as store:
+        assert store.get_meta("pod_subscriptions", []) == []
+        store.set_meta("pod_subscriptions", [{"url": "u", "language": "nl"}])
+        store.set_meta("pod_subscriptions", [{"url": "v", "language": "en"}])
+        assert store.get_meta("pod_subscriptions") == [{"url": "v", "language": "en"}]
+        # the schema_version key is untouched by meta helpers
+        row = store._conn.execute(
+            "SELECT value FROM meta WHERE key = 'schema_version'"
+        ).fetchone()
+        assert row["value"] == "1"
+
+
 def test_profile_settings_roundtrip_and_merge(db):
     with Store(db) as store:
         profile = store.get_or_create_profile("anna")

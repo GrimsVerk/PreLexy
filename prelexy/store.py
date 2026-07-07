@@ -243,6 +243,22 @@ class Store:
             (language,),
         ).fetchall()
 
+    # -- meta -------------------------------------------------------------
+
+    def get_meta(self, key: str, default=None):
+        """JSON value from the meta table (new-style keys only)."""
+        row = self._conn.execute(
+            "SELECT value FROM meta WHERE key = ?", (key,)
+        ).fetchone()
+        return json.loads(row["value"]) if row else default
+
+    def set_meta(self, key: str, value) -> None:
+        self._conn.execute(
+            "INSERT INTO meta (key, value) VALUES (?, ?) "
+            "ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+            (key, json.dumps(value)),
+        )
+
     # -- knowledge --------------------------------------------------------
 
     def senses_for(self, item_id: int) -> list[sqlite3.Row]:

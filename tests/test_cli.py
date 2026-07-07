@@ -146,6 +146,38 @@ def test_fetch_command_without_ytdlp_hints_install(tmp_path, monkeypatch):
     assert "yt-dlp" in result.output
 
 
+def test_pods_add_list_sync_remove(tmp_path, monkeypatch):
+    db = tmp_path / "db.sqlite"
+    runner = CliRunner()
+    url = "https://www.youtube.com/@tweakers/podcasts"
+
+    result = runner.invoke(cli, ["pods", "add", url, "--language", "nl", "--db", str(db)])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli, ["pods", "add", url, "--language", "nl", "--db", str(db)])
+    assert result.exit_code != 0  # duplicates refused
+
+    result = runner.invoke(cli, ["pods", "list", "--db", str(db)])
+    assert f"[nl] {url}" in result.output
+
+    fetched = []
+
+    def fake_fetch(sub_url, language, dest, archive=None):
+        fetched.append((sub_url, language, archive is not None))
+        return []
+
+    monkeypatch.setattr("prelexy.pods.fetch_subtitles", fake_fetch)
+    result = runner.invoke(cli, ["pods", "sync", "--dest", str(tmp_path / "pods"),
+                                 "--db", str(db)])
+    assert result.exit_code == 0, result.output
+    assert fetched == [(url, "nl", True)]
+    assert "Sync complete: 0 new" in result.output
+
+    result = runner.invoke(cli, ["pods", "remove", url, "--db", str(db)])
+    assert result.exit_code == 0
+    result = runner.invoke(cli, ["pods", "sync", "--db", str(db)])
+    assert result.exit_code != 0  # nothing saved anymore
+
+
 def test_play_prompts_to_create_first_profile(tmp_path, monkeypatch):
     isolate_play(monkeypatch, tmp_path)
     db = tmp_path / "db.sqlite"
