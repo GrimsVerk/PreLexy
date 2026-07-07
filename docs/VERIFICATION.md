@@ -31,8 +31,8 @@ observed working end-to-end anywhere.
 | v2: kaikki gloss importer | sandbox (synthetic extract) | owner: real kaikki Dutch file (commands below) |
 | v2: subtitle (.srt/.vtt) ingestion | sandbox | owner: ingest a real podcast transcript |
 | v2: profile language memory | sandbox | owner: play once with --language nl, then without |
-| v2: Dutch end-to-end (real model + real transcript) | AWAITING OWNER | ROADMAP v2 success criterion — commands below |
-| v2: Dutch pronunciation voice quality | AWAITING OWNER | `prelexy say fiets --language nl` — report in chat |
+| v2: Dutch end-to-end (real model + real transcript) | owner | playtests/2026-07-07-play-nl.txt: 3/3 with English glosses on a real podcast transcript (1,685 items). Known issues → Stage 2b: 7/10 words had no gloss and were suspended (need un-suspend on import + raw-data importer); form-of glosses ("inflection of abonneren:") are useless as answers |
+| v2: Dutch pronunciation | owner (works; quality poor) | owner 2026-07-07: audio plays, voice bad in both languages — TTS upgrade parked in Deferred |
 
 ## Owner verification commands — v2 (Dutch)
 

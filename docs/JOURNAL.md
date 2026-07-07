@@ -123,3 +123,30 @@ and are referenced from entries.
 - Hand-off: owner returns → (1) v1-feel playtest + v2 Dutch commands in
   VERIFICATION, (2) review the v3 design + its four questions, (3) check
   CI runs on GitHub Actions. Everything else is done or owner-gated.
+
+### 2026-07-07 — owner feedback round: Dutch verified, new work planned
+
+- Owner questions answered: the two reviewed commits (249da44, 5e28c8a)
+  are ancestors of the current branch (`git merge-base --is-ancestor`
+  confirms) — the "divergence" on GitHub is the PR #2/#3 merge topology,
+  no content lost. CI reds were purely the workflow config bug (pip cache
+  needing a requirements file, job died before pytest); the local suite
+  passed for every commit, and the same code went green once fixed.
+- Dutch playtest (playtests/2026-07-07-play-nl.txt): end-to-end WORKS —
+  real podcast transcript, 1,685 items, 3/3 correct with English glosses
+  (owner had imported the deprecated kaikki Dutch extract). Failures it
+  exposed, feeding Stage 2b: 7/10 served words had no gloss → suspended
+  forever (imports must un-suspend items they gloss); form-of glosses
+  ("inflection of abonneren:", "diminutive of graat") are useless as
+  answers and stylistic tells; Dutch in-band counts are low (1–34/500 vs
+  English 31–341) — the below-floor pool fallback carried those questions,
+  as designed.
+- Owner rulings captured this round: kaikki per-language extracts are
+  deprecated → support the raw wiktextract dump (downloaded on the owner's
+  machine; kaikki.org is 403-blocked from the sandbox); YouTube transcript
+  fetching + pod subscriptions wanted (test channel:
+  youtube.com/@tweakers/podcasts); v3 defaults to the ENTIRE stdlib with
+  module filtering optional, cross-corpus distractors as a user choice,
+  source line shown only after answering; one ingest for everything
+  confirmed (subtitles already work for v1/English); TTS upgrade parked in
+  Deferred (voice quality poor in both languages, owner: later).
