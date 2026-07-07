@@ -28,14 +28,13 @@ v1 is done when this works end to end:
 
 ### Phases
 
-1. **Extraction CLI** *(implemented — pending an end-to-end run with the real
-   spaCy model to tick the success box)* — ingest a text: tokenize, apply the
-   extraction policy (lemmas for English), filter noise, rank by
-   frequency/rarity; persist sources/items/occurrences to SQLite.
+1. **Extraction CLI** *(implemented, owner-verified)* — ingest a text:
+   tokenize, apply the extraction policy (lemmas for English), filter noise,
+   rank by frequency/rarity; persist sources/items/occurrences to SQLite.
 2. **MCQ generation** *(implemented — `prelexy question <word>` previews one)*
    — definition lookup through the offline-first chain (cache → WordNet →
-   free API); distractor selection (same POS, closest rarity, near-synonym
-   ceiling).
+   free API); distractors sampled from the hardest-available WordNet-wide
+   pool by definition-text similarity (DECISIONS 013/017/018).
 3. **Session loop + saves** *(implemented — `prelexy play`)* — terminal UI,
    profiles, answer recording, and the append-only review log.
 4. **Scheduler** *(implemented — SM-2 is the default)* — the `Scheduler`
