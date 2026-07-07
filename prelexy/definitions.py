@@ -69,15 +69,30 @@ def wordnet_lemma_names(pos: str | None, language: str = "en") -> tuple[str, ...
     )
 
 
-def wordnet_sense(form: str, pos: str | None, language: str = "en") -> Sense | None:
-    """Top WordNet gloss, preferring synsets that match the item's POS."""
+def wordnet_sense(
+    form: str,
+    pos: str | None,
+    language: str = "en",
+    include_instances: bool = True,
+) -> Sense | None:
+    """Top WordNet gloss, preferring synsets that match the item's POS.
+
+    Instance synsets (named entities: people, cities, brands) are always
+    dispreferred — for a word like "china" the porcelain sense beats the
+    country. With `include_instances=False` a word whose synsets are all
+    instances yields None; the distractor pool uses this, since
+    "an Argentine revolutionary leader" is an absurd option (BACKLOG
+    Stage 1.1, playtest 2026-07-06).
+    """
     if language != "en":
         return None
     wordnet = get_wordnet()
     synsets = wordnet.synsets(form, pos=_WORDNET_POS.get(pos)) or wordnet.synsets(form)
-    if not synsets:
+    non_instance = [s for s in synsets if not s.instance_hypernyms()]
+    candidates = non_instance or (synsets if include_instances else [])
+    if not candidates:
         return None
-    gloss = clean_gloss(synsets[0].definition())
+    gloss = clean_gloss(candidates[0].definition())
     if not gloss:
         return None
     return Sense(gloss=gloss, gloss_language="en", provider="wordnet")

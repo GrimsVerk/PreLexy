@@ -68,6 +68,22 @@ def test_ensure_sense_cleans_previously_cached_glosses(store):
     assert sense.gloss == "deserving or inciting pity"
 
 
+def test_wordnet_sense_prefers_non_instance_synsets():
+    # "china": first synset is the country (an instance); the porcelain
+    # sense must win for vocabulary purposes.
+    sense = wordnet_sense("china", "NOUN")
+    assert "porcelain" in sense.gloss
+
+
+def test_wordnet_sense_instance_only_words():
+    # pure named entities still gloss for targets, but are excludable
+    assert wordnet_sense("guevara", "NOUN") is not None
+    assert wordnet_sense("guevara", "NOUN", include_instances=False) is None
+    assert wordnet_sense("jacksonville", "NOUN", include_instances=False) is None
+    # ordinary words are unaffected by the strict mode
+    assert wordnet_sense("carthorse", "NOUN", include_instances=False) is not None
+
+
 def test_wordnet_sense_finds_real_words_with_pos():
     sense = wordnet_sense("sagacious", "ADJ")
     assert sense is not None

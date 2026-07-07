@@ -126,7 +126,7 @@ def test_pool_biases_toward_hardest_candidates(store, monkeypatch):
     monkeypatch.setattr(
         mcq_module,
         "wordnet_sense",
-        lambda cand, pos, lang: definitions.Sense(glosses[cand], "en", "wordnet"),
+        lambda cand, pos, lang, **kwargs: definitions.Sense(glosses[cand], "en", "wordnet"),
     )
     use_candidates(monkeypatch, words)
 
@@ -155,6 +155,16 @@ def test_below_floor_candidates_fill_when_band_is_empty(store, monkeypatch):
     )
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
     assert len(question.options) == 4  # most-similar-available, not none
+
+
+def test_named_entities_never_become_distractors(store, monkeypatch):
+    item = add_target(store, form="carthorse", pos="NOUN", gloss="draft horse kept for pulling carts")
+    use_candidates(monkeypatch, ["guevara", "jacksonville", "scaup", "denizen", "probity"])
+    question = build_question(store, item, rng=random.Random(0))
+    joined = " ".join(question.options)
+    assert "Argentine" not in joined
+    assert "Florida" not in joined
+    assert len(question.options) == 4  # the ordinary words still fill the set
 
 
 def test_gloss_naming_the_target_is_excluded(store, monkeypatch):

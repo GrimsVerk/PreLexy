@@ -99,7 +99,9 @@ def _distractors(item, correct_gloss, similarity, rng, band=None) -> list[str]:
         scanned += 1
         if candidate == target_lemma:
             continue
-        sense = wordnet_sense(candidate, item["pos"], item["language"])
+        sense = wordnet_sense(
+            candidate, item["pos"], item["language"], include_instances=False
+        )
         if sense is None or sense.gloss in seen_glosses:
             continue
         if target_lemma in sense.gloss.lower().split():
