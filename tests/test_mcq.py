@@ -159,6 +159,35 @@ def test_below_floor_candidates_fill_when_band_is_empty(store, monkeypatch):
     assert len(question.options) == 4  # most-similar-available, not none
 
 
+def test_length_mismatched_glosses_are_excluded(store, monkeypatch):
+    from prelexy.mcq import _length_compatible
+
+    short = "a vivid red"
+    encyclopedic = (
+        "an Argentine revolutionary leader who was a chief lieutenant in the"
+        " Cuban revolution and was active in several other countries besides"
+    )
+    assert not _length_compatible(short, encyclopedic)
+    assert _length_compatible(short, "a deep shade of blue")  # slack covers it
+    assert _length_compatible(
+        "the quality of being good looking and attractive",
+        "small ornamental ladies' bag for small articles",
+    )
+
+    # end to end: the monster gloss never appears even when in band
+    item = add_target(store, gloss=short)
+    use_candidates(monkeypatch, ["gaunt", "sallow", "listless", "crimson"])
+    table = {frozenset((short, gloss_of(w))): IN_BAND
+             for w in ("gaunt", "sallow", "listless", "crimson")}
+    monkeypatch.setattr(
+        "prelexy.mcq._length_compatible",
+        lambda correct, cand: cand != gloss_of("crimson"),
+    )
+    question = build_question(store, item, similarity=FakeSimilarity(table), rng=random.Random(0))
+    assert gloss_of("crimson") not in question.options
+    assert len(question.options) == 4
+
+
 def test_candidate_pool_follows_the_gloss_pos(store, monkeypatch):
     import prelexy.mcq as mcq_module
 

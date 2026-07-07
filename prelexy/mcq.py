@@ -37,6 +37,13 @@ N_OPTIONS = 4
 # Candidates examined per question.
 _SCAN_LIMIT = 500
 
+# Length compatibility between the correct gloss and a candidate gloss: a
+# crisp answer among sprawling encyclopedic options (or vice versa) is a
+# tell. Loose on purpose — candidates pass when within the ratio OR within
+# the absolute slack, so short glosses aren't starved of company.
+_LENGTH_RATIO = 2.5
+_LENGTH_SLACK = 40  # characters
+
 # Distractors are sampled from the _POOL_SIZE highest-scoring candidates of
 # the whole scan (owner request): options stay varied between sessions while
 # biasing toward the hardest available.
@@ -119,6 +126,8 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
             continue
         if target_lemma in sense.gloss.lower().split():
             continue  # a gloss that names the target gives the game away
+        if not _length_compatible(correct_gloss, sense.gloss):
+            continue
         seen_glosses.add(sense.gloss)
         score = (
             similarity.text_similarity(correct_gloss, sense.gloss)
@@ -161,6 +170,11 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
     if len(glosses) < needed:
         glosses += [g for g in unscored if g not in glosses][: needed - len(glosses)]
     return glosses
+
+
+def _length_compatible(correct_gloss: str, candidate_gloss: str) -> bool:
+    shorter, longer = sorted((len(correct_gloss), len(candidate_gloss)))
+    return longer - shorter <= _LENGTH_SLACK or longer <= shorter * _LENGTH_RATIO
 
 
 def _pool_pos(item, correct_sense) -> str | None:
