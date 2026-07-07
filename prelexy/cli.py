@@ -163,6 +163,12 @@ def say(word, language):
         raise click.ClickException(INSTALL_HINT)
 
 
+def definitions_language() -> str:
+    from prelexy.definitions import STRONG_LANGUAGE
+
+    return STRONG_LANGUAGE
+
+
 def _load_config_or_die() -> dict:
     import tomllib
 
@@ -218,7 +224,9 @@ def question(form, language, db_path):
                 f"{form!r} is not stored — run `prelexy ingest` on a text containing it."
             )
         try:
-            similarity = SpacyVectors(load_nlp(language))
+            # glosses are strong-language text, so similarity always uses
+            # the English vectors — even for Dutch sessions
+            similarity = SpacyVectors(load_nlp(definitions_language()))
         except (OSError, ValueError):
             similarity = None  # no vectors: random same-POS fallback
         built = build_question(
@@ -271,7 +279,9 @@ def play(profile_name, language, new_words, seen_words, db_path):
     profile_name = profile_name or config["default_profile"] or None
 
     try:
-        similarity = SpacyVectors(load_nlp(language))
+        # glosses are strong-language text, so similarity always uses the
+        # English vectors — even for Dutch sessions
+        similarity = SpacyVectors(load_nlp(definitions_language()))
     except (OSError, ValueError):
         similarity = None  # no vectors: distractor band is skipped
     with Store(_resolve_db(db_path, config)) as store:

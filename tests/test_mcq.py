@@ -226,6 +226,18 @@ def test_candidate_pool_follows_the_gloss_pos(store, monkeypatch):
     assert asked == ["VERB"]
 
 
+def test_dutch_question_end_to_end_offline(store):
+    """A Dutch item gets an English-glossed MCQ with Dutch-pool distractors."""
+    store.get_or_create_item("nl", "fiets", lemma="fiets", pos="NOUN",
+                             metadata={"zipf": 4.0})
+    item = store.find_item("nl", "fiets")
+    question = build_question(store, item, rng=random.Random(7))
+    assert question is not None
+    assert len(question.options) == 4
+    assert "wheel" in question.options[question.answer]  # English gloss
+    assert len(set(question.options)) == 4
+
+
 def test_named_entities_never_become_distractors(store, monkeypatch):
     item = add_target(store, form="carthorse", pos="NOUN", gloss="draft horse kept for pulling carts")
     use_candidates(monkeypatch, ["guevara", "jacksonville", "scaup", "denizen", "probity"])

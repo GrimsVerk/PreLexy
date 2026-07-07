@@ -84,6 +84,35 @@ def test_wordnet_sense_instance_only_words():
     assert wordnet_sense("carthorse", "NOUN", include_instances=False) is not None
 
 
+def test_dutch_words_get_english_glosses_via_omw():
+    sense = wordnet_sense("huis", "NOUN", "nl")
+    assert sense is not None
+    assert sense.gloss_language == "en"
+    assert "roof" in sense.gloss or "structure" in sense.gloss
+    # documented residual: OMW's Dutch adjectives are thin (DECISIONS 023)
+    assert wordnet_sense("mooi", "ADJ", "nl") is None
+
+
+def test_dutch_distractor_pool_exists():
+    names = definitions.wordnet_lemma_names("NOUN", "nl")
+    assert len(names) > 10_000
+    assert "fiets" in names
+
+
+def test_ensure_sense_falls_back_to_the_lemma_for_surface_forms(store):
+    # L2 items keep the surface form ("liep"); OMW keys on lemmas ("lopen")
+    item_id = store.get_or_create_item("nl", "liep", lemma="lopen", pos="VERB")
+    sense = ensure_sense(store, store.find_item("nl", "liep"))
+    assert sense is not None
+    assert sense.gloss_language == "en"
+    assert len(store.senses_for(item_id)) == 1
+
+
+def test_dutch_synonym_conflict():
+    assert definitions.synonym_conflict("huis", "woning", "NOUN", language="nl")
+    assert not definitions.synonym_conflict("huis", "fiets", "NOUN", language="nl")
+
+
 def test_synonym_conflict_catches_synonyms_and_direct_relatives():
     assert definitions.synonym_conflict("sagacious", "sapient", "ADJ")  # shared lemma
     assert definitions.synonym_conflict("joy", "delight", "NOUN")  # shared lemma
@@ -91,7 +120,6 @@ def test_synonym_conflict_catches_synonyms_and_direct_relatives():
     # cousins and unrelated words stay fair
     assert not definitions.synonym_conflict("vermilion", "goethite", "NOUN")
     assert not definitions.synonym_conflict("joyousness", "gleefulness", "NOUN")
-    assert not definitions.synonym_conflict("lopen", "rennen", "VERB", language="nl")
 
 
 def test_wordnet_sense_finds_real_words_with_pos():
@@ -115,9 +143,9 @@ def test_wordnet_sense_reports_the_gloss_pos():
     assert wordnet_sense("unpictured", "ADJ").pos == "ADJ"
 
 
-def test_wordnet_sense_unknown_word_and_language():
+def test_wordnet_sense_unknown_word():
     assert wordnet_sense("xqzt", "NOUN") is None
-    assert wordnet_sense("lopen", "VERB", language="nl") is None
+    assert wordnet_sense("xqzt", "NOUN", language="nl") is None
 
 
 def test_api_sense_prefers_matching_pos(monkeypatch):

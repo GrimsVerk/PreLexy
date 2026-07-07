@@ -281,3 +281,22 @@ colors). The tight guard removes real unfairness with near-zero false
 positives; band movement was evaluated against the data and rejected —
 lowering the ceiling below 0.716 would discard the genuinely good
 distractors observed between 0.72 and 0.85.
+
+## 023 — v2 glosses via the Open Multilingual Wordnet; lemma fallback (2026-07)
+
+**Decision:** Non-English words are glossed through OMW (`nltk`,
+`synsets(word, lang='nld')`): the synsets are language-independent, so
+`.definition()` is already the English gloss the learner needs. The same
+`lang` parameter powers the distractor pool (`all_lemma_names`) and the
+synonym guard (`lemma_names(lang)`). Because L2 items keep their surface
+form ("liep") while dictionaries key on lemmas ("lopen"), `ensure_sense`
+falls back to the item's lemma when the surface form has no entry. Gloss
+similarity always uses the *English* vectors regardless of session
+language, since options are strong-language text. The membership noise
+gate for non-English uses wordfreq (zipf > 0) — OMW is too thin to gate on.
+**Why:** Sandbox spike (2026-07-06): OMW Dutch coverage is 6/10 on a
+common-word sample — solid nouns/verbs (37k/5.6k lemmas), thin adjectives
+(1.1k; "mooi", "gezellig" missing). Free, offline, zero new dependencies,
+and reuses the entire existing machinery. The gaps are the documented
+residual: a kaikki.org Wiktionary importer supplements real ingested items
+(next item), and words with no gloss anywhere auto-suspend as designed.
