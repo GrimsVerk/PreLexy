@@ -32,6 +32,14 @@ and are referenced from entries.
   "rewrite Y") so the classifier can see the action is sanctioned.
 - Distractor band values (0.45 / 0.85) are provisional — calibrate against
   `[mcq]` score lines from owner `--debug` playtests before trusting them.
+- `pods sync --ingest` verified at scale (owner 2026-07-07): 429 Tweakers
+  episodes fetched via yt-dlp and ingested, ~1,500 items each. Dutch v2 is
+  the owner's real corpus now. yt-dlp warns "no impersonate target" — a
+  cosmetic warning, downloads succeed anyway.
+- Python docs archive names carry the micro version
+  (`python-3.13.x-docs-html.zip`); resolve the name from
+  docs.python.org/3/download.html rather than hard-coding, and always
+  `curl -fL` (without -f, curl exits 0 on a 404 error page).
 
 ## Log
 
@@ -178,3 +186,27 @@ and are referenced from entries.
 - Hand-off: everything in Approved is implemented. Owner verifies: Stage 1
   feel, v2 raw-gloss + pods flow, v3 full stdlib. All commands live in
   docs/VERIFICATION.md, newest sections first.
+
+### 2026-07-07 (later) — bug fixes from the owner's first real v2/v3 run
+
+Owner ran `pods sync --ingest` (429 Tweakers episodes, huge win — v2 works
+at scale) then a v3 attempt that failed. Four bugs, all fixed:
+- **Docs download URL wrong.** Hard-coded `python-3.13-docs-html.zip`
+  doesn't exist (archives carry the micro version); curl without -f exited
+  0 on the 404 page, failing only at unzip. VERIFICATION now resolves the
+  name from the download page and uses `curl -fL` (also for kaikki).
+- **Language-memory trap.** `play --language python` on the empty python
+  corpus served nothing but still pinned python as the profile's language,
+  so a later plain `play` hid the 429-episode Dutch corpus behind
+  "Nothing to practice". Fix: run_session reports `had_items`; play
+  remembers the language only when the session had items.
+- **Uninformative empty message.** Now names the empty language and lists
+  other languages that have words with the exact `play --language <x>`
+  command (store.language_item_counts).
+- **example_for unbounded.** Fetched every occurrence to pick the shortest
+  complete sentence — tens of thousands after the mega-ingest. Added
+  `ORDER BY length(context) LIMIT 200` (best sentence is always shortest,
+  so the choice is unchanged).
+- Suite 158 → 161. Friction: none. All Approved work remains implemented;
+  the outstanding items are still owner verification (v2 raw glosses, v3
+  full stdlib).
