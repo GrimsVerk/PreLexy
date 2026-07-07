@@ -31,10 +31,43 @@ surface→lemma fallback (DECISIONS 023), kaikki.org Wiktionary importer
 profile language memory (+ stored `strong_language` for future
 per-profile glossing), `.srt`/`.vtt` ingestion, Dutch espeak voice.
 
-8. **Owner verification (open).** Needs the Dutch spaCy model, a real
-   podcast transcript, optionally a kaikki Dutch extract, and a playtest —
-   exact commands in docs/VERIFICATION.md ("v2 (Dutch)" section). Dutch
-   TTS quality also needs the owner's ear.
+8. ~~Owner verification~~ ✅ 2026-07-07: 3/3 on a real podcast transcript;
+   Dutch TTS works (quality parked in Deferred). Findings drive Stage 2b.
+
+### Stage 2b — v2 hardening from the 2026-07-07 Dutch playtest (approved)
+
+1. **Raw wiktextract support in `import-glosses`.** kaikki's per-language
+   extracts are deprecated; the future-proof source is the raw wiktextract
+   dump (kaikki.org/dictionary/rawdata.html — the owner downloads it, the
+   sandbox is egress-blocked). The importer must: stream `.jsonl.gz`
+   directly (stdlib `gzip`, no decompressing a ~20 GB file to disk);
+   filter entries by `lang_code` == the requested language (the raw dump
+   mixes all languages — skipping this would attach wrong-language
+   glosses); keep accepting the old per-language extracts. Exact download
+   + import commands go into docs/VERIFICATION.md.
+2. **Form-of gloss resolution.** "inflection of abonneren:" and
+   "diminutive of graat" are useless as answers (playtest evidence).
+   kaikki senses carry `form_of`/`tags`; prefer senses with real glosses,
+   and for pure form-of entries resolve to the referenced lemma's gloss
+   (the referenced word passes through the same import stream), rendering
+   as e.g. "form of abonneren: to subscribe". Never emit a bare
+   "inflection of X:" gloss.
+3. **Un-suspend on new glosses.** Words suspended for having no definition
+   must return to play once an import gives them one (7/10 words in the
+   playtest are currently suspended forever). `import-glosses` deletes the
+   suspended `item_state` rows (all profiles) for items it just glossed.
+4. **`prelexy fetch <youtube-url>`.** Download a video's (auto-)subtitles
+   as `.vtt` via `yt-dlp` — external tool like espeak (shutil.which +
+   install hint), added to environment.yml's pip list — into
+   `data/pods/`, with `--language` for the subtitle track and `--ingest`
+   to ingest immediately. Works for single videos and playlist/channel
+   URLs (yt-dlp handles both).
+5. **Pod subscriptions.** `prelexy pods add|list|remove|sync`: saved
+   channel/playlist URLs live in the store's `meta` table (no schema
+   change); `sync` fetches new episodes' subtitles using yt-dlp's
+   `--download-archive` (no re-downloads), `--ingest` optional. Owner's
+   test channel: https://www.youtube.com/@tweakers/podcasts. Network
+   tests are mocked in the sandbox; real fetching is owner-verified.
 
 ### Stage 3 — v3: learn programming languages from official docs
 

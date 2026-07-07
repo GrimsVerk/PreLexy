@@ -75,8 +75,11 @@ importer → cached free API *(implemented — DECISIONS 023)*; (4) distractor
 pool for non-English targets *(implemented — English-gloss similarity
 reused)*; (5) per-profile language settings + config `default_language`
 *(implemented)*; (6) `.srt`/`.vtt` transcript ingestion *(implemented)*;
-(7) owner verification with a real transcript *(AWAITING OWNER —
-docs/VERIFICATION.md has the commands)*.
+(7) owner verification with a real transcript *(✅ owner-verified
+2026-07-07: 3/3 on a real podcast)*; (8) raw-wiktextract gloss imports —
+gz streaming, language filtering, form-of resolution, un-suspend on new
+glosses; (9) YouTube transcript fetching (`prelexy fetch`) and pod
+subscriptions (`prelexy pods`), yt-dlp-powered *(8–9 = BACKLOG Stage 2b)*.
 
 ## v3 — learn programming languages from official docs (tier 3)
 
