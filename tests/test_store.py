@@ -183,6 +183,19 @@ def test_example_for_prefers_shortest_complete_sentence(db):
         assert store.example_for(store.get_or_create_item("en", "unseen")) is None
 
 
+def test_example_for_bounds_the_scan_but_keeps_the_best(db):
+    # simulate a post-mega-ingest word: thousands of long occurrences plus
+    # one short complete sentence — the LIMIT still surfaces the short one.
+    good = "Dit is een korte zin."
+    with Store(db) as store:
+        source = store.add_source("t", "nl", "transcript", None)
+        item = store.get_or_create_item("nl", "zin")
+        many = [("Een veel langere zin die maar door blijft gaan " * 5 + ".", i)
+                for i in range(5000)]
+        store.add_occurrences(item, source, many + [(good, 9999)])
+        assert store.example_for(item) == good
+
+
 def test_writes_persist_after_clean_exit(db):
     with Store(db) as store:
         store.add_source("kept", "en", "book", "/kept.txt")

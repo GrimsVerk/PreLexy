@@ -201,9 +201,16 @@ class Store:
         run to enormous lengths (a 1,400-character monster in the
         2026-07-06 playtest); prefer the shortest occurrence that reads as
         a whole sentence, falling back to the shortest of whatever exists.
+
+        Only the shortest handful are inspected: after a large ingest a
+        common word can have tens of thousands of occurrences, and the best
+        sentence is always among the shortest, so the SQL LIMIT keeps
+        question building fast without changing the choice.
         """
         rows = self._conn.execute(
-            "SELECT context FROM occurrences WHERE item_id = ?", (item_id,)
+            "SELECT context FROM occurrences WHERE item_id = ? "
+            "ORDER BY length(context) LIMIT 200",
+            (item_id,),
         ).fetchall()
         if not rows:
             return None

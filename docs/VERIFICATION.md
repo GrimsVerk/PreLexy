@@ -40,12 +40,15 @@ observed working end-to-end anywhere.
 ## Owner verification commands — v3 (Python docs)
 
 ```bash
-# download the official docs once (any recent version; ~10 MB zip)
-curl -L -o python-docs.zip https://docs.python.org/3/archives/python-3.13-docs-html.zip
+# download the official docs once (~10 MB zip). The archive name carries
+# the current micro version (python-3.13.x-docs-html.zip), so resolve it
+# from the download page first; -f makes curl fail loudly on a 404.
+NAME=$(curl -fsL https://docs.python.org/3/download.html | grep -o 'python-3[^"]*-docs-html\.zip' | head -1)
+curl -fL -o python-docs.zip "https://docs.python.org/3/archives/$NAME"
 unzip -q python-docs.zip -d data/
 
 # ingest the WHOLE stdlib (default), then play
-python -m prelexy ingest-docs data/python-3.13-docs-html
+python -m prelexy ingest-docs data/python-3.*-docs-html
 STAMP=$(date +%F)
 python -m prelexy --debug play --language python 2>&1 | tee docs/playtests/$STAMP-play-py.txt
 
@@ -63,7 +66,7 @@ pip install yt-dlp
 # download, all languages; the importer streams the .gz directly and
 # filters to your language — no need to decompress). If the URL moved,
 # use the "raw wiktextract data" link on kaikki.org/dictionary/rawdata.html
-curl -L -o raw-wiktextract-data.jsonl.gz \
+curl -fL -o raw-wiktextract-data.jsonl.gz \
   https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz
 python -m prelexy import-glosses raw-wiktextract-data.jsonl.gz --language nl
 # expect: form-of answers gone, previously set-aside words back in play
