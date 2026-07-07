@@ -187,6 +187,8 @@ def import_glosses(file, language, db_path):
     with Store(_resolve_db(db_path, config)) as store:
         filled, missing = import_kaikki_glosses(store, file, language)
     click.echo(f"{missing} item(s) had no definition; filled {filled} from {file.name}.")
+    if filled:
+        click.echo("(words previously set aside for lacking a definition return to play)")
     if missing > filled:
         click.echo(f"({missing - filled} remain unglossed — they will be set aside in play.)")
 

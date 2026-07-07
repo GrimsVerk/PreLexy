@@ -257,6 +257,7 @@ def import_kaikki_glosses(store, path, language: str) -> tuple[int, int]:
 
     for item_id, (_, gloss) in best.items():
         store.add_sense(item_id, gloss, STRONG_LANGUAGE, "wiktionary")
+    store.unsuspend_items(best)  # newly glossed words return to play
     return len(best), len(missing)
 
 

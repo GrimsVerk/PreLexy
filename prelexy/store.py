@@ -206,6 +206,24 @@ class Store:
         complete = [c for c in contexts if _sentence_complete(c)]
         return min(complete or contexts, key=len)
 
+    def unsuspend_items(self, item_ids) -> int:
+        """Return suspended items to play (all profiles); count of rows freed.
+
+        Words are suspended when no definition can be found; an import that
+        glosses them must bring them back (2026-07-07 playtest: 7/10 words
+        were parked forever).
+        """
+        ids = list(item_ids)
+        if not ids:
+            return 0
+        placeholders = ",".join("?" * len(ids))
+        cur = self._conn.execute(
+            f"DELETE FROM item_state WHERE status = 'suspended' "
+            f"AND item_id IN ({placeholders})",
+            ids,
+        )
+        return cur.rowcount
+
     def items_missing_senses(self, language: str) -> list[sqlite3.Row]:
         """Items with no cached definition — targets for a gloss import."""
         return self._conn.execute(

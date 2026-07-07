@@ -230,6 +230,24 @@ def test_import_kaikki_glosses_fills_gaps_with_pos_preference(store, tmp_path):
     assert store.senses_for(mooi)[0]["gloss_language"] == "en"
 
 
+def test_import_kaikki_unsuspends_newly_glossed_items(store, tmp_path):
+    profile = store.get_or_create_profile("p")
+    gezellig = store.get_or_create_item("nl", "gezellig", lemma="gezellig", pos="ADJ")
+    unglossed = store.get_or_create_item("nl", "onbekend", lemma="onbekend", pos="ADJ")
+    store.upsert_item_state(profile, gezellig, "suspended", None, {})
+    store.upsert_item_state(profile, unglossed, "suspended", None, {})
+    extract = tmp_path / "kaikki.jsonl"
+    extract.write_text(KAIKKI_SAMPLE)
+
+    definitions.import_kaikki_glosses(store, extract, "nl")
+    states = {
+        row["item_id"]: row["status"]
+        for row in store._conn.execute("SELECT * FROM item_state").fetchall()
+    }
+    assert gezellig not in states  # freed: it got a gloss
+    assert states[unglossed] == "suspended"  # still unglossed, stays parked
+
+
 def test_import_kaikki_streams_gzip_and_filters_language(store, tmp_path):
     import gzip
 
