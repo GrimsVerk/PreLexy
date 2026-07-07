@@ -17,10 +17,11 @@ class UnsupportedLanguageError(ValueError):
 
 @dataclass(frozen=True)
 class Language:
-    code: str  # PreLexy namespace; also the spaCy/wordfreq code
-    spacy_models: tuple[str, ...]  # preferred first
-    wordnet_lang: str  # OMW language code for glosses and candidate pools
-    espeak_voice: str
+    code: str  # PreLexy namespace; also the spaCy/wordfreq code when natural
+    kind: str = "natural"  # "natural" (spaCy/OMW/TTS) or "code" (docs-driven)
+    spacy_models: tuple[str, ...] = ()  # preferred first; natural only
+    wordnet_lang: str | None = None  # OMW code for glosses/pools; natural only
+    espeak_voice: str | None = None  # natural only
 
 
 LANGUAGES = {
@@ -36,7 +37,15 @@ LANGUAGES = {
         wordnet_lang="nld",  # Open Dutch WordNet via OMW; see DECISIONS 023
         espeak_voice="nl",
     ),
+    # code languages need none of the natural-language stack — their items,
+    # glosses, and pools come from ingested documentation (DECISIONS 024)
+    "python": Language(code="python", kind="code"),
 }
+
+
+def code_language_codes() -> list[str]:
+    """All registered code languages — the default cross-corpus pool."""
+    return [lang.code for lang in LANGUAGES.values() if lang.kind == "code"]
 
 
 def get_language(code: str) -> Language:

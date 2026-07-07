@@ -56,6 +56,6 @@ def _command(word: str, language: str, voice: str | None = None) -> list[str] | 
     for engine in ("espeak-ng", "espeak"):
         if shutil.which(engine):
             registered = LANGUAGES.get(language)
-            chosen = voice or (registered.espeak_voice if registered else "en-us")
-            return [engine, "-v", chosen, word]
+            fallback = registered.espeak_voice if registered else None
+            return [engine, "-v", voice or fallback or "en-us", word]
     return None

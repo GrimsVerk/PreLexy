@@ -33,6 +33,27 @@ def test_cli_rejects_unsupported_language(tmp_path, monkeypatch):
     assert "not supported yet" in result.output
 
 
+def test_python_is_a_registered_code_language():
+    from prelexy.languages import code_language_codes
+
+    python = get_language("python")
+    assert python.kind == "code"
+    assert python.spacy_models == ()
+    assert "python" in code_language_codes()
+
+
+def test_code_languages_bypass_the_natural_stack():
+    from prelexy.definitions import synonym_conflict, wordnet_lemma_names, wordnet_sense
+    from prelexy.textproc import load_nlp
+
+    assert wordnet_sense("pop", "method", "python") is None
+    assert wordnet_lemma_names("method", "python") == ()
+    assert not synonym_conflict("pop", "append", "method", language="python")
+    assert in_dictionary("list.pop", "python")
+    with pytest.raises(ValueError, match="ingest-docs"):
+        load_nlp("python")
+
+
 def test_dutch_membership_gate_uses_wordfreq():
     assert in_dictionary("fiets", "nl")
     assert in_dictionary("huis", "nl")

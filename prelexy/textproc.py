@@ -44,7 +44,13 @@ def load_nlp(language: str = "en"):
     """
     import spacy
 
-    names = get_language(language).spacy_models
+    registered = get_language(language)
+    if registered.kind != "natural":
+        raise ValueError(
+            f"{language!r} is a code language — its items come from documentation; "
+            "use `prelexy ingest-docs` instead of text extraction."
+        )
+    names = registered.spacy_models
     for name in names:
         try:
             return spacy.load(name, disable=["ner"])
@@ -79,6 +85,8 @@ def in_dictionary(form: str, language: str = "en") -> bool:
     """
     if language == "en":
         return bool(get_wordnet().synsets(form))
+    if get_language(language).kind != "natural":
+        return True  # code items come from doc inventories, already curated
     return zipf_frequency(form, language) > 0
 
 

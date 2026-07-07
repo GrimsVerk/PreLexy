@@ -77,8 +77,10 @@ def wordnet_lemma_names(pos: str | None, language: str = "en") -> tuple[str, ...
     languages come from the Open Multilingual Wordnet (Dutch: ~37k nouns,
     ~5.6k verbs, ~1.1k adjectives — thin for adjectives, DECISIONS 023).
     """
-    wordnet = get_wordnet()
     wn_lang = get_language(language).wordnet_lang
+    if wn_lang is None:
+        return ()
+    wordnet = get_wordnet()
     return tuple(
         name
         for name in wordnet.all_lemma_names(_WORDNET_POS.get(pos), lang=wn_lang)
@@ -106,8 +108,10 @@ def wordnet_sense(
     "an Argentine revolutionary leader" is an absurd option (BACKLOG
     Stage 1.1, playtest 2026-07-06).
     """
-    wordnet = get_wordnet()
     wn_lang = get_language(language).wordnet_lang
+    if wn_lang is None:  # code languages: docs are the dictionary
+        return None
+    wordnet = get_wordnet()
     synsets = wordnet.synsets(
         form, pos=_WORDNET_POS.get(pos), lang=wn_lang
     ) or wordnet.synsets(form, lang=wn_lang)
@@ -138,8 +142,10 @@ def synonym_conflict(
     caught, because a shared-ancestor check would also exclude fair hard
     distractors across whole semantic fields (see DECISIONS 022).
     """
-    wordnet = get_wordnet()
     wn_lang = get_language(language).wordnet_lang
+    if wn_lang is None:
+        return False
+    wordnet = get_wordnet()
     target_synsets = wordnet.synsets(target_form, lang=wn_lang)
     if not target_synsets:
         return False
