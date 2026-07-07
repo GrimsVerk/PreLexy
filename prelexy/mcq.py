@@ -63,7 +63,7 @@ def build_question(store, item, similarity=None, rng=None, band=None) -> Questio
     sense = ensure_sense(store, item)
     if sense is None:
         return None
-    distractors = _distractors(item, sense.gloss, similarity, rng, band)
+    distractors = _distractors(item, sense, similarity, rng, band)
     if not distractors:
         return None
     options = [sense.gloss, *distractors]
@@ -77,7 +77,7 @@ def build_question(store, item, similarity=None, rng=None, band=None) -> Questio
     )
 
 
-def _distractors(item, correct_gloss, similarity, rng, band=None) -> list[str]:
+def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
     """Up to N_OPTIONS-1 distractor glosses, sampled from the hardest available.
 
     Every scanned candidate below the near-synonym ceiling is scored against
@@ -87,20 +87,33 @@ def _distractors(item, correct_gloss, similarity, rng, band=None) -> list[str]:
     available fill the pool anyway — maximum difficulty, kept random.
     Unscored candidates (no provider, or gloss without usable vectors) are
     only a top-up of last resort.
+
+    The candidate pool follows the POS the *correct gloss* came from, not
+    the item's stored POS: "gartered" is stored as an adjective but only
+    has a verb gloss, and a verb-phrased answer among adjective-phrased
+    options fingerprints itself (2026-07-06 playtest; BACKLOG Stage 1.2).
     """
     floor, ceiling = band or (SIMILARITY_FLOOR, SIMILARITY_CEILING)
+    correct_gloss = correct_sense.gloss
+    pool_pos = _pool_pos(item, correct_sense)
+    if pool_pos != item["pos"]:
+        debug.log(
+            "mcq",
+            f"{item['form']!r}: gloss is {pool_pos}-sourced (item is {item['pos']}); "
+            f"drawing candidates from {pool_pos}",
+        )
     target_lemma = (item["lemma"] or item["form"]).lower()
     needed = N_OPTIONS - 1
     scored: list[tuple[float, str, str]] = []  # (score, word, gloss)
     unscored: list[str] = []
     seen_glosses = {correct_gloss}
     scanned = 0
-    for candidate in _wordnet_candidates(item["pos"], item["language"], rng):
+    for candidate in _wordnet_candidates(pool_pos, item["language"], rng):
         scanned += 1
         if candidate == target_lemma:
             continue
         sense = wordnet_sense(
-            candidate, item["pos"], item["language"], include_instances=False
+            candidate, pool_pos, item["language"], include_instances=False
         )
         if sense is None or sense.gloss in seen_glosses:
             continue
@@ -148,6 +161,20 @@ def _distractors(item, correct_gloss, similarity, rng, band=None) -> list[str]:
     if len(glosses) < needed:
         glosses += [g for g in unscored if g not in glosses][: needed - len(glosses)]
     return glosses
+
+
+def _pool_pos(item, correct_sense) -> str | None:
+    """The POS the correct gloss was sourced from.
+
+    Cache reads carry no POS (the senses table stores none), so re-derive
+    by asking WordNet afresh and checking it yields the same gloss.
+    """
+    if correct_sense.pos:
+        return correct_sense.pos
+    fresh = wordnet_sense(item["form"], item["pos"], item["language"])
+    if fresh is not None and fresh.gloss == correct_sense.gloss and fresh.pos:
+        return fresh.pos
+    return item["pos"]
 
 
 def _wordnet_candidates(pos, language, rng) -> list[str]:

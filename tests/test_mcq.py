@@ -126,7 +126,9 @@ def test_pool_biases_toward_hardest_candidates(store, monkeypatch):
     monkeypatch.setattr(
         mcq_module,
         "wordnet_sense",
-        lambda cand, pos, lang, **kwargs: definitions.Sense(glosses[cand], "en", "wordnet"),
+        lambda cand, pos, lang, **kwargs: (
+            definitions.Sense(glosses[cand], "en", "wordnet") if cand in glosses else None
+        ),
     )
     use_candidates(monkeypatch, words)
 
@@ -155,6 +157,33 @@ def test_below_floor_candidates_fill_when_band_is_empty(store, monkeypatch):
     )
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
     assert len(question.options) == 4  # most-similar-available, not none
+
+
+def test_candidate_pool_follows_the_gloss_pos(store, monkeypatch):
+    import prelexy.mcq as mcq_module
+
+    asked = []
+    real_candidates = mcq_module._wordnet_candidates
+
+    def recording_candidates(pos, language, rng):
+        asked.append(pos)
+        return real_candidates(pos, language, rng)
+
+    monkeypatch.setattr(mcq_module, "_wordnet_candidates", recording_candidates)
+
+    # fresh lookup: 'gartered' stored as ADJ, glossed from the verb 'garter'
+    store.get_or_create_item("en", "gartered", lemma="gartered", pos="ADJ",
+                             metadata={"zipf": 1.0})
+    item = store.find_item("en", "gartered")
+    question = build_question(store, item, rng=random.Random(0))
+    assert question is not None
+    assert asked == ["VERB"]
+
+    # cached lookup (senses table stores no POS): re-derived, same answer
+    asked.clear()
+    question = build_question(store, item, rng=random.Random(1))
+    assert question is not None
+    assert asked == ["VERB"]
 
 
 def test_named_entities_never_become_distractors(store, monkeypatch):

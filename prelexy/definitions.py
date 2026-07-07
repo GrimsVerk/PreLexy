@@ -22,7 +22,9 @@ API_TIMEOUT_SECONDS = 10
 _API_LANGUAGES = {"en"}
 
 _WORDNET_POS = {"NOUN": "n", "VERB": "v", "ADJ": "a", "ADV": "r"}
+_WORDNET_POS_TO_UPOS = {"n": "NOUN", "v": "VERB", "a": "ADJ", "s": "ADJ", "r": "ADV"}
 _API_POS = {"NOUN": "noun", "VERB": "verb", "ADJ": "adjective", "ADV": "adverb"}
+_API_POS_TO_UPOS = {api: upos for upos, api in _API_POS.items()}
 
 
 @dataclass
@@ -30,6 +32,10 @@ class Sense:
     gloss: str
     gloss_language: str
     provider: str
+    # UPOS the gloss actually came from — may differ from the item's POS
+    # when the lookup fell back across POS ("gartered" ADJ → verb gloss).
+    # None for cache reads (the senses table stores no POS).
+    pos: str | None = None
 
 
 def ensure_sense(store, item, allow_api: bool = True) -> Sense | None:
@@ -95,7 +101,12 @@ def wordnet_sense(
     gloss = clean_gloss(candidates[0].definition())
     if not gloss:
         return None
-    return Sense(gloss=gloss, gloss_language="en", provider="wordnet")
+    return Sense(
+        gloss=gloss,
+        gloss_language="en",
+        provider="wordnet",
+        pos=_WORDNET_POS_TO_UPOS.get(candidates[0].pos()),
+    )
 
 
 def clean_gloss(gloss: str) -> str:
@@ -131,7 +142,12 @@ def api_sense(form: str, pos: str | None, language: str = "en") -> Sense | None:
             gloss = definitions[0].get("definition") if definitions else None
             if not gloss:
                 continue
-            sense = Sense(gloss=gloss, gloss_language=language, provider="api")
+            sense = Sense(
+                gloss=gloss,
+                gloss_language=language,
+                provider="api",
+                pos=_API_POS_TO_UPOS.get(meaning.get("partOfSpeech")),
+            )
             if meaning.get("partOfSpeech") == wanted:
                 return sense
             fallback = fallback or sense

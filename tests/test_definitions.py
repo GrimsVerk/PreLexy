@@ -97,6 +97,14 @@ def test_wordnet_sense_falls_back_across_pos():
     assert wordnet_sense("run", "ADJ") is not None
 
 
+def test_wordnet_sense_reports_the_gloss_pos():
+    assert wordnet_sense("carthorse", "NOUN").pos == "NOUN"
+    # ADJ item whose only synsets are verbs: the fallback POS is reported
+    assert wordnet_sense("gartered", "ADJ").pos == "VERB"
+    # satellite adjectives count as ADJ
+    assert wordnet_sense("unpictured", "ADJ").pos == "ADJ"
+
+
 def test_wordnet_sense_unknown_word_and_language():
     assert wordnet_sense("xqzt", "NOUN") is None
     assert wordnet_sense("lopen", "VERB", language="nl") is None
@@ -105,7 +113,7 @@ def test_wordnet_sense_unknown_word_and_language():
 def test_api_sense_prefers_matching_pos(monkeypatch):
     monkeypatch.setattr(definitions, "_fetch_api_json", lambda url: API_PAYLOAD)
     sense = api_sense("sagacious", "ADJ")
-    assert sense == Sense("having keen judgement", "en", "api")
+    assert sense == Sense("having keen judgement", "en", "api", pos="ADJ")
 
 
 def test_api_sense_falls_back_to_first_gloss(monkeypatch):
@@ -133,7 +141,11 @@ def test_ensure_sense_caches_wordnet_hit(store):
         mp.setattr(
             definitions, "wordnet_sense", lambda *a, **k: pytest.fail("cache missed")
         )
-        assert ensure_sense(store, item) == first
+        cached = ensure_sense(store, item)
+    assert (cached.gloss, cached.gloss_language, cached.provider) == (
+        first.gloss, first.gloss_language, first.provider,
+    )
+    assert cached.pos is None  # by design: the senses table stores no POS
     assert len(store.senses_for(item_id)) == 1
 
 
