@@ -19,13 +19,22 @@ def test_first_use_writes_commented_default_file(tmp_path):
 def test_file_values_override_defaults(tmp_path):
     path = tmp_path / "config.toml"
     path.write_text(
-        "new_words = 12\nseen_words = 8\nsimilarity_floor = 0.5\nsimilarity_ceiling = 0.9\n"
+        "new_words = 12\nseen_words = 8\nsimilarity_floor = 0.5\n"
+        'similarity_ceiling = 0.9\ndefault_profile = "thom"\n'
+        'default_language = "nl"\ndb_path = "/tmp/x.db"\ntts_voice = "en-gb"\n'
+        "pool_size = 5\nshow_context = false\n"
     )
     config = load_config(path)
     assert config["new_words"] == 12
     assert config["seen_words"] == 8
     assert config["similarity_floor"] == 0.5
     assert config["similarity_ceiling"] == 0.9
+    assert config["default_profile"] == "thom"
+    assert config["default_language"] == "nl"
+    assert config["db_path"] == "/tmp/x.db"
+    assert config["tts_voice"] == "en-gb"
+    assert config["pool_size"] == 5
+    assert config["show_context"] is False
 
 
 def test_unknown_keys_are_ignored(tmp_path):
@@ -44,6 +53,11 @@ def test_unknown_keys_are_ignored(tmp_path):
         "similarity_floor = 1.5",
         "similarity_ceiling = -0.1",
         "similarity_floor = 0.9\nsimilarity_ceiling = 0.5",  # floor above ceiling
+        "pool_size = 1",
+        'pool_size = "big"',
+        'show_context = "yes"',
+        "default_profile = 3",
+        'default_language = ""',
     ],
 )
 def test_invalid_values_are_rejected(tmp_path, body):

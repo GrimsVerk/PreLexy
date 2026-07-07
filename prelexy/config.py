@@ -17,6 +17,12 @@ DEFAULTS = {
     "seen_words": 3,  # previously seen words (due reviews) per session
     "similarity_floor": 0.45,  # distractor band, see docs/DESIGN.md
     "similarity_ceiling": 0.85,
+    "default_profile": "",  # non-empty skips the who-is-playing menu
+    "default_language": "en",
+    "db_path": "",  # non-empty overrides the XDG default database location
+    "tts_voice": "",  # non-empty overrides the speech engine's voice
+    "pool_size": 10,  # distractors sampled from the N hardest candidates
+    "show_context": True,  # show the source sentence after answering
 }
 
 _TEMPLATE = """\
@@ -38,6 +44,27 @@ seen_words = 3
 # `prelexy --debug play` before tuning.
 similarity_floor = 0.45
 similarity_ceiling = 0.85
+
+# Profile used when `play` is started without --profile. Empty = ask.
+default_profile = ""
+
+# Language assumed when a command is run without --language.
+default_language = "en"
+
+# Database file. Empty = ~/.local/share/prelexy/prelexy.db (XDG). The
+# PRELEXY_DB environment variable and --db both override this.
+db_path = ""
+
+# Voice passed to the speech engine for pronunciation (e.g. an espeak-ng
+# voice like "en-gb", or a macOS `say` voice name). Empty = engine default.
+tts_voice = ""
+
+# Distractors are sampled from this many of the hardest candidates.
+# Smaller = consistently harder options; larger = more variety.
+pool_size = 10
+
+# Show the source sentence after answering (true/false).
+show_context = true
 """
 
 
@@ -73,3 +100,13 @@ def _validate(config: dict) -> None:
         raise ValueError(
             f"similarity_floor ({floor}) must be below similarity_ceiling ({ceiling})"
         )
+    for key in ("default_profile", "default_language", "db_path", "tts_voice"):
+        if not isinstance(config[key], str):
+            raise ValueError(f"{key} must be a string, got {config[key]!r}")
+    if not config["default_language"]:
+        raise ValueError("default_language must not be empty")
+    pool = config["pool_size"]
+    if not isinstance(pool, int) or isinstance(pool, bool) or pool < 2:
+        raise ValueError(f"pool_size must be an integer of at least 2, got {pool!r}")
+    if not isinstance(config["show_context"], bool):
+        raise ValueError(f"show_context must be true or false, got {config['show_context']!r}")

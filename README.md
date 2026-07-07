@@ -105,6 +105,15 @@ run. It currently holds:
   as a near-synonym and is excluded; the floor is a soft preference for
   plausible-but-wrong options. Check real scores with
   `python -m prelexy --debug play` before tuning.
+- `default_profile` — skip the who-is-playing menu (empty = ask)
+- `default_language` — assumed by every command without `--language`
+- `db_path` — database location (empty = the XDG default; `--db` and
+  `PRELEXY_DB` still override)
+- `tts_voice` — pronunciation voice (espeak-ng code or macOS voice name;
+  empty = engine default)
+- `pool_size` — distractors are sampled from this many of the hardest
+  candidates; smaller = consistently harder, larger = more variety
+- `show_context` — whether the source sentence appears after answering
 
 CLI flags override the word counts per session:
 

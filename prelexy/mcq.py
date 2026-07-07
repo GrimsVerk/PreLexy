@@ -49,10 +49,10 @@ _SCAN_LIMIT = 500
 _LENGTH_RATIO = 2.5
 _LENGTH_SLACK = 40  # characters
 
-# Distractors are sampled from the _POOL_SIZE highest-scoring candidates of
+# Distractors are sampled from the pool_size highest-scoring candidates of
 # the whole scan (owner request): options stay varied between sessions while
-# biasing toward the hardest available.
-_POOL_SIZE = 10
+# biasing toward the hardest available. Configurable via config.toml.
+_POOL_SIZE = DEFAULTS["pool_size"]
 
 
 @dataclass
@@ -64,10 +64,12 @@ class Question:
     answer: int  # index into options of the correct gloss
 
 
-def build_question(store, item, similarity=None, rng=None, band=None) -> Question | None:
+def build_question(
+    store, item, similarity=None, rng=None, band=None, pool_size=None
+) -> Question | None:
     """Build an MCQ for an item row.
 
-    `band` overrides the (floor, ceiling) module defaults, e.g. from the
+    `band` and `pool_size` override the module defaults, e.g. from the
     config file. Returns None when no definition can be found for the item,
     or when no usable distractor exists at all.
     """
@@ -75,7 +77,7 @@ def build_question(store, item, similarity=None, rng=None, band=None) -> Questio
     sense = ensure_sense(store, item)
     if sense is None:
         return None
-    distractors = _distractors(item, sense, similarity, rng, band)
+    distractors = _distractors(item, sense, similarity, rng, band, pool_size)
     if not distractors:
         return None
     options = [sense.gloss, *distractors]
@@ -89,7 +91,9 @@ def build_question(store, item, similarity=None, rng=None, band=None) -> Questio
     )
 
 
-def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
+def _distractors(
+    item, correct_sense, similarity, rng, band=None, pool_size=None
+) -> list[str]:
     """Up to N_OPTIONS-1 distractor glosses, sampled from the hardest available.
 
     Every scanned candidate below the near-synonym ceiling is scored against
@@ -106,6 +110,7 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
     options fingerprints itself (2026-07-06 playtest; BACKLOG Stage 1.2).
     """
     floor, ceiling = band or (SIMILARITY_FLOOR, SIMILARITY_CEILING)
+    pool_size = pool_size or _POOL_SIZE
     correct_gloss = correct_sense.gloss
     pool_pos = _pool_pos(item, correct_sense)
     if pool_pos != item["pos"]:
@@ -173,7 +178,7 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
     ranked = in_band if len(in_band) >= needed else scored
     pool = []
     for entry in ranked:
-        if len(pool) == _POOL_SIZE:
+        if len(pool) == pool_size:
             break
         if fair(entry[1]):
             pool.append(entry)

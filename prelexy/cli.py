@@ -13,8 +13,28 @@ _db_option = click.option(
     type=click.Path(dir_okay=False, path_type=Path),
     default=None,
     envvar="PRELEXY_DB",
-    help="Database file [default: ~/.local/share/prelexy/prelexy.db]",
+    help="Database file [default: db_path from the config file, else "
+    "~/.local/share/prelexy/prelexy.db]",
 )
+
+_language_option = click.option(
+    "--language",
+    default=None,
+    help="Language of the items [default: default_language from the config file]",
+)
+
+
+def _resolve_db(db_path, config):
+    """--db flag > PRELEXY_DB env (both land in db_path) > config > XDG."""
+    if db_path:
+        return db_path
+    if config["db_path"]:
+        return Path(config["db_path"]).expanduser()
+    return None
+
+
+def _resolve_language(language, config):
+    return language or config["default_language"]
 
 
 @click.group()
@@ -28,7 +48,7 @@ def cli(debug_flag):
 
 @cli.command()
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.option("--language", default="en", show_default=True)
+@_language_option
 @click.option("--title", default=None, help="Source title [default: the file name]")
 @click.option(
     "--kind",
@@ -39,8 +59,10 @@ def cli(debug_flag):
 @_db_option
 def ingest(file, language, title, kind, db_path):
     """Extract learnable vocabulary from FILE and store it."""
+    config = _load_config_or_die()
+    language = _resolve_language(language, config)
     path = str(file.resolve())
-    with Store(db_path) as store:
+    with Store(_resolve_db(db_path, config)) as store:
         if store.find_source_by_path(path) is not None:
             raise click.ClickException(
                 f"{file} was already ingested; re-ingesting would double its counts."
@@ -74,12 +96,14 @@ def ingest(file, language, title, kind, db_path):
 
 
 @cli.command()
-@click.option("--language", default="en", show_default=True)
+@_language_option
 @click.option("--limit", default=20, show_default=True)
 @_db_option
 def words(language, limit, db_path):
     """List stored vocabulary, rarest first."""
-    with Store(db_path) as store:
+    config = _load_config_or_die()
+    language = _resolve_language(language, config)
+    with Store(_resolve_db(db_path, config)) as store:
         rows = store.list_items(language)
     if not rows:
         raise click.ClickException(
@@ -121,12 +145,14 @@ def clean(file, output):
 
 @cli.command()
 @click.argument("word")
-@click.option("--language", default="en", show_default=True)
+@_language_option
 def say(word, language):
     """Pronounce a word aloud using the system speech engine."""
     from prelexy.speech import INSTALL_HINT, pronounce
 
-    if not pronounce(word, language):
+    config = _load_config_or_die()
+    language = _resolve_language(language, config)
+    if not pronounce(word, language, voice=config["tts_voice"] or None):
         raise click.ClickException(INSTALL_HINT)
 
 
@@ -164,7 +190,7 @@ def _choose_profile(store) -> int:
 
 @cli.command()
 @click.argument("form")
-@click.option("--language", default="en", show_default=True)
+@_language_option
 @_db_option
 def question(form, language, db_path):
     """Preview a multiple-choice question for a stored word (* marks the answer).
@@ -177,7 +203,8 @@ def question(form, language, db_path):
     from prelexy.textproc import load_nlp
 
     config = _load_config_or_die()
-    with Store(db_path) as store:
+    language = _resolve_language(language, config)
+    with Store(_resolve_db(db_path, config)) as store:
         item = store.find_item(language, form)
         if item is None:
             raise click.ClickException(
@@ -192,6 +219,7 @@ def question(form, language, db_path):
             item,
             similarity=similarity,
             band=(config["similarity_floor"], config["similarity_ceiling"]),
+            pool_size=config["pool_size"],
         )
         if built is None:
             raise click.ClickException(
@@ -212,10 +240,10 @@ def question(form, language, db_path):
     "--profile",
     "profile_name",
     default=None,
-    help="Player profile; each profile tracks its own progress. "
-    "Without this flag, play asks who is playing.",
+    help="Player profile; each profile tracks its own progress. Without this "
+    "flag, the config file's default_profile applies, else play asks.",
 )
-@click.option("--language", default="en", show_default=True)
+@_language_option
 @click.option("--new", "new_words", default=None, type=click.IntRange(min=0),
               help="New words this session [default: new_words from the config file]")
 @click.option("--seen", "seen_words", default=None, type=click.IntRange(min=0),
@@ -230,14 +258,16 @@ def play(profile_name, language, new_words, seen_words, db_path):
     from prelexy.textproc import load_nlp
 
     config = _load_config_or_die()
+    language = _resolve_language(language, config)
     new_words = new_words if new_words is not None else config["new_words"]
     seen_words = seen_words if seen_words is not None else config["seen_words"]
+    profile_name = profile_name or config["default_profile"] or None
 
     try:
         similarity = SpacyVectors(load_nlp(language))
     except (OSError, ValueError):
         similarity = None  # no vectors: distractor band is skipped
-    with Store(db_path) as store:
+    with Store(_resolve_db(db_path, config)) as store:
         profile_id = (
             store.get_or_create_profile(profile_name)
             if profile_name
@@ -251,4 +281,7 @@ def play(profile_name, language, new_words, seen_words, db_path):
             similarity=similarity,
             n_questions=new_words + seen_words,
             band=(config["similarity_floor"], config["similarity_ceiling"]),
+            pool_size=config["pool_size"],
+            show_context=config["show_context"],
+            tts_voice=config["tts_voice"] or None,
         )

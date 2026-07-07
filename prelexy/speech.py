@@ -19,9 +19,13 @@ INSTALL_HINT = (
 )
 
 
-def pronounce(word: str, language: str = "en") -> bool:
-    """Speak a word aloud; False when no engine is available or it fails."""
-    command = _command(word, language)
+def pronounce(word: str, language: str = "en", voice: str | None = None) -> bool:
+    """Speak a word aloud; False when no engine is available or it fails.
+
+    `voice` overrides the engine's voice choice (espeak-ng voice code or
+    macOS `say` voice name; ignored by the Windows SAPI path).
+    """
+    command = _command(word, language, voice)
     if command is None:
         return False
     try:
@@ -37,10 +41,10 @@ def pronounce(word: str, language: str = "en") -> bool:
         return False
 
 
-def _command(word: str, language: str) -> list[str] | None:
+def _command(word: str, language: str, voice: str | None = None) -> list[str] | None:
     system = platform.system()
     if system == "Darwin" and shutil.which("say"):
-        return ["say", word]
+        return ["say", "-v", voice, word] if voice else ["say", word]
     if system == "Windows" and shutil.which("powershell"):
         safe_word = word.replace("'", "''")
         script = (
@@ -51,5 +55,6 @@ def _command(word: str, language: str) -> list[str] | None:
         return ["powershell", "-NoProfile", "-Command", script]
     for engine in ("espeak-ng", "espeak"):
         if shutil.which(engine):
-            return [engine, "-v", _ESPEAK_VOICES.get(language, "en-us"), word]
+            chosen = voice or _ESPEAK_VOICES.get(language, "en-us")
+            return [engine, "-v", chosen, word]
     return None

@@ -126,7 +126,10 @@ def test_p_pronounces_and_still_records_one_review(store, monkeypatch):
     add_word(store, "sagacious", zipf=2.0, gloss="having keen judgement")  # served first
     add_word(store, "gaunt", zipf=2.6, gloss="very thin")
     spoken = []
-    monkeypatch.setattr(session, "pronounce", lambda word, language="en": spoken.append(word) or True)
+    monkeypatch.setattr(
+        session, "pronounce",
+        lambda word, language="en", voice=None: spoken.append(word) or True,
+    )
     feed_answers(monkeypatch, ["p", "1", "q"])
 
     summary = play(store, profile)
@@ -139,11 +142,46 @@ def test_p_without_engine_shows_hint(store, monkeypatch, capsys):
     profile = store.get_or_create_profile("p")
     add_word(store, "sagacious", gloss="having keen judgement")
     add_word(store, "gaunt", gloss="very thin")
-    monkeypatch.setattr(session, "pronounce", lambda word, language="en": False)
+    monkeypatch.setattr(
+        session, "pronounce", lambda word, language="en", voice=None: False
+    )
     feed_answers(monkeypatch, ["p", "q"])
 
     play(store, profile)
     assert "No speech engine found" in capsys.readouterr().out
+
+
+def test_show_context_false_hides_the_sentence(store, monkeypatch, capsys):
+    profile = store.get_or_create_profile("p")
+    target = add_word(store, "sagacious", gloss="having keen judgement")
+    add_word(store, "gaunt", gloss="very thin")
+    source = store.add_source("t", "en", "book", None)
+    store.add_occurrences(target, source, [("A sagacious old man.", 2)])
+    feed_answers(monkeypatch, ["1", "q"])
+
+    run_session(
+        store, profile, "en", SimpleScheduler(),
+        rng=random.Random(42), show_context=False,
+    )
+    assert "seen in:" not in capsys.readouterr().out
+
+
+def test_p_passes_language_and_voice_to_pronounce(store, monkeypatch):
+    profile = store.get_or_create_profile("p")
+    add_word(store, "sagacious", zipf=2.0, gloss="having keen judgement")
+    add_word(store, "gaunt", zipf=2.6, gloss="very thin")
+    calls = []
+    monkeypatch.setattr(
+        session, "pronounce",
+        lambda word, language="en", voice=None: calls.append((word, language, voice)) or True,
+    )
+    feed_answers(monkeypatch, ["p", "q"])
+
+    run_session(
+        store, profile, "en", SimpleScheduler(),
+        rng=random.Random(42), tts_voice="en-gb",
+    )
+    assert calls == [("sagacious", "en", "en-gb")]
 
 
 def test_empty_store_says_so(store, capsys):

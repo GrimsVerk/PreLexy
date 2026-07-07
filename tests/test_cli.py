@@ -1,3 +1,4 @@
+import pytest
 from click.testing import CliRunner
 
 from prelexy.cli import cli
@@ -5,9 +6,20 @@ from prelexy.store import Store
 from prelexy.textproc import Candidate
 
 
+@pytest.fixture(autouse=True)
+def isolated_config(tmp_path, monkeypatch):
+    """Every CLI test gets its own config dir (commands read the config now)."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+
+
+def write_config(tmp_path, body):
+    path = tmp_path / "xdg" / "prelexy" / "config.toml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body)
+
+
 def isolate_play(monkeypatch, tmp_path):
-    """Point the config at a temp dir and skip the spaCy model load."""
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    """Skip the spaCy model load (no model in the sandbox)."""
     monkeypatch.setattr(
         "prelexy.textproc.load_nlp",
         lambda language="en": (_ for _ in ()).throw(OSError("no model")),
@@ -58,12 +70,16 @@ def test_ingest_then_words_roundtrip(tmp_path, monkeypatch):
 
 
 def test_say_command_reports_missing_engine(monkeypatch):
-    monkeypatch.setattr("prelexy.speech.pronounce", lambda word, language="en": False)
+    monkeypatch.setattr(
+        "prelexy.speech.pronounce", lambda word, language="en", voice=None: False
+    )
     result = CliRunner().invoke(cli, ["say", "vermilion"])
     assert result.exit_code != 0
     assert "No speech engine found" in result.output
 
-    monkeypatch.setattr("prelexy.speech.pronounce", lambda word, language="en": True)
+    monkeypatch.setattr(
+        "prelexy.speech.pronounce", lambda word, language="en", voice=None: True
+    )
     assert CliRunner().invoke(cli, ["say", "vermilion"]).exit_code == 0
 
 
@@ -122,6 +138,38 @@ def test_play_profile_flag_bypasses_menu(tmp_path, monkeypatch):
     assert "Who is playing?" not in result.output
     with Store(db) as store:
         assert [row["name"] for row in store.list_profiles()] == ["dave"]
+
+
+def test_play_uses_default_profile_from_config(tmp_path, monkeypatch):
+    isolate_play(monkeypatch, tmp_path)
+    write_config(tmp_path, 'default_profile = "erika"\n')
+    db = tmp_path / "db.sqlite"
+    result = CliRunner().invoke(cli, ["play", "--db", str(db)])
+    assert result.exit_code == 0, result.output
+    assert "Who is playing?" not in result.output
+    with Store(db) as store:
+        assert [row["name"] for row in store.list_profiles()] == ["erika"]
+
+
+def test_default_language_and_db_path_come_from_config(tmp_path, monkeypatch):
+    config_db = tmp_path / "from-config.db"
+    write_config(
+        tmp_path,
+        f'default_language = "nl"\ndb_path = "{config_db}"\n',
+    )
+    monkeypatch.setattr("prelexy.cli.extract_candidates", fake_extract)
+    book = tmp_path / "book.txt"
+    book.write_text("iets")
+    result = CliRunner().invoke(cli, ["ingest", str(book)])
+    assert result.exit_code == 0, result.output
+    assert config_db.exists()  # config db_path honored without --db
+    with Store(config_db) as store:
+        assert store.find_item("nl", "perambulate") is not None  # config language
+
+    # the --db flag still wins over the config value
+    flag_db = tmp_path / "flag.db"
+    result = CliRunner().invoke(cli, ["words", "--db", str(flag_db)])
+    assert "No 'nl' items" in result.output  # language default still from config
 
 
 def test_question_command_previews_mcq(tmp_path, monkeypatch):
