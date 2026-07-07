@@ -9,10 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # no pip cache: it needs a requirements.txt/pyproject.toml to key on,
+      # and this project's deps live in environment.yml + this workflow
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
       - name: Install dependencies
         run: pip install click nltk spacy wordfreq pytest
       - name: Fetch WordNet data
