@@ -520,6 +520,7 @@ def question(form, language, db_path):
             similarity=similarity,
             band=(config["similarity_floor"], config["similarity_ceiling"]),
             pool_size=config["pool_size"],
+            code_own_pool=config["code_pool_own_language"],
         )
         if built is None:
             raise click.ClickException(
@@ -594,6 +595,7 @@ def play(profile_name, language, new_words, seen_words, db_path):
             pool_size=config["pool_size"],
             show_context=config["show_context"],
             tts_voice=config["tts_voice"] or None,
+            code_own_pool=config["code_pool_own_language"],
         )
         # remembered for next time; strong_language is stored for future
         # per-profile glossing (glosses currently always use English)

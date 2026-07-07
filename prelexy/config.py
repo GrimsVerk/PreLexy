@@ -23,6 +23,9 @@ DEFAULTS = {
     "tts_voice": "",  # non-empty overrides the speech engine's voice
     "pool_size": 10,  # distractors sampled from the N hardest candidates
     "show_context": True,  # show the source sentence after answering
+    # code mode: restrict distractors to the item's own language instead of
+    # all ingested code corpora (cross-corpus = harder, DECISIONS 024)
+    "code_pool_own_language": False,
 }
 
 _TEMPLATE = """\
@@ -65,6 +68,10 @@ pool_size = 10
 
 # Show the source sentence after answering (true/false).
 show_context = true
+
+# Code mode: draw distractors only from the item's own language instead
+# of all ingested code corpora (cross-corpus is harder; true = easier).
+code_pool_own_language = false
 """
 
 
@@ -108,5 +115,6 @@ def _validate(config: dict) -> None:
     pool = config["pool_size"]
     if not isinstance(pool, int) or isinstance(pool, bool) or pool < 2:
         raise ValueError(f"pool_size must be an integer of at least 2, got {pool!r}")
-    if not isinstance(config["show_context"], bool):
-        raise ValueError(f"show_context must be true or false, got {config['show_context']!r}")
+    for key in ("show_context", "code_pool_own_language"):
+        if not isinstance(config[key], bool):
+            raise ValueError(f"{key} must be true or false, got {config[key]!r}")

@@ -105,6 +105,11 @@ def item_zipf(row) -> float:
     return json.loads(row["metadata"]).get("zipf", 0.0)
 
 
+def item_order(row) -> int:
+    """Corpus position for code items (inventory order); 0 for natural."""
+    return json.loads(row["metadata"]).get("order", 0)
+
+
 def _sentence_complete(text: str) -> bool:
     """Whether a context excerpt reads as a whole sentence."""
     text = text.strip()
@@ -223,6 +228,24 @@ class Store:
             ids,
         )
         return cur.rowcount
+
+    def code_pool(self, pos: str, languages, exclude_item_id: int) -> list[tuple[str, str]]:
+        """Distractor material for code items: same-kind forms + glosses.
+
+        Unlike natural languages (WordNet-wide pools), code distractors come
+        from the ingested corpora themselves — spanning all code languages
+        by default to maximize difficulty (DECISIONS 024).
+        """
+        langs = list(languages)
+        placeholders = ",".join("?" * len(langs))
+        rows = self._conn.execute(
+            f"SELECT items.form, senses.gloss FROM items "
+            f"JOIN senses ON senses.item_id = items.id "
+            f"WHERE items.pos = ? AND items.language IN ({placeholders}) "
+            f"AND items.id != ?",
+            [pos, *langs, exclude_item_id],
+        ).fetchall()
+        return [(row["form"], row["gloss"]) for row in rows]
 
     def items_missing_senses(self, language: str) -> list[sqlite3.Row]:
         """Items with no cached definition — targets for a gloss import."""

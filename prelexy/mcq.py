@@ -27,6 +27,7 @@ from prelexy.definitions import (
     wordnet_lemma_names,
     wordnet_sense,
 )
+from prelexy.languages import code_language_codes, get_language
 
 # The distractor band, applied to definition-text similarity: above the
 # ceiling the two definitions nearly coincide (near-synonym — ambiguous,
@@ -65,19 +66,30 @@ class Question:
 
 
 def build_question(
-    store, item, similarity=None, rng=None, band=None, pool_size=None
+    store,
+    item,
+    similarity=None,
+    rng=None,
+    band=None,
+    pool_size=None,
+    code_own_pool=None,
 ) -> Question | None:
     """Build an MCQ for an item row.
 
-    `band` and `pool_size` override the module defaults, e.g. from the
-    config file. Returns None when no definition can be found for the item,
-    or when no usable distractor exists at all.
+    `band`, `pool_size`, and `code_own_pool` override the module defaults,
+    e.g. from the config file. Returns None when no definition can be found
+    for the item, or when no usable distractor exists at all.
     """
     rng = rng or random.Random()
     sense = ensure_sense(store, item)
     if sense is None:
         return None
-    distractors = _distractors(item, sense, similarity, rng, band, pool_size)
+    if get_language(item["language"]).kind == "code":
+        distractors = _code_distractors(
+            store, item, sense.gloss, similarity, rng, band, pool_size, code_own_pool
+        )
+    else:
+        distractors = _distractors(item, sense, similarity, rng, band, pool_size)
     if not distractors:
         return None
     options = [sense.gloss, *distractors]
@@ -204,6 +216,71 @@ def _distractors(
 def _length_compatible(correct_gloss: str, candidate_gloss: str) -> bool:
     shorter, longer = sorted((len(correct_gloss), len(candidate_gloss)))
     return longer - shorter <= _LENGTH_SLACK or longer <= shorter * _LENGTH_RATIO
+
+
+def _code_distractors(
+    store, item, correct_gloss, similarity, rng, band=None, pool_size=None, own_pool=None
+) -> list[str]:
+    """Distractors for code items: same-kind glosses from ingested corpora.
+
+    Spans all code languages by default — practicing Python and Java
+    together maximizes difficulty (DECISIONS 024); `own_pool=True`
+    restricts to the target's own language. Same hardest-pool sampling as
+    natural mode; no WordNet guards (the corpora are already curated).
+    """
+    floor, ceiling = band or (SIMILARITY_FLOOR, SIMILARITY_CEILING)
+    pool_size = pool_size or _POOL_SIZE
+    if own_pool is None:
+        own_pool = DEFAULTS["code_pool_own_language"]
+    languages = [item["language"]] if own_pool else code_language_codes()
+    needed = N_OPTIONS - 1
+    rows = store.code_pool(item["pos"], languages, item["id"])
+    rng.shuffle(rows)
+    scored: list[tuple[float, str, str]] = []
+    unscored: list[str] = []
+    seen_glosses = {correct_gloss}
+    scanned = 0
+    for form, gloss in rows:
+        scanned += 1
+        if scanned > _SCAN_LIMIT:
+            break
+        if gloss in seen_glosses or not _length_compatible(correct_gloss, gloss):
+            continue
+        seen_glosses.add(gloss)
+        score = similarity.text_similarity(correct_gloss, gloss) if similarity else None
+        if score is None:
+            unscored.append(gloss)
+            if similarity is None and len(unscored) == needed:
+                break
+            continue
+        if score >= ceiling:
+            debug.log("mcq", f"{item['form']!r} ✗ {form!r} score {score:.3f} (near-duplicate)")
+            continue
+        scored.append((score, form, gloss))
+
+    if not scored:
+        picked = unscored[:needed]
+        debug.log(
+            "mcq",
+            f"{item['form']!r}: code pool scanned {scanned} → {len(picked)} fallback",
+        )
+        return picked
+    scored.sort(reverse=True)
+    in_band = [entry for entry in scored if entry[0] > floor]
+    pool = (in_band if len(in_band) >= needed else scored)[:pool_size]
+    sampled = rng.sample(pool, min(needed, len(pool)))
+    for score, form, _ in sampled:
+        marker = "" if score > floor else " (below floor)"
+        debug.log("mcq", f"{item['form']!r} ← {form!r} score {score:.3f}{marker}")
+    debug.log(
+        "mcq",
+        f"{item['form']!r}: code pool {len(rows)}, scored {len(scored)}, "
+        f"in band {len(in_band)}, pool {len(pool)} → sampled {len(sampled)}",
+    )
+    glosses = [gloss for _, _, gloss in sampled]
+    if len(glosses) < needed:
+        glosses += [g for g in unscored if g not in glosses][: needed - len(glosses)]
+    return glosses
 
 
 def _pool_pos(item, correct_sense) -> str | None:

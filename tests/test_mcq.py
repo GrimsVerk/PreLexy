@@ -226,6 +226,52 @@ def test_candidate_pool_follows_the_gloss_pos(store, monkeypatch):
     assert asked == ["VERB"]
 
 
+def add_code_item(store, form, gloss, language="python", kind="method", order=0):
+    item_id = store.get_or_create_item(
+        language, form, lemma=form, pos=kind,
+        metadata={"kind": kind, "module": form.split(".")[0],
+                  "signature": f"{form}(...)", "order": order},
+    )
+    store.add_sense(item_id, gloss, "en", "docs")
+    return item_id
+
+
+def test_code_question_uses_corpus_pool(store, monkeypatch):
+    add_code_item(store, "list.pop", "Remove and return the item at the given position.")
+    add_code_item(store, "list.append", "Add an item to the end of the list.")
+    add_code_item(store, "dict.get", "Return the value for a key if present.")
+    add_code_item(store, "set.add", "Add an element to the set.")
+    add_code_item(store, "list.index", "Return the index of the first matching item.")
+    item = store.find_item("python", "list.pop")
+
+    question = build_question(store, item, rng=random.Random(3))
+    assert question is not None
+    assert len(question.options) == 4
+    assert question.options[question.answer].startswith("Remove and return")
+    assert len(set(question.options)) == 4
+
+
+def test_code_pool_spans_languages_unless_restricted(store, monkeypatch):
+    from prelexy.languages import LANGUAGES, Language
+
+    monkeypatch.setitem(LANGUAGES, "java", Language(code="java", kind="code"))
+    add_code_item(store, "list.pop", "Remove and return the item at the given position.")
+    java_gloss = "Return the element at the head of this java deque."
+    add_code_item(store, "Deque.poll", java_gloss, language="java")
+    add_code_item(store, "list.append", "Add an item to the end of the list.")
+    add_code_item(store, "dict.get", "Return the value for a key if present.")
+    item = store.find_item("python", "list.pop")
+
+    question = build_question(store, item, rng=random.Random(0), code_own_pool=False)
+    assert java_gloss in question.options  # cross-corpus by default
+
+    seen = set()
+    for seed in range(10):
+        question = build_question(store, item, rng=random.Random(seed), code_own_pool=True)
+        seen.update(question.options)
+    assert java_gloss not in seen  # restricted to python
+
+
 def test_dutch_question_end_to_end_offline(store):
     """A Dutch item gets an English-glossed MCQ with Dutch-pool distractors."""
     store.get_or_create_item("nl", "fiets", lemma="fiets", pos="NOUN",

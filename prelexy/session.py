@@ -40,6 +40,7 @@ def run_session(
     pool_size=None,
     show_context: bool = True,
     tts_voice: str | None = None,
+    code_own_pool=None,
 ) -> SessionSummary:
     now = datetime.now(timezone.utc)
     items = scheduler.next_items(store, profile_id, language, now, n_questions)
@@ -50,7 +51,8 @@ def run_session(
 
     for item in items:
         question = build_question(
-            store, item, similarity=similarity, rng=rng, band=band, pool_size=pool_size
+            store, item, similarity=similarity, rng=rng, band=band,
+            pool_size=pool_size, code_own_pool=code_own_pool,
         )
         if question is None:
             store.upsert_item_state(profile_id, item["id"], "suspended", None, {})

@@ -203,6 +203,22 @@ def test_sm2_shuffles_rarity_ties_between_sessions(store):
     assert order_a == order_a_again  # but reproducible per seed
 
 
+def test_code_items_are_served_in_inventory_order(store):
+    import random
+
+    for i, name in enumerate(["zlib.compress", "abc.register", "os.walk"]):
+        store.get_or_create_item(
+            "python", name, lemma=name, pos="function",
+            metadata={"order": i},
+        )
+    profile = store.get_or_create_profile("p")
+    forms = [
+        row["form"]
+        for row in SM2Scheduler(rng=random.Random(1)).next_items(store, profile, "python", NOW, 10)
+    ]
+    assert forms == ["zlib.compress", "abc.register", "os.walk"]  # not alphabetical
+
+
 def test_sm2_full_loop_spaces_an_item_through_the_store(store):
     profile = store.get_or_create_profile("p")
     item = add_word(store, "gaunt", zipf=2.5)
