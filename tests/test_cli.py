@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from click.testing import CliRunner
 
@@ -110,6 +112,38 @@ def test_ingest_converts_subtitle_files(tmp_path, monkeypatch):
     with Store(db) as store:
         source = store.find_source_by_path(str(episode.resolve()))
         assert source["kind"] == "subtitles"
+
+
+def test_fetch_command_with_ingest(tmp_path, monkeypatch):
+    def fake_fetch(url, language, dest, archive=None):
+        dest = Path(dest)
+        dest.mkdir(parents=True, exist_ok=True)
+        vtt = dest / "Tweakers - Ep1.nl.vtt"
+        vtt.write_text("WEBVTT\n\n00:00.000 --> 00:02.000\nHallo wereld.\n")
+        return [vtt]
+
+    monkeypatch.setattr("prelexy.pods.fetch_subtitles", fake_fetch)
+    monkeypatch.setattr("prelexy.cli.extract_candidates", fake_extract)
+    db = tmp_path / "db.sqlite"
+    result = CliRunner().invoke(
+        cli,
+        ["fetch", "https://www.youtube.com/@tweakers/podcasts",
+         "--language", "nl", "--dest", str(tmp_path / "pods"),
+         "--ingest", "--db", str(db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Fetched 1 new subtitle file(s)" in result.output
+    with Store(db) as store:
+        source = store._conn.execute("SELECT * FROM sources").fetchone()
+        assert source["kind"] == "subtitles"
+        assert source["language"] == "nl"
+
+
+def test_fetch_command_without_ytdlp_hints_install(tmp_path, monkeypatch):
+    monkeypatch.setattr("prelexy.pods.shutil.which", lambda name: None)
+    result = CliRunner().invoke(cli, ["fetch", "https://youtube.com/x"])
+    assert result.exit_code != 0
+    assert "yt-dlp" in result.output
 
 
 def test_play_prompts_to_create_first_profile(tmp_path, monkeypatch):

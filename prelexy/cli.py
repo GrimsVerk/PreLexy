@@ -73,38 +73,15 @@ def ingest(file, language, title, kind, db_path):
     Plain text, .srt, and .vtt are accepted; subtitle files are converted
     to prose (timestamps and cue numbers stripped) before extraction.
     """
-    from prelexy.clean import SUBTITLE_SUFFIXES, strip_subtitles
-
     config = _load_config_or_die()
     language = _resolve_language(language, config)
-    path = str(file.resolve())
     with Store(_resolve_db(db_path, config)) as store:
-        if store.find_source_by_path(path) is not None:
+        result = _ingest_file(store, file, language, title, kind)
+        if result is None:
             raise click.ClickException(
                 f"{file} was already ingested; re-ingesting would double its counts."
             )
-        text = file.read_text(encoding="utf-8", errors="replace")
-        if file.suffix.lower() in SUBTITLE_SUFFIXES:
-            text = strip_subtitles(text)
-            kind = kind or "subtitles"
-        kind = kind or "book"
-        click.echo(f"Extracting from {file.name} … (first run loads models, be patient)")
-        try:
-            candidates = extract_candidates(text, language)
-        except (OSError, ValueError) as error:  # missing/unsupported spaCy model
-            raise click.ClickException(str(error)) from error
-        source_id = store.add_source(title or file.stem, language, kind, path)
-        n_occurrences = 0
-        for candidate in candidates:
-            item_id = store.get_or_create_item(
-                language,
-                candidate.form,
-                lemma=candidate.lemma,
-                pos=candidate.pos,
-                metadata={"zipf": candidate.zipf},
-            )
-            store.add_occurrences(item_id, source_id, candidate.occurrences)
-            n_occurrences += len(candidate.occurrences)
+    candidates, n_occurrences = result
     click.echo(f"Stored {len(candidates)} items ({n_occurrences} occurrences).")
     if candidates:
         click.echo("\nRarest finds:")
@@ -113,6 +90,38 @@ def ingest(file, language, title, kind, db_path):
                 f"  {candidate.form:<22} zipf {candidate.zipf:4.2f}"
                 f"  ×{len(candidate.occurrences)}"
             )
+
+
+def _ingest_file(store, file: Path, language: str, title=None, kind=None):
+    """Extract and store one file; None when its path is already ingested."""
+    from prelexy.clean import SUBTITLE_SUFFIXES, strip_subtitles
+
+    path = str(file.resolve())
+    if store.find_source_by_path(path) is not None:
+        return None
+    text = file.read_text(encoding="utf-8", errors="replace")
+    if file.suffix.lower() in SUBTITLE_SUFFIXES:
+        text = strip_subtitles(text)
+        kind = kind or "subtitles"
+    kind = kind or "book"
+    click.echo(f"Extracting from {file.name} … (first run loads models, be patient)")
+    try:
+        candidates = extract_candidates(text, language)
+    except (OSError, ValueError) as error:  # missing/unsupported spaCy model
+        raise click.ClickException(str(error)) from error
+    source_id = store.add_source(title or file.stem, language, kind, path)
+    n_occurrences = 0
+    for candidate in candidates:
+        item_id = store.get_or_create_item(
+            language,
+            candidate.form,
+            lemma=candidate.lemma,
+            pos=candidate.pos,
+            metadata={"zipf": candidate.zipf},
+        )
+        store.add_occurrences(item_id, source_id, candidate.occurrences)
+        n_occurrences += len(candidate.occurrences)
+    return candidates, n_occurrences
 
 
 @cli.command()
@@ -167,6 +176,50 @@ def clean(file, output):
             click.echo(f"  {rule}: {count} fix(es)")
     if not any(counts.values()):
         click.echo("  (no artifacts found)")
+
+
+@cli.command()
+@click.argument("url")
+@_language_option
+@click.option(
+    "--dest",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("data/pods"),
+    show_default=True,
+    help="Where fetched subtitle files land.",
+)
+@click.option("--ingest", "do_ingest", is_flag=True,
+              help="Ingest the fetched subtitles immediately.")
+@_db_option
+def fetch(url, language, dest, do_ingest, db_path):
+    """Download a YouTube video/playlist/channel's subtitles via yt-dlp.
+
+    Grabs the (auto-generated) subtitle track for --language as .vtt files
+    — ready for `prelexy ingest`, or ingested right away with --ingest.
+    """
+    from prelexy.pods import INSTALL_HINT, fetch_subtitles
+
+    config = _load_config_or_die()
+    language = _resolve_language(language, config)
+    new_files = fetch_subtitles(url, language, dest)
+    if new_files is None:
+        raise click.ClickException(INSTALL_HINT)
+    click.echo(f"Fetched {len(new_files)} new subtitle file(s) into {dest}.")
+    if do_ingest and new_files:
+        _ingest_paths(new_files, language, config, db_path)
+
+
+def _ingest_paths(files, language, config, db_path):
+    with Store(_resolve_db(db_path, config)) as store:
+        for file in files:
+            result = _ingest_file(store, file, language)
+            if result is None:
+                click.echo(f"  {file.name}: already ingested, skipped")
+            else:
+                candidates, n_occurrences = result
+                click.echo(
+                    f"  {file.name}: {len(candidates)} items ({n_occurrences} occurrences)"
+                )
 
 
 @cli.command("import-glosses")
