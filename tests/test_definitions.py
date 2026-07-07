@@ -84,6 +84,16 @@ def test_wordnet_sense_instance_only_words():
     assert wordnet_sense("carthorse", "NOUN", include_instances=False) is not None
 
 
+def test_synonym_conflict_catches_synonyms_and_direct_relatives():
+    assert definitions.synonym_conflict("sagacious", "sapient", "ADJ")  # shared lemma
+    assert definitions.synonym_conflict("joy", "delight", "NOUN")  # shared lemma
+    assert definitions.synonym_conflict("dog", "puppy", "NOUN")  # direct hyponym
+    # cousins and unrelated words stay fair
+    assert not definitions.synonym_conflict("vermilion", "goethite", "NOUN")
+    assert not definitions.synonym_conflict("joyousness", "gleefulness", "NOUN")
+    assert not definitions.synonym_conflict("lopen", "rennen", "VERB", language="nl")
+
+
 def test_wordnet_sense_finds_real_words_with_pos():
     sense = wordnet_sense("sagacious", "ADJ")
     assert sense is not None

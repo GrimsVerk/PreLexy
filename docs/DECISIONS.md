@@ -263,3 +263,21 @@ agent-specific; the repo is the only memory that transfers. The one-time
 capture of 2026-07-06 (journal, verification ledger, field notes) closed a
 ~15% context gap that would otherwise silently reopen with every new
 session.
+
+## 022 — Band calibration verdict: keep 0.45/0.85, add a synonym guard (2026-07)
+
+**Decision:** The 2026-07-06 playtest data confirms the band values
+(in-band counts 31–341 per 500 scanned, pool always filled, sampled scores
+0.53–0.85, two genuine misses in ten). The 'gleefulness'-for-'joyousness'
+problem is not a band problem: they are WordNet *cousins* whose glosses
+are worded differently, so no similarity threshold separates them fairly.
+Instead, pool candidates now pass a tight relation guard
+(`definitions.synonym_conflict`): excluded when they share a lemma with
+any synset of the target (sagacious/sapient, joy/delight) or are a direct
+hypernym/hyponym (dog/puppy). Cousin pairs remain a documented residual.
+**Why:** A shared-ancestor check that would catch cousins also excludes
+fair hard distractors across entire semantic fields (all emotions, all
+colors). The tight guard removes real unfairness with near-zero false
+positives; band movement was evaluated against the data and rejected —
+lowering the ceiling below 0.716 would discard the genuinely good
+distractors observed between 0.72 and 0.85.

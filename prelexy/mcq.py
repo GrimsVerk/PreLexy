@@ -21,7 +21,12 @@ from dataclasses import dataclass
 
 from prelexy import debug
 from prelexy.config import DEFAULTS
-from prelexy.definitions import ensure_sense, wordnet_lemma_names, wordnet_sense
+from prelexy.definitions import (
+    ensure_sense,
+    synonym_conflict,
+    wordnet_lemma_names,
+    wordnet_sense,
+)
 
 # The distractor band, applied to definition-text similarity: above the
 # ceiling the two definitions nearly coincide (near-synonym — ambiguous,
@@ -112,9 +117,15 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
     target_lemma = (item["lemma"] or item["form"]).lower()
     needed = N_OPTIONS - 1
     scored: list[tuple[float, str, str]] = []  # (score, word, gloss)
-    unscored: list[str] = []
+    unscored: list[tuple[str, str]] = []  # (word, gloss)
     seen_glosses = {correct_gloss}
     scanned = 0
+
+    def fair(word: str) -> bool:
+        if not synonym_conflict(item["form"], word, pool_pos, item["language"]):
+            return True
+        debug.log("mcq", f"{item['form']!r} ✗ {word!r} (WordNet synonym/relative)")
+        return False
     for candidate in _wordnet_candidates(pool_pos, item["language"], rng):
         scanned += 1
         if candidate == target_lemma:
@@ -135,7 +146,10 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
             else None
         )
         if score is None:
-            unscored.append(sense.gloss)
+            # without a provider the scan stops at `needed`, so the
+            # fairness guard must apply before counting, not after
+            if similarity is not None or fair(candidate):
+                unscored.append((candidate, sense.gloss))
             if similarity is None and len(unscored) == needed:
                 break
             continue
@@ -147,7 +161,7 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
         scored.append((score, candidate, sense.gloss))
 
     if not scored:
-        picked = unscored[:needed]
+        picked = [gloss for word, gloss in unscored if fair(word)][:needed]
         debug.log(
             "mcq",
             f"{item['form']!r}: scanned {scanned}, nothing scored → {len(picked)} fallback",
@@ -156,7 +170,13 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
 
     scored.sort(reverse=True)  # hardest first
     in_band = [entry for entry in scored if entry[0] > floor]
-    pool = (in_band if len(in_band) >= needed else scored)[:_POOL_SIZE]
+    ranked = in_band if len(in_band) >= needed else scored
+    pool = []
+    for entry in ranked:
+        if len(pool) == _POOL_SIZE:
+            break
+        if fair(entry[1]):
+            pool.append(entry)
     sampled = rng.sample(pool, min(needed, len(pool)))
     for score, candidate, _ in sampled:
         marker = "" if score > floor else " (below floor)"
@@ -168,7 +188,11 @@ def _distractors(item, correct_sense, similarity, rng, band=None) -> list[str]:
     )
     glosses = [gloss for _, _, gloss in sampled]
     if len(glosses) < needed:
-        glosses += [g for g in unscored if g not in glosses][: needed - len(glosses)]
+        glosses += [
+            gloss
+            for word, gloss in unscored
+            if gloss not in glosses and fair(word)
+        ][: needed - len(glosses)]
     return glosses
 
 

@@ -109,6 +109,42 @@ def wordnet_sense(
     )
 
 
+def synonym_conflict(
+    target_form: str, candidate_form: str, pos: str | None, language: str = "en"
+) -> bool:
+    """True when the candidate is a WordNet synonym or direct relative.
+
+    Catches true synonyms (shared lemma in any synset: sagacious/sapient,
+    joy/delight) and direct hypernym/hyponym pairs (dog/puppy) — both make
+    unfair distractors even when their gloss wording differs. Deliberately
+    tight: cousin terms (joyousness/gleefulness) are NOT caught, because a
+    shared-ancestor check would also exclude fair hard distractors across
+    whole semantic fields (see DECISIONS 022).
+    """
+    if language != "en":
+        return False
+    wordnet = get_wordnet()
+    target_synsets = wordnet.synsets(target_form)
+    if not target_synsets:
+        return False
+    target_lemmas = {
+        lemma for synset in target_synsets for lemma in synset.lemma_names()
+    }
+    candidate_synsets = wordnet.synsets(
+        candidate_form, pos=_WORDNET_POS.get(pos)
+    ) or wordnet.synsets(candidate_form)
+    for candidate_synset in candidate_synsets:
+        if set(candidate_synset.lemma_names()) & target_lemmas:
+            return True
+        for target_synset in target_synsets:
+            if (
+                candidate_synset in target_synset.hypernyms()
+                or candidate_synset in target_synset.hyponyms()
+            ):
+                return True
+    return False
+
+
 def clean_gloss(gloss: str) -> str:
     """Strip WordNet gloss residue.
 

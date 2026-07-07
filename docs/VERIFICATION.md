@@ -22,7 +22,7 @@ observed working end-to-end anywhere.
 | Gloss sanitizer ("; ; ; -Author" residue) | owner | no residue in any 2026-07-06 transcript |
 | `clean` command | owner | playtests/2026-07-06-clean.txt matches sandbox counts exactly |
 | Pronunciation (`say`, `p` in session) | owner | owner confirmed audio in chat, 2026-07-06 |
-| Distractor band values (0.45 / 0.85) | UNCALIBRATED (data available) | playtests show in-band counts 31–341/500; 'gleefulness' 0.716 slipped under the ceiling as a near-synonym of 'joyousness' → ceiling may need lowering; Stage-1 backlog item |
+| Distractor band values (0.45 / 0.85) | calibrated (sandbox analysis of owner data) | DECISIONS 022: values confirmed against 2026-07-06 playtests; synonym guard added for the gleefulness case; residual: cousin synonyms. Re-check feel at next owner playtest |
 | Free-API definition fallback | UNVERIFIED (fails soft) | only fires for words WordNet lacks; low risk, mocked in tests |
 | SessionStart hook + setup script | sandbox (script itself) | hook wiring confirmed on next fresh Claude session |
 

@@ -159,6 +159,17 @@ def test_below_floor_candidates_fill_when_band_is_empty(store, monkeypatch):
     assert len(question.options) == 4  # most-similar-available, not none
 
 
+def test_wordnet_synonyms_never_become_distractors(store, monkeypatch):
+    item = add_target(
+        store, form="joy", pos="NOUN", gloss="the emotion of great happiness"
+    )
+    use_candidates(monkeypatch, ["delight", "brickfield", "scaup", "probity"])
+    question = build_question(store, item, rng=random.Random(0))
+    delight_gloss = definitions.wordnet_sense("delight", "NOUN").gloss
+    assert delight_gloss not in question.options  # 'delight' is a synonym of 'joy'
+    assert len(question.options) == 4
+
+
 def test_length_mismatched_glosses_are_excluded(store, monkeypatch):
     from prelexy.mcq import _length_compatible
 
