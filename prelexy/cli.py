@@ -34,7 +34,14 @@ def _resolve_db(db_path, config):
 
 
 def _resolve_language(language, config):
-    return language or config["default_language"]
+    from prelexy.languages import UnsupportedLanguageError, get_language
+
+    code = language or config["default_language"]
+    try:
+        get_language(code)
+    except UnsupportedLanguageError as error:
+        raise click.ClickException(str(error))
+    return code
 
 
 @click.group()

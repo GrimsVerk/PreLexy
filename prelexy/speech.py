@@ -11,7 +11,7 @@ import platform
 import shutil
 import subprocess
 
-_ESPEAK_VOICES = {"en": "en-us", "nl": "nl"}
+from prelexy.languages import LANGUAGES
 
 INSTALL_HINT = (
     "No speech engine found. macOS and Windows ship with one built in; "
@@ -55,6 +55,7 @@ def _command(word: str, language: str, voice: str | None = None) -> list[str] | 
         return ["powershell", "-NoProfile", "-Command", script]
     for engine in ("espeak-ng", "espeak"):
         if shutil.which(engine):
-            chosen = voice or _ESPEAK_VOICES.get(language, "en-us")
+            registered = LANGUAGES.get(language)
+            chosen = voice or (registered.espeak_voice if registered else "en-us")
             return [engine, "-v", chosen, word]
     return None
