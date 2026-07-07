@@ -70,28 +70,33 @@ per-profile glossing), `.srt`/`.vtt` ingestion, Dutch espeak voice.
    tests are mocked in the sandbox; real fetching is owner-verified.
 
 ### Stage 3 — v3: learn programming languages from official docs
+### (design owner-approved 2026-07-07 — DECISIONS 024; starts after Stage 2b)
 
-Coarse on purpose — item 1 refines this stage before code is written.
 Constraint from day one (CLAUDE.md rule 5): nothing in v1/v2 may break.
+Design: DESIGN.md "Code documentation mode (v3)".
 
-1. **Design spike → docs/DESIGN.md section + DECISIONS entries.**
-   ✅ Spike written 2026-07-06 — see DESIGN.md "Code documentation mode
-   (v3) — PROPOSED", including four open questions. **AWAITING OWNER
-   REVIEW before any item below starts.**
-2. **Docs ingester.** Extraction policy for `language="python"`; parse
-   inventory + doc text into items/occurrences (usage examples as context
-   sentences).
-3. **Glosses from the docs** stored in senses with provider `docs`.
-4. **Distractors from the same corpus.** Pool = other items of the same
-   docs corpus (kind-matched: method vs method); first pass reuses the
-   existing gloss-text similarity on English doc descriptions. Custom
-   code embeddings (the "pop ≠ pop" problem) only if that proves
-   inadequate — training them means a new dependency, which needs owner
-   approval (CLAUDE.md rule 4).
-5. **Ordering/curriculum for code items** (corpus frequency? module
-   grouping?) — bring options to the owner for a ruling.
-6. **End to end:** ingest a Python stdlib subset (e.g. `itertools`,
-   `collections`) → playable sessions; en/nl regression suites stay green.
+1. ~~Design spike~~ ✅ written 2026-07-06, owner-reviewed with amendments
+   2026-07-07 (whole-corpus default, cross-corpus pools, line-after).
+2. **Registry `kind` split.** `natural` vs `code` entries with per-kind
+   required pieces; register `python` as the first code language.
+3. **`prelexy ingest-docs <local-sphinx-dir>`.** Parse `objects.inv`
+   (stdlib zlib) for the full inventory — the WHOLE corpus by default,
+   `--modules a,b` as the optional filter — then pull each entry's first
+   description sentence (gloss, provider `docs`) and signature from the
+   HTML (stdlib html.parser). Items: qualified names under
+   `language="python"`, metadata {kind, module, signature}; signature/
+   example line stored as the occurrence context.
+4. **Code-mode questions.** Distractor pool = same-kind items from the
+   store's code corpora — ALL code languages by default (owner ruling),
+   own-language-only as a config choice; existing gloss-text similarity;
+   rarity stays banned. Signature/source line revealed only after
+   answering (reuse the context-after-answer path).
+5. **New-item ordering for code:** inventory order (module grouping falls
+   out of `--modules`); zipf is meaningless for code — order by corpus
+   position stored in metadata.
+6. **End to end:** ingest the full stdlib docs → playable sessions;
+   en/nl regression suites stay green; owner verification commands into
+   docs/VERIFICATION.md (docs.python.org HTML archive download).
 
 ## Proposed
 

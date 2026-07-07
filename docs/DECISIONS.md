@@ -300,3 +300,20 @@ common-word sample — solid nouns/verbs (37k/5.6k lemmas), thin adjectives
 and reuses the entire existing machinery. The gaps are the documented
 residual: a kaikki.org Wiktionary importer supplements real ingested items
 (next item), and words with no gloss anywhere auto-suspend as designed.
+
+## 024 — v3 rulings: whole-corpus default, cross-corpus pools, line-after (2026-07)
+
+**Decision (owner rulings on the v3 design spike):** (1) Ingestion
+defaults to the ENTIRE documentation corpus (whole Python stdlib); an
+optional module filter narrows scope — filtering is the option, not the
+default. (2) The distractor pool spans all ingested code languages by
+default (Python + Java together maximizes difficulty); restricting to one
+language is the user's choice. (3) The signature/source line is shown
+only AFTER answering, exactly like natural-language context sentences.
+(4) The registry `kind` split (natural | code) is approved. Python is the
+test corpus, as English is for v1 and Dutch for v2.
+**Why:** The owner's use case is "import everything and start
+memorizing" — a big pool is precisely what makes distractors hard, and
+scarce distractors were the concern with per-module imports. Showing the
+source line up front would give answers away (same reasoning as ruling
+011's context-after-answer).
