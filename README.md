@@ -83,7 +83,7 @@ python -m prelexy say vermilion
 # any command with diagnostic detail on stderr (distractor scores, session mix)
 python -m prelexy --debug question vermilion
 
-# run the test suite
+# run the test suite (CI runs it on every push too)
 python -m pytest
 ```
 

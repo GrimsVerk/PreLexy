@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install click nltk spacy wordfreq pytest
+      - name: Fetch WordNet data
+        run: python -m nltk.downloader wordnet omw-1.4
+      # No spaCy model is installed: the one model-dependent test skips,
+      # matching the Claude sandbox. Real-model runs happen on the owner's
+      # machine (docs/VERIFICATION.md).
+      - name: Run test suite
+        run: python -m pytest -q
