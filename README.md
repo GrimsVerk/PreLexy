@@ -100,6 +100,11 @@ python -m prelexy ingest episode.srt --language nl
 # kaikki.org/dictionary/rawdata.html; .gz streamed directly)
 python -m prelexy import-glosses raw-wiktextract-data.jsonl.gz --language nl
 
+# learn a programming language from its official docs (download the
+# Sphinx HTML archive, e.g. docs.python.org/3 → "Download" → HTML)
+python -m prelexy ingest-docs data/python-3.13-docs-html
+python -m prelexy play --language python
+
 # any command with diagnostic detail on stderr (distractor scores, session mix)
 python -m prelexy --debug question vermilion
 

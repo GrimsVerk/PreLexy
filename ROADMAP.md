@@ -90,12 +90,17 @@ v3 is done when this works end to end:
 > spaced repetition — without breaking the natural-language modes.
 
 Items are qualified names (`list.pop`); glosses come from the docs
-themselves (no dictionary needed); distractors come from the same corpus
-through the existing `SimilarityProvider` seam — first pass with gloss-text
-similarity on the English descriptions, custom-trained code embeddings only
-if that proves inadequate (new dependency → owner approval). The stage
-opens with a design spike that lands in docs/DESIGN.md for owner review
-before implementation.
+themselves (no dictionary needed); distractors come from the ingested code
+corpora — cross-language by default (DECISIONS 024) — through the existing
+similarity machinery; custom-trained code embeddings only if description
+similarity proves inadequate (new dependency → owner approval).
+
+Status: **implemented 2026-07-07** (registry kind split, objects.inv +
+Sphinx HTML ingestion via `prelexy ingest-docs`, docs-as-dictionary
+glosses, corpus distractor pools, inventory-order scheduling,
+signature-after-answer). Sandbox-verified end to end on a synthetic docs
+tree; the real full-stdlib run is AWAITING OWNER — commands in
+docs/VERIFICATION.md "v3 (Python docs)".
 
 ## Exploratory (no version assigned)
 

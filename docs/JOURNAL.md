@@ -150,3 +150,31 @@ and are referenced from entries.
   source line shown only after answering; one ingest for everything
   confirmed (subtitles already work for v1/English); TTS upgrade parked in
   Deferred (voice quality poor in both languages, owner: later).
+
+### 2026-07-07 (later) — Stage 2b + Stage 3 implemented
+
+- **Stage 2b (all five items):** import-glosses streams .jsonl.gz raw
+  wiktextract dumps (magic-byte sniff), filters by lang_code, ranks real
+  glosses over form-of (the lemma entry now beats "inflection of
+  abonneren:"), un-suspends items it glosses; `prelexy fetch <url>`
+  downloads YouTube (auto-)subtitles via yt-dlp (external tool, install
+  hint, env pip dep) with --ingest; `prelexy pods add/list/remove/sync`
+  stores subscriptions in the meta table and syncs via yt-dlp's download
+  archive. Real-network verification is the owner's (commands in
+  VERIFICATION "Stage 2b").
+- **Stage 3 (all items):** registry kind split (natural|code, python
+  registered); prelexy/docsproc.py parses Sphinx objects.inv (stdlib
+  zlib) and extracts signature + first description sentence per object
+  (stdlib html.parser); `prelexy ingest-docs <dir>` stores the WHOLE
+  corpus by default with --modules as the optional filter (metadata:
+  kind/module/signature/order); code distractors come from store.code_pool
+  — cross-language by default, config code_pool_own_language restricts;
+  scheduler serves code items in inventory order (item_order in the sort
+  key); the signature line rides the existing after-answer context path.
+  Sandbox-verified end to end on a synthetic docs tree; the real
+  full-stdlib run is the owner's (VERIFICATION "v3").
+- Suite: 137 → 158 passing (+1 model skip). Friction: none (no prompts,
+  denials, or classifier events this run).
+- Hand-off: everything in Approved is implemented. Owner verifies: Stage 1
+  feel, v2 raw-gloss + pods flow, v3 full stdlib. All commands live in
+  docs/VERIFICATION.md, newest sections first.

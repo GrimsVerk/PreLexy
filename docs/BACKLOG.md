@@ -77,10 +77,12 @@ in docs/VERIFICATION.md "Stage 2b". Original items follow for reference.
    tests are mocked in the sandbox; real fetching is owner-verified.
 
 ### Stage 3 — v3: learn programming languages from official docs
-### (design owner-approved 2026-07-07 — DECISIONS 024; starts after Stage 2b)
+### — ✅ IMPLEMENTED 2026-07-07 (owner verification of the real stdlib open)
 
-Constraint from day one (CLAUDE.md rule 5): nothing in v1/v2 may break.
-Design: DESIGN.md "Code documentation mode (v3)".
+All items below are done and sandbox-verified end to end (synthetic
+Sphinx tree → ingest-docs → playable session with signature-after-answer).
+Open: the owner's real run (full stdlib docs + real vectors) — commands in
+docs/VERIFICATION.md "v3 (Python docs)". Original items for reference:
 
 1. ~~Design spike~~ ✅ written 2026-07-06, owner-reviewed with amendments
    2026-07-07 (whole-corpus default, cross-corpus pools, line-after).

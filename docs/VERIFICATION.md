@@ -34,6 +34,25 @@ observed working end-to-end anywhere.
 | v2: Dutch end-to-end (real model + real transcript) | owner | playtests/2026-07-07-play-nl.txt: 3/3 with English glosses on a real podcast transcript (1,685 items). Known issues → Stage 2b: 7/10 words had no gloss and were suspended (need un-suspend on import + raw-data importer); form-of glosses ("inflection of abonneren:") are useless as answers |
 | v2: Dutch pronunciation | owner (works; quality poor) | owner 2026-07-07: audio plays, voice bad in both languages — TTS upgrade parked in Deferred |
 
+| v3: docs ingestion + code-mode questions | sandbox (synthetic Sphinx tree) | end-to-end play verified offline; owner: real stdlib run below |
+| v3: full Python stdlib corpus (real model) | AWAITING OWNER | commands below |
+
+## Owner verification commands — v3 (Python docs)
+
+```bash
+# download the official docs once (any recent version; ~10 MB zip)
+curl -L -o python-docs.zip https://docs.python.org/3/archives/python-3.13-docs-html.zip
+unzip -q python-docs.zip -d data/
+
+# ingest the WHOLE stdlib (default), then play
+python -m prelexy ingest-docs data/python-3.13-docs-html
+STAMP=$(date +%F)
+python -m prelexy --debug play --language python 2>&1 | tee docs/playtests/$STAMP-play-py.txt
+
+# focused study is the option, not the default:
+#   python -m prelexy ingest-docs <dir> --modules itertools,functools
+```
+
 ## Owner verification commands — Stage 2b (raw glosses + YouTube)
 
 ```bash
