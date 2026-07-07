@@ -206,6 +206,15 @@ class Store:
         complete = [c for c in contexts if _sentence_complete(c)]
         return min(complete or contexts, key=len)
 
+    def items_missing_senses(self, language: str) -> list[sqlite3.Row]:
+        """Items with no cached definition — targets for a gloss import."""
+        return self._conn.execute(
+            "SELECT items.* FROM items "
+            "LEFT JOIN senses ON senses.item_id = items.id "
+            "WHERE items.language = ? AND senses.id IS NULL",
+            (language,),
+        ).fetchall()
+
     def list_items(self, language: str) -> list[sqlite3.Row]:
         """All items for a language, each with its total occurrence count."""
         return self._conn.execute(

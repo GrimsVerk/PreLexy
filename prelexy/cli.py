@@ -150,6 +150,28 @@ def clean(file, output):
         click.echo("  (no artifacts found)")
 
 
+@cli.command("import-glosses")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@_language_option
+@_db_option
+def import_glosses(file, language, db_path):
+    """Fill missing definitions from a kaikki.org Wiktionary extract.
+
+    Download the language's JSONL from https://kaikki.org/dictionary/
+    (e.g. Dutch), then run this after ingesting a transcript: items that
+    got no definition from the offline chain are filled from the extract.
+    """
+    from prelexy.definitions import import_kaikki_glosses
+
+    config = _load_config_or_die()
+    language = _resolve_language(language, config)
+    with Store(_resolve_db(db_path, config)) as store:
+        filled, missing = import_kaikki_glosses(store, file, language)
+    click.echo(f"{missing} item(s) had no definition; filled {filled} from {file.name}.")
+    if missing > filled:
+        click.echo(f"({missing - filled} remain unglossed — they will be set aside in play.)")
+
+
 @cli.command()
 @click.argument("word")
 @_language_option

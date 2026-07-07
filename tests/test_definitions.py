@@ -198,6 +198,37 @@ def test_ensure_sense_falls_back_to_api_and_caches(store, monkeypatch):
     assert len(cached) == 1 and cached[0]["provider"] == "api"
 
 
+KAIKKI_SAMPLE = "\n".join(
+    [
+        '{"word": "mooi", "pos": "noun", "senses": [{"glosses": ["a beauty (wrong POS)"]}]}',
+        '{"word": "mooi", "pos": "adj", "senses": [{"glosses": ["beautiful, handsome"]}]}',
+        '{"word": "gezellig", "pos": "adj", "senses": [{"glosses": ["cozy, convivial"]}]}',
+        '{"word": "liep", "pos": "verb", "senses": [{"glosses": ["should not be used"]}]}',
+        "not json at all",
+        '{"word": "onbekend", "pos": "adj", "senses": []}',
+    ]
+)
+
+
+def test_import_kaikki_glosses_fills_gaps_with_pos_preference(store, tmp_path):
+    mooi = store.get_or_create_item("nl", "mooi", lemma="mooi", pos="ADJ")
+    store.get_or_create_item("nl", "gezellig", lemma="gezellig", pos="ADJ")
+    already = store.get_or_create_item("nl", "liep", lemma="lopen", pos="VERB")
+    store.add_sense(already, "existing gloss", "en", "wordnet")
+
+    extract = tmp_path / "kaikki-nl.jsonl"
+    extract.write_text(KAIKKI_SAMPLE)
+    filled, missing = definitions.import_kaikki_glosses(store, extract, "nl")
+    assert (filled, missing) == (2, 2)
+
+    sense = ensure_sense(store, store.find_item("nl", "mooi"))
+    assert sense.gloss == "beautiful, handsome"  # POS-matched entry won
+    assert sense.provider == "wiktionary"
+    assert ensure_sense(store, store.find_item("nl", "gezellig")).gloss == "cozy, convivial"
+    assert ensure_sense(store, store.find_item("nl", "liep")).gloss == "existing gloss"
+    assert store.senses_for(mooi)[0]["gloss_language"] == "en"
+
+
 def test_ensure_sense_offline_only_skips_api(store):
     store.get_or_create_item("en", "xqzt", pos="ADJ")
     item = store.find_item("en", "xqzt")

@@ -208,6 +208,58 @@ def api_sense(form: str, pos: str | None, language: str = "en") -> Sense | None:
     return fallback
 
 
+_KAIKKI_POS = {"noun": "NOUN", "verb": "VERB", "adj": "ADJ", "adv": "ADV"}
+
+
+def import_kaikki_glosses(store, path, language: str) -> tuple[int, int]:
+    """Fill missing definitions from a kaikki.org Wiktionary extract (JSONL).
+
+    kaikki.org publishes machine-readable Wiktionary dumps (one JSON entry
+    per line, glosses in English) — the coverage supplement for OMW's gaps
+    (DECISIONS 023: Dutch adjectives). Streams the file once and fills only
+    items that have no cached sense, preferring entries whose POS matches
+    the item's. Returns (filled, missing_before).
+    """
+    missing = store.items_missing_senses(language)
+    by_word: dict[str, list] = {}
+    for item in missing:
+        by_word.setdefault(item["form"], []).append(item)
+        if item["lemma"] and item["lemma"] != item["form"]:
+            by_word.setdefault(item["lemma"], []).append(item)
+
+    best: dict[int, tuple[bool, str]] = {}  # item id → (pos matched, gloss)
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            word = entry.get("word")
+            if word not in by_word:
+                continue
+            gloss = _kaikki_gloss(entry)
+            if not gloss:
+                continue
+            entry_pos = _KAIKKI_POS.get(entry.get("pos"))
+            for item in by_word[word]:
+                pos_matched = bool(entry_pos and entry_pos == item["pos"])
+                current = best.get(item["id"])
+                if current is None or (pos_matched and not current[0]):
+                    best[item["id"]] = (pos_matched, gloss)
+
+    for item_id, (_, gloss) in best.items():
+        store.add_sense(item_id, gloss, STRONG_LANGUAGE, "wiktionary")
+    return len(best), len(missing)
+
+
+def _kaikki_gloss(entry) -> str | None:
+    for sense in entry.get("senses") or []:
+        glosses = sense.get("glosses") or []
+        if glosses and isinstance(glosses[0], str) and glosses[0].strip():
+            return glosses[0].strip()
+    return None
+
+
 def _fetch_api_json(url: str):
     try:
         with urllib.request.urlopen(url, timeout=API_TIMEOUT_SECONDS) as response:
