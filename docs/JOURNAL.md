@@ -40,6 +40,11 @@ and are referenced from entries.
   (`python-3.13.x-docs-html.zip`); resolve the name from
   docs.python.org/3/download.html rather than hard-coding, and always
   `curl -fL` (without -f, curl exits 0 on a 404 error page).
+- Fresh sandboxes that pip-install the current NLTK (3.10+) need the
+  `omw-2.0` corpus, not just `omw-1.4`: without it, 8 Dutch/OMW tests fail
+  with LookupError. Fix: `python -m nltk.downloader omw-2.0`.
+  `.claude/session-setup.sh` predates this and only fetches
+  wordnet + omw-1.4 — updating it is a proposed (not yet approved) fix.
 
 ## Log
 
@@ -210,3 +215,22 @@ at scale) then a v3 attempt that failed. Four bugs, all fixed:
 - Suite 158 → 161. Friction: none. All Approved work remains implemented;
   the outstanding items are still owner verification (v2 raw glosses, v3
   full stdlib).
+
+### 2026-07-20 — Copier adoption (template v0.1.0)
+
+- Brought PreLexy under grimsverk-template management on branch
+  `copier/adopt` (owner merges via draft PR; main untouched). Adopted:
+  `AGENTS.md` (Enforcement/Language-specific sections adapted to the
+  conda + `python -m pytest` reality), `.claude/agents/reviewer.md`,
+  `.pre-commit-config.yaml` (not installed — its ruff/mypy hooks are
+  ahead of the codebase), `tests/conftest.py` (socket-level no-network
+  guard; suite identical: 161 passed, 1 model skip), `.copier-answers.yml`
+  (baseline: v0.1.0, git+ssh URL), and `.DS_Store` in `.gitignore`.
+- Kept PreLexy's versions of README.md, CLAUDE.md, `.claude/settings.json`,
+  and `.github/workflows/tests.yml`; did NOT adopt the template's
+  pyproject.toml / ci.yml / src layout / test placeholder — the
+  uv+ruff+mypy toolchain migration is an owner decision, flagged in the
+  adoption PR.
+- Friction: tag pushes and API ref creation are blocked for agent
+  sessions (403) — the owner pushed the template's v0.1.0 tag themselves.
+- Discovery: current pip NLTK needs `omw-2.0` (field note above).
