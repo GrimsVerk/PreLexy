@@ -26,7 +26,7 @@ try:
     wordnet.ensure_loaded()
 except LookupError:
     nltk.download("wordnet", quiet=True)
-    nltk.download("omw-1.4", quiet=True)
+    nltk.download("omw-2.0", quiet=True)
 EOF
 
 # spaCy *models* are not downloadable in this sandbox (GitHub releases are

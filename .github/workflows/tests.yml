@@ -17,7 +17,7 @@ jobs:
       - name: Install dependencies
         run: pip install click nltk spacy wordfreq pytest
       - name: Fetch WordNet data
-        run: python -m nltk.downloader wordnet omw-1.4
+        run: python -m nltk.downloader wordnet omw-2.0
       # No spaCy model is installed: the one model-dependent test skips,
       # matching the Claude sandbox. Real-model runs happen on the owner's
       # machine (docs/VERIFICATION.md).
