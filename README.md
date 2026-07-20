@@ -48,7 +48,7 @@ conda activate prelexy
 
 # one-time model/data downloads (everything runs offline afterwards)
 python -m spacy download en_core_web_md
-python -m nltk.downloader wordnet omw-1.4   # auto-fetched on first run if skipped
+python -m nltk.downloader wordnet omw-2.0   # auto-fetched on first run if skipped
 ```
 
 After pulling changes that touch `environment.yml`, refresh the existing

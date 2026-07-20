@@ -40,13 +40,25 @@ and are referenced from entries.
   (`python-3.13.x-docs-html.zip`); resolve the name from
   docs.python.org/3/download.html rather than hard-coding, and always
   `curl -fL` (without -f, curl exits 0 on a 404 error page).
-- Fresh sandboxes that pip-install the current NLTK (3.10+) need the
-  `omw-2.0` corpus, not just `omw-1.4`: without it, 8 Dutch/OMW tests fail
-  with LookupError. Fix: `python -m nltk.downloader omw-2.0`.
-  `.claude/session-setup.sh` predates this and only fetches
-  wordnet + omw-1.4 — updating it is a proposed (not yet approved) fix.
+- Current NLTK (3.10+) resolves the Open Multilingual Wordnet through the
+  `omw-2.0` corpus; `omw-1.4` alone no longer satisfies it and 8 Dutch/OMW
+  tests fail with `LookupError`. Fixed 2026-07-20: the workflow,
+  `.claude/session-setup.sh`, `prelexy/textproc.py`, and README now fetch
+  `omw-2.0` (replacing `omw-1.4`, not alongside it — deps are unpinned so
+  every environment gets the latest NLTK; an old NLTK couldn't fetch
+  `omw-2.0` anyway, so carrying both names bought nothing).
 
 ## Log
+
+### 2026-07-20 — CI green: omw-2.0 corpus
+
+- CI was failing: 8 Dutch/OMW tests raised `LookupError: Resource
+  'omw-2.0' not found` (2 surfaced as `play` CLI exit-code-1 failures).
+  Root cause: NLTK 3.10 needs the `omw-2.0` corpus but the workflow /
+  setup / textproc only fetched `omw-1.4`. Owner confirmed no backcompat
+  need, so replaced `omw-1.4` → `omw-2.0` in `.github/workflows/tests.yml`,
+  `.claude/session-setup.sh`, `prelexy/textproc.py`, and README. Verified:
+  with only `omw-2.0` on disk, suite is 161 passed, 1 skipped.
 
 ### 2026-07-06 — guardrails, context capture
 
