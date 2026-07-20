@@ -11,7 +11,7 @@ import platform
 import shutil
 import subprocess
 
-_ESPEAK_VOICES = {"en": "en-us", "nl": "nl"}
+from prelexy.languages import LANGUAGES
 
 INSTALL_HINT = (
     "No speech engine found. macOS and Windows ship with one built in; "
@@ -19,9 +19,13 @@ INSTALL_HINT = (
 )
 
 
-def pronounce(word: str, language: str = "en") -> bool:
-    """Speak a word aloud; False when no engine is available or it fails."""
-    command = _command(word, language)
+def pronounce(word: str, language: str = "en", voice: str | None = None) -> bool:
+    """Speak a word aloud; False when no engine is available or it fails.
+
+    `voice` overrides the engine's voice choice (espeak-ng voice code or
+    macOS `say` voice name; ignored by the Windows SAPI path).
+    """
+    command = _command(word, language, voice)
     if command is None:
         return False
     try:
@@ -37,10 +41,10 @@ def pronounce(word: str, language: str = "en") -> bool:
         return False
 
 
-def _command(word: str, language: str) -> list[str] | None:
+def _command(word: str, language: str, voice: str | None = None) -> list[str] | None:
     system = platform.system()
     if system == "Darwin" and shutil.which("say"):
-        return ["say", word]
+        return ["say", "-v", voice, word] if voice else ["say", word]
     if system == "Windows" and shutil.which("powershell"):
         safe_word = word.replace("'", "''")
         script = (
@@ -51,5 +55,7 @@ def _command(word: str, language: str) -> list[str] | None:
         return ["powershell", "-NoProfile", "-Command", script]
     for engine in ("espeak-ng", "espeak"):
         if shutil.which(engine):
-            return [engine, "-v", _ESPEAK_VOICES.get(language, "en-us"), word]
+            registered = LANGUAGES.get(language)
+            fallback = registered.espeak_voice if registered else None
+            return [engine, "-v", voice or fallback or "en-us", word]
     return None

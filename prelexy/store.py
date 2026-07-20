@@ -105,6 +105,22 @@ def item_zipf(row) -> float:
     return json.loads(row["metadata"]).get("zipf", 0.0)
 
 
+def item_order(row) -> int:
+    """Corpus position for code items (inventory order); 0 for natural."""
+    return json.loads(row["metadata"]).get("order", 0)
+
+
+def _sentence_complete(text: str) -> bool:
+    """Whether a context excerpt reads as a whole sentence."""
+    text = text.strip()
+    if len(text) < 20:
+        return False
+    first = text.lstrip("“”\"'‘’(")[:1]
+    if not first or not first.isupper():
+        return False
+    return text.rstrip("“”\"'‘’)")[-1:] in ".!?…"
+
+
 class Store:
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path else default_db_path()
@@ -179,10 +195,82 @@ class Store:
         ).fetchone()
 
     def example_for(self, item_id: int) -> str | None:
-        row = self._conn.execute(
-            "SELECT context FROM occurrences WHERE item_id = ? LIMIT 1", (item_id,)
-        ).fetchone()
-        return row["context"] if row else None
+        """The item's best example sentence: shortest complete-looking one.
+
+        OCR page breaks truncate some occurrences mid-sentence and others
+        run to enormous lengths (a 1,400-character monster in the
+        2026-07-06 playtest); prefer the shortest occurrence that reads as
+        a whole sentence, falling back to the shortest of whatever exists.
+
+        Only the shortest handful are inspected: after a large ingest a
+        common word can have tens of thousands of occurrences, and the best
+        sentence is always among the shortest, so the SQL LIMIT keeps
+        question building fast without changing the choice.
+        """
+        rows = self._conn.execute(
+            "SELECT context FROM occurrences WHERE item_id = ? "
+            "ORDER BY length(context) LIMIT 200",
+            (item_id,),
+        ).fetchall()
+        if not rows:
+            return None
+        contexts = [row["context"] for row in rows]
+        complete = [c for c in contexts if _sentence_complete(c)]
+        return min(complete or contexts, key=len)
+
+    def unsuspend_items(self, item_ids) -> int:
+        """Return suspended items to play (all profiles); count of rows freed.
+
+        Words are suspended when no definition can be found; an import that
+        glosses them must bring them back (2026-07-07 playtest: 7/10 words
+        were parked forever).
+        """
+        ids = list(item_ids)
+        if not ids:
+            return 0
+        placeholders = ",".join("?" * len(ids))
+        cur = self._conn.execute(
+            f"DELETE FROM item_state WHERE status = 'suspended' "
+            f"AND item_id IN ({placeholders})",
+            ids,
+        )
+        return cur.rowcount
+
+    def code_pool(self, pos: str, languages, exclude_item_id: int) -> list[tuple[str, str]]:
+        """Distractor material for code items: same-kind forms + glosses.
+
+        Unlike natural languages (WordNet-wide pools), code distractors come
+        from the ingested corpora themselves — spanning all code languages
+        by default to maximize difficulty (DECISIONS 024).
+        """
+        langs = list(languages)
+        placeholders = ",".join("?" * len(langs))
+        rows = self._conn.execute(
+            f"SELECT items.form, senses.gloss FROM items "
+            f"JOIN senses ON senses.item_id = items.id "
+            f"WHERE items.pos = ? AND items.language IN ({placeholders}) "
+            f"AND items.id != ?",
+            [pos, *langs, exclude_item_id],
+        ).fetchall()
+        return [(row["form"], row["gloss"]) for row in rows]
+
+    def language_item_counts(self) -> dict[str, int]:
+        """Item count per language, most-populated first — for empty-session
+        guidance so the player knows what else is available to practice."""
+        rows = self._conn.execute(
+            "SELECT language, COUNT(*) AS n FROM items "
+            "GROUP BY language ORDER BY n DESC"
+        ).fetchall()
+        return {row["language"]: row["n"] for row in rows}
+
+    def items_missing_senses(self, language: str) -> list[sqlite3.Row]:
+        """Items with no cached definition — targets for a gloss import."""
+        return self._conn.execute(
+            "SELECT items.* FROM items "
+            "LEFT JOIN senses ON senses.item_id = items.id "
+            "WHERE items.language = ? AND senses.id IS NULL",
+            (language,),
+        ).fetchall()
 
     def list_items(self, language: str) -> list[sqlite3.Row]:
         """All items for a language, each with its total occurrence count."""
@@ -193,6 +281,22 @@ class Store:
             "GROUP BY items.id",
             (language,),
         ).fetchall()
+
+    # -- meta -------------------------------------------------------------
+
+    def get_meta(self, key: str, default=None):
+        """JSON value from the meta table (new-style keys only)."""
+        row = self._conn.execute(
+            "SELECT value FROM meta WHERE key = ?", (key,)
+        ).fetchone()
+        return json.loads(row["value"]) if row else default
+
+    def set_meta(self, key: str, value) -> None:
+        self._conn.execute(
+            "INSERT INTO meta (key, value) VALUES (?, ?) "
+            "ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+            (key, json.dumps(value)),
+        )
 
     # -- knowledge --------------------------------------------------------
 
@@ -221,6 +325,20 @@ class Store:
         return self._conn.execute(
             "SELECT id FROM profiles WHERE name = ?", (name,)
         ).fetchone()["id"]
+
+    def get_profile_settings(self, profile_id: int) -> dict:
+        row = self._conn.execute(
+            "SELECT settings FROM profiles WHERE id = ?", (profile_id,)
+        ).fetchone()
+        return json.loads(row["settings"]) if row else {}
+
+    def update_profile_settings(self, profile_id: int, **updates) -> None:
+        settings = self.get_profile_settings(profile_id)
+        settings.update(updates)
+        self._conn.execute(
+            "UPDATE profiles SET settings = ? WHERE id = ?",
+            (json.dumps(settings), profile_id),
+        )
 
     def upsert_item_state(
         self,

@@ -30,10 +30,13 @@ ranks vocabulary from a text into a local SQLite database, `words` lists it,
 WordNet with a cached free-API fallback), and `play` runs an interactive
 practice session that tracks per-profile progress, logs every answer, and
 schedules reviews with spaced repetition (SM-2): correct answers push a word
-further into the future, misses bring it back tomorrow. Phases 1–4 are
-implemented; what remains for v1 is polish. See [ROADMAP.md](ROADMAP.md) for
-goals and phases, and [docs/DESIGN.md](docs/DESIGN.md) for the architecture
-and data model.
+further into the future, misses bring it back tomorrow.
+
+Learning a new language (v2) works too: ingest a Dutch podcast transcript
+(plain text or `.srt`/`.vtt`) and practice the exact words it uses, with
+definitions in English — `--language nl` once, remembered per profile.
+See [ROADMAP.md](ROADMAP.md) for goals and phases, and
+[docs/DESIGN.md](docs/DESIGN.md) for the architecture and data model.
 
 ## Setup
 
@@ -62,7 +65,9 @@ conda env update -f environment.yml --prune
 # out of a text first — writes <name>.cleaned.txt beside the input
 python -m prelexy clean data/corpora/dorian_gray_oscar_wilde.txt
 
-# extract the vocabulary of a text into the local database
+# extract the vocabulary of a text into the local database — one ingest
+# for everything: books, plain transcripts, and .srt/.vtt subtitles
+# (e.g. an English film's subtitles), in any supported language
 python -m prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
 
 # list the stored words, rarest first
@@ -80,10 +85,30 @@ python -m prelexy play --profile alice --length 20
 # pronounce any word outside a session
 python -m prelexy say vermilion
 
+# learn a language from a podcast: save the channel once, sync new
+# episodes' transcripts straight from YouTube (needs `pip install yt-dlp`
+# and the language's spaCy model: python -m spacy download nl_core_news_md)
+python -m prelexy pods add https://www.youtube.com/@tweakers/podcasts --language nl
+python -m prelexy pods sync --ingest
+python -m prelexy play --language nl   # remembered per profile afterwards
+
+# one-off fetch and manual ingest also work
+python -m prelexy fetch https://www.youtube.com/watch?v=... --language nl --ingest
+python -m prelexy ingest episode.srt --language nl
+
+# top up definitions from Wiktionary (raw wiktextract dump from
+# kaikki.org/dictionary/rawdata.html; .gz streamed directly)
+python -m prelexy import-glosses raw-wiktextract-data.jsonl.gz --language nl
+
+# learn a programming language from its official docs (download the
+# Sphinx HTML archive, e.g. docs.python.org/3 → "Download" → HTML)
+python -m prelexy ingest-docs data/python-3.13-docs-html
+python -m prelexy play --language python
+
 # any command with diagnostic detail on stderr (distractor scores, session mix)
 python -m prelexy --debug question vermilion
 
-# run the test suite
+# run the test suite (CI runs it on every push too)
 python -m pytest
 ```
 
@@ -105,6 +130,15 @@ run. It currently holds:
   as a near-synonym and is excluded; the floor is a soft preference for
   plausible-but-wrong options. Check real scores with
   `python -m prelexy --debug play` before tuning.
+- `default_profile` — skip the who-is-playing menu (empty = ask)
+- `default_language` — assumed by every command without `--language`
+- `db_path` — database location (empty = the XDG default; `--db` and
+  `PRELEXY_DB` still override)
+- `tts_voice` — pronunciation voice (espeak-ng code or macOS voice name;
+  empty = engine default)
+- `pool_size` — distractors are sampled from this many of the hardest
+  candidates; smaller = consistently harder, larger = more variety
+- `show_context` — whether the source sentence appears after answering
 
 CLI flags override the word counts per session:
 

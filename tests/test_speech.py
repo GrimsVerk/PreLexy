@@ -16,6 +16,15 @@ def test_macos_uses_say(monkeypatch):
     assert speech._command("gaunt", "en") == ["say", "gaunt"]
 
 
+def test_voice_override(monkeypatch):
+    monkeypatch.setattr(speech.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(speech.shutil, "which", lambda name: name == "espeak-ng")
+    assert speech._command("gaunt", "en", voice="en-gb")[2] == "en-gb"
+    monkeypatch.setattr(speech.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(speech.shutil, "which", lambda name: name == "say")
+    assert speech._command("gaunt", "en", voice="Moira") == ["say", "-v", "Moira", "gaunt"]
+
+
 def test_windows_escapes_quotes(monkeypatch):
     monkeypatch.setattr(speech.platform, "system", lambda: "Windows")
     monkeypatch.setattr(speech.shutil, "which", lambda name: name == "powershell")
@@ -31,7 +40,9 @@ def test_no_engine_returns_false(monkeypatch):
 
 
 def test_pronounce_runs_the_command_and_survives_failure(monkeypatch):
-    monkeypatch.setattr(speech, "_command", lambda word, language: ["fake-tts", word])
+    monkeypatch.setattr(
+        speech, "_command", lambda word, language, voice=None: ["fake-tts", word]
+    )
     calls = []
 
     def fake_run(command, **kwargs):

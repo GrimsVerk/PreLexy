@@ -16,10 +16,7 @@ from typing import Iterable, Iterator
 
 from wordfreq import zipf_frequency
 
-# Preferred spaCy pipeline per language, with lighter fallbacks. The md model
-# is the documented default because its word vectors are needed for MCQ
-# distractor generation (phase 2); sm suffices for ingestion alone.
-_SPACY_MODELS = {"en": ("en_core_web_md", "en_core_web_sm")}
+from prelexy.languages import get_language
 
 # Never learnable vocabulary: proper nouns (character names would flood the
 # candidate list), numbers, symbols, junk, punctuation, whitespace.
@@ -40,12 +37,20 @@ class Candidate:
 
 
 def load_nlp(language: str = "en"):
-    """Load the spaCy pipeline for a language (NER disabled; not needed)."""
+    """Load the spaCy pipeline for a language (NER disabled; not needed).
+
+    The model names come from the language registry (prelexy/languages.py);
+    an unsupported language raises UnsupportedLanguageError there.
+    """
     import spacy
 
-    names = _SPACY_MODELS.get(language)
-    if not names:
-        raise ValueError(f"No spaCy pipeline configured for language {language!r} yet")
+    registered = get_language(language)
+    if registered.kind != "natural":
+        raise ValueError(
+            f"{language!r} is a code language — its items come from documentation; "
+            "use `prelexy ingest-docs` instead of text extraction."
+        )
+    names = registered.spacy_models
     for name in names:
         try:
             return spacy.load(name, disable=["ner"])
@@ -73,13 +78,16 @@ def item_form(token, language: str) -> str:
 def in_dictionary(form: str, language: str = "en") -> bool:
     """Membership gate: only words the dictionary knows are learnable.
 
-    Doubles as the OCR-noise filter (garbage tokens have no dictionary
-    entry). Only English (WordNet) is implemented; other languages pass
-    everything through until a bilingual source lands.
+    Doubles as the OCR/transcription-noise filter (garbage tokens have no
+    dictionary entry). English uses WordNet; other languages use wordfreq
+    membership (zipf > 0) — OMW coverage is too thin to gate on for them
+    (DECISIONS 023).
     """
-    if language != "en":
-        return True
-    return bool(get_wordnet().synsets(form))
+    if language == "en":
+        return bool(get_wordnet().synsets(form))
+    if get_language(language).kind != "natural":
+        return True  # code items come from doc inventories, already curated
+    return zipf_frequency(form, language) > 0
 
 
 def get_wordnet():

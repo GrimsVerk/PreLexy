@@ -91,6 +91,31 @@ def test_get_or_create_profile_is_idempotent(db):
         assert store.get_or_create_profile("guest") != first
 
 
+def test_meta_roundtrip(db):
+    with Store(db) as store:
+        assert store.get_meta("pod_subscriptions", []) == []
+        store.set_meta("pod_subscriptions", [{"url": "u", "language": "nl"}])
+        store.set_meta("pod_subscriptions", [{"url": "v", "language": "en"}])
+        assert store.get_meta("pod_subscriptions") == [{"url": "v", "language": "en"}]
+        # the schema_version key is untouched by meta helpers
+        row = store._conn.execute(
+            "SELECT value FROM meta WHERE key = 'schema_version'"
+        ).fetchone()
+        assert row["value"] == "1"
+
+
+def test_profile_settings_roundtrip_and_merge(db):
+    with Store(db) as store:
+        profile = store.get_or_create_profile("anna")
+        assert store.get_profile_settings(profile) == {}
+        store.update_profile_settings(profile, language="nl")
+        store.update_profile_settings(profile, strong_language="en")
+        assert store.get_profile_settings(profile) == {
+            "language": "nl",
+            "strong_language": "en",
+        }
+
+
 def test_upsert_item_state_inserts_then_updates(db):
     with Store(db) as store:
         profile = store.get_or_create_profile("p")
@@ -133,6 +158,42 @@ def test_items_for_review_joins_state_per_profile(db):
         # bob's view is untouched by alice's progress
         bob_rows = {row["form"]: row for row in store.items_for_review(bob, "en")}
         assert bob_rows["run"]["status"] is None
+
+
+def test_example_for_prefers_shortest_complete_sentence(db):
+    monster = "He longed to see the curious table-napkins wrought for " + "x" * 300 + "."
+    truncated = "But the staginess of her acting"  # no terminal punctuation
+    ocr_start = "| remember your telling me years ago that it was lost."
+    good = "Her little feet pattered overhead like a summer rain."
+    with Store(db) as store:
+        source = store.add_source("t", "en", "book", None)
+        item = store.get_or_create_item("en", "patter")
+        store.add_occurrences(
+            item, source, [(monster, 0), (truncated, 10), (ocr_start, 20), (good, 30)]
+        )
+        assert store.example_for(item) == good
+
+        # with no complete-looking sentence at all, the shortest one wins
+        fragmentary = store.get_or_create_item("en", "fragment")
+        store.add_occurrences(
+            fragmentary, source, [("and the coat that Charles of", 0), (truncated, 5)]
+        )
+        assert store.example_for(fragmentary) == "and the coat that Charles of"
+
+        assert store.example_for(store.get_or_create_item("en", "unseen")) is None
+
+
+def test_example_for_bounds_the_scan_but_keeps_the_best(db):
+    # simulate a post-mega-ingest word: thousands of long occurrences plus
+    # one short complete sentence — the LIMIT still surfaces the short one.
+    good = "Dit is een korte zin."
+    with Store(db) as store:
+        source = store.add_source("t", "nl", "transcript", None)
+        item = store.get_or_create_item("nl", "zin")
+        many = [("Een veel langere zin die maar door blijft gaan " * 5 + ".", i)
+                for i in range(5000)]
+        store.add_occurrences(item, source, many + [(good, 9999)])
+        assert store.example_for(item) == good
 
 
 def test_writes_persist_after_clean_exit(db):

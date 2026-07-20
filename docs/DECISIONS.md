@@ -263,3 +263,57 @@ agent-specific; the repo is the only memory that transfers. The one-time
 capture of 2026-07-06 (journal, verification ledger, field notes) closed a
 ~15% context gap that would otherwise silently reopen with every new
 session.
+
+## 022 — Band calibration verdict: keep 0.45/0.85, add a synonym guard (2026-07)
+
+**Decision:** The 2026-07-06 playtest data confirms the band values
+(in-band counts 31–341 per 500 scanned, pool always filled, sampled scores
+0.53–0.85, two genuine misses in ten). The 'gleefulness'-for-'joyousness'
+problem is not a band problem: they are WordNet *cousins* whose glosses
+are worded differently, so no similarity threshold separates them fairly.
+Instead, pool candidates now pass a tight relation guard
+(`definitions.synonym_conflict`): excluded when they share a lemma with
+any synset of the target (sagacious/sapient, joy/delight) or are a direct
+hypernym/hyponym (dog/puppy). Cousin pairs remain a documented residual.
+**Why:** A shared-ancestor check that would catch cousins also excludes
+fair hard distractors across entire semantic fields (all emotions, all
+colors). The tight guard removes real unfairness with near-zero false
+positives; band movement was evaluated against the data and rejected —
+lowering the ceiling below 0.716 would discard the genuinely good
+distractors observed between 0.72 and 0.85.
+
+## 023 — v2 glosses via the Open Multilingual Wordnet; lemma fallback (2026-07)
+
+**Decision:** Non-English words are glossed through OMW (`nltk`,
+`synsets(word, lang='nld')`): the synsets are language-independent, so
+`.definition()` is already the English gloss the learner needs. The same
+`lang` parameter powers the distractor pool (`all_lemma_names`) and the
+synonym guard (`lemma_names(lang)`). Because L2 items keep their surface
+form ("liep") while dictionaries key on lemmas ("lopen"), `ensure_sense`
+falls back to the item's lemma when the surface form has no entry. Gloss
+similarity always uses the *English* vectors regardless of session
+language, since options are strong-language text. The membership noise
+gate for non-English uses wordfreq (zipf > 0) — OMW is too thin to gate on.
+**Why:** Sandbox spike (2026-07-06): OMW Dutch coverage is 6/10 on a
+common-word sample — solid nouns/verbs (37k/5.6k lemmas), thin adjectives
+(1.1k; "mooi", "gezellig" missing). Free, offline, zero new dependencies,
+and reuses the entire existing machinery. The gaps are the documented
+residual: a kaikki.org Wiktionary importer supplements real ingested items
+(next item), and words with no gloss anywhere auto-suspend as designed.
+
+## 024 — v3 rulings: whole-corpus default, cross-corpus pools, line-after (2026-07)
+
+**Decision (owner rulings on the v3 design spike):** (1) Ingestion
+defaults to the ENTIRE documentation corpus (whole Python stdlib); an
+optional module filter narrows scope — filtering is the option, not the
+default. (2) The distractor pool spans all ingested code languages by
+default (Python + Java together maximizes difficulty); restricting to one
+language is the user's choice. (3) The signature/source line is shown
+only AFTER answering, exactly like natural-language context sentences.
+(4) The registry `kind` split (natural | code) is approved. Python is the
+test corpus, as English is for v1 and Dutch for v2.
+**Why:** The owner's use case is "import everything and start
+memorizing" — a big pool is precisely what makes distractors hard, and
+scarce distractors were the concern with per-module imports. Showing the
+source line up front would give answers away (same reasoning as ruling
+011's context-after-answer).

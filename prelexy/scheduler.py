@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from prelexy import debug
-from prelexy.store import item_zipf
+from prelexy.store import item_order, item_zipf
 
 
 @dataclass
@@ -88,8 +88,9 @@ class SM2Scheduler:
             elif _is_due(row, now):
                 due.append(row)
         due.sort(key=lambda row: row["due_at"] or "")  # un-dated legacy rows first
-        # shuffle rarity ties so fresh sessions stop being alphabetical
-        new.sort(key=lambda row: (item_zipf(row), self.rng.random()))
+        # rarest first; code items follow their corpus (inventory) order
+        # (DECISIONS 024); remaining ties shuffle so fresh sessions vary
+        new.sort(key=lambda row: (item_zipf(row), item_order(row), self.rng.random()))
         target = min(limit, self.new_words + self.seen_words)
         n_due = min(len(due), self.seen_words)
         n_new = min(len(new), target - n_due)  # own quota + any review shortfall

@@ -28,14 +28,13 @@ v1 is done when this works end to end:
 
 ### Phases
 
-1. **Extraction CLI** *(implemented — pending an end-to-end run with the real
-   spaCy model to tick the success box)* — ingest a text: tokenize, apply the
-   extraction policy (lemmas for English), filter noise, rank by
-   frequency/rarity; persist sources/items/occurrences to SQLite.
+1. **Extraction CLI** *(implemented, owner-verified)* — ingest a text:
+   tokenize, apply the extraction policy (lemmas for English), filter noise,
+   rank by frequency/rarity; persist sources/items/occurrences to SQLite.
 2. **MCQ generation** *(implemented — `prelexy question <word>` previews one)*
    — definition lookup through the offline-first chain (cache → WordNet →
-   free API); distractor selection (same POS, closest rarity, near-synonym
-   ceiling).
+   free API); distractors sampled from the hardest-available WordNet-wide
+   pool by definition-text similarity (DECISIONS 013/017/018).
 3. **Session loop + saves** *(implemented — `prelexy play`)* — terminal UI,
    profiles, answer recording, and the append-only review log.
 4. **Scheduler** *(implemented — SM-2 is the default)* — the `Scheduler`
@@ -69,13 +68,18 @@ later") with what's missing — never half-implemented. **Dutch is the
 required first language** (the owner's target; used for all real-world
 testing).
 
-Phases: (1) language-support registry + graceful unsupported errors;
-(2) Dutch NLP plumbing and a non-English noise gate; (3) bilingual gloss
-chain (OMW coverage spike → kaikki.org Wiktionary extract → cached free
-API); (4) distractor pool for non-English targets (options are English
-glosses, so existing gloss similarity is reused); (5) per-profile language
-settings + config `default_language`; (6) `.srt`/`.vtt` transcript
-ingestion; (7) owner verification with a real transcript.
+Phases: (1) language-support registry + graceful unsupported errors
+*(implemented)*; (2) Dutch NLP plumbing and a non-English noise gate
+*(implemented)*; (3) bilingual gloss chain: OMW → kaikki.org Wiktionary
+importer → cached free API *(implemented — DECISIONS 023)*; (4) distractor
+pool for non-English targets *(implemented — English-gloss similarity
+reused)*; (5) per-profile language settings + config `default_language`
+*(implemented)*; (6) `.srt`/`.vtt` transcript ingestion *(implemented)*;
+(7) owner verification with a real transcript *(✅ owner-verified
+2026-07-07: 3/3 on a real podcast)*; (8) raw-wiktextract gloss imports —
+gz streaming, language filtering, form-of resolution, un-suspend on new
+glosses; (9) YouTube transcript fetching (`prelexy fetch`) and pod
+subscriptions (`prelexy pods`), yt-dlp-powered *(8–9 = BACKLOG Stage 2b)*.
 
 ## v3 — learn programming languages from official docs (tier 3)
 
@@ -86,12 +90,17 @@ v3 is done when this works end to end:
 > spaced repetition — without breaking the natural-language modes.
 
 Items are qualified names (`list.pop`); glosses come from the docs
-themselves (no dictionary needed); distractors come from the same corpus
-through the existing `SimilarityProvider` seam — first pass with gloss-text
-similarity on the English descriptions, custom-trained code embeddings only
-if that proves inadequate (new dependency → owner approval). The stage
-opens with a design spike that lands in docs/DESIGN.md for owner review
-before implementation.
+themselves (no dictionary needed); distractors come from the ingested code
+corpora — cross-language by default (DECISIONS 024) — through the existing
+similarity machinery; custom-trained code embeddings only if description
+similarity proves inadequate (new dependency → owner approval).
+
+Status: **implemented 2026-07-07** (registry kind split, objects.inv +
+Sphinx HTML ingestion via `prelexy ingest-docs`, docs-as-dictionary
+glosses, corpus distractor pools, inventory-order scheduling,
+signature-after-answer). Sandbox-verified end to end on a synthetic docs
+tree; the real full-stdlib run is AWAITING OWNER — commands in
+docs/VERIFICATION.md "v3 (Python docs)".
 
 ## Exploratory (no version assigned)
 

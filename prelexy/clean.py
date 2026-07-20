@@ -18,6 +18,14 @@ from __future__ import annotations
 
 import re
 
+SUBTITLE_SUFFIXES = {".srt", ".vtt"}
+
+_TIMESTAMP = re.compile(r"-->")
+_CUE_NUMBER = re.compile(r"^\d+$")
+_INLINE_TAG = re.compile(r"<[^>]+>")
+_SENTENCE_END = re.compile(r"(?<=[.!?…]) ")
+_PARAGRAPH_TARGET = 1500  # characters; keeps spaCy chunking bounded
+
 _PIPE_AS_I = re.compile(r"(?<!\w)\|(?!\w)")
 # "- word", "-\nword", and "- \nword" (hyphen, trailing space, newline) are
 # all hyphenation splits; a blank line after the hyphen is a paragraph
@@ -25,6 +33,43 @@ _PIPE_AS_I = re.compile(r"(?<!\w)\|(?!\w)")
 _BROKEN_HYPHEN = re.compile(r"(\w)-(?:[ \t]*\n[ \t]*|[ \t]+)(\w)")
 _HAS_LETTER = re.compile(r"[^\W\d_]")  # any unicode letter
 _BLANK_RUNS = re.compile(r"\n{3,}")
+
+
+def strip_subtitles(text: str) -> str:
+    """Turn an .srt/.vtt subtitle file into plain prose.
+
+    Drops cue numbers, timestamps, the WEBVTT header, NOTE/STYLE blocks,
+    and inline tags. Cue texts are joined with spaces (sentences routinely
+    span cue boundaries), then re-paragraphed at sentence ends so the
+    extraction pipeline's paragraph chunking stays bounded.
+    """
+    lines = []
+    skipping_block = False
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if skipping_block:
+            if not line:
+                skipping_block = False
+            continue
+        if line.startswith(("WEBVTT", "NOTE", "STYLE", "REGION")):
+            skipping_block = True
+            continue
+        if not line or _CUE_NUMBER.match(line) or _TIMESTAMP.search(line):
+            continue
+        lines.append(line)
+
+    flat = _INLINE_TAG.sub("", " ".join(lines))
+    flat = " ".join(flat.split())
+    paragraphs, current, length = [], [], 0
+    for piece in _SENTENCE_END.split(flat):
+        current.append(piece)
+        length += len(piece)
+        if length > _PARAGRAPH_TARGET:
+            paragraphs.append(" ".join(current))
+            current, length = [], 0
+    if current:
+        paragraphs.append(" ".join(current))
+    return "\n\n".join(paragraphs)
 
 
 def clean_text(text: str) -> tuple[str, dict[str, int]]:

@@ -22,9 +22,87 @@ observed working end-to-end anywhere.
 | Gloss sanitizer ("; ; ; -Author" residue) | owner | no residue in any 2026-07-06 transcript |
 | `clean` command | owner | playtests/2026-07-06-clean.txt matches sandbox counts exactly |
 | Pronunciation (`say`, `p` in session) | owner | owner confirmed audio in chat, 2026-07-06 |
-| Distractor band values (0.45 / 0.85) | UNCALIBRATED (data available) | playtests show in-band counts 31–341/500; 'gleefulness' 0.716 slipped under the ceiling as a near-synonym of 'joyousness' → ceiling may need lowering; Stage-1 backlog item |
+| Distractor band values (0.45 / 0.85) | calibrated (sandbox analysis of owner data) | DECISIONS 022: values confirmed against 2026-07-06 playtests; synonym guard added for the gleefulness case; residual: cousin synonyms. Re-check feel at next owner playtest |
 | Free-API definition fallback | UNVERIFIED (fails soft) | only fires for words WordNet lacks; low risk, mocked in tests |
 | SessionStart hook + setup script | sandbox (script itself) | hook wiring confirmed on next fresh Claude session |
+| Stage 1 polish set (instance/POS/length/synonym guards, contexts, config) | sandbox | owner: next `--debug play` should feel harder and read cleaner |
+| GitHub Actions CI | verified (GitHub runner) | run 362b31f green after dropping the pip-cache option; earlier runs all failed pre-pytest |
+| v2: OMW English glosses for Dutch words | sandbox (real OMW data) | offline end-to-end Dutch MCQ in tests; owner run pending |
+| v2: kaikki gloss importer | sandbox (synthetic extract) | owner: real kaikki Dutch file (commands below) |
+| v2: subtitle (.srt/.vtt) ingestion | sandbox | owner: ingest a real podcast transcript |
+| v2: profile language memory | sandbox | owner: play once with --language nl, then without |
+| v2: Dutch end-to-end (real model + real transcript) | owner | playtests/2026-07-07-play-nl.txt: 3/3 with English glosses on a real podcast transcript (1,685 items). Known issues → Stage 2b: 7/10 words had no gloss and were suspended (need un-suspend on import + raw-data importer); form-of glosses ("inflection of abonneren:") are useless as answers |
+| v2: Dutch pronunciation | owner (works; quality poor) | owner 2026-07-07: audio plays, voice bad in both languages — TTS upgrade parked in Deferred |
+
+| v3: docs ingestion + code-mode questions | sandbox (synthetic Sphinx tree) | end-to-end play verified offline; owner: real stdlib run below |
+| v3: full Python stdlib corpus (real model) | AWAITING OWNER | commands below |
+
+## Owner verification commands — v3 (Python docs)
+
+```bash
+# download the official docs once (~10 MB zip). The archive name carries
+# the current micro version (python-3.13.x-docs-html.zip), so resolve it
+# from the download page first; -f makes curl fail loudly on a 404.
+NAME=$(curl -fsL https://docs.python.org/3/download.html | grep -o 'python-3[^"]*-docs-html\.zip' | head -1)
+curl -fL -o python-docs.zip "https://docs.python.org/3/archives/$NAME"
+unzip -q python-docs.zip -d data/
+
+# ingest the WHOLE stdlib (default), then play
+python -m prelexy ingest-docs data/python-3.*-docs-html
+STAMP=$(date +%F)
+python -m prelexy --debug play --language python 2>&1 | tee docs/playtests/$STAMP-play-py.txt
+
+# focused study is the option, not the default:
+#   python -m prelexy ingest-docs <dir> --modules itertools,functools
+```
+
+## Owner verification commands — Stage 2b (raw glosses + YouTube)
+
+```bash
+# yt-dlp does the YouTube fetching (one-time)
+pip install yt-dlp
+
+# the future-proof gloss source: the raw wiktextract dump (~2–3 GB
+# download, all languages; the importer streams the .gz directly and
+# filters to your language — no need to decompress). If the URL moved,
+# use the "raw wiktextract data" link on kaikki.org/dictionary/rawdata.html
+curl -fL -o raw-wiktextract-data.jsonl.gz \
+  https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz
+python -m prelexy import-glosses raw-wiktextract-data.jsonl.gz --language nl
+# expect: form-of answers gone, previously set-aside words back in play
+
+# pods: save your channel once, then sync whenever
+python -m prelexy pods add https://www.youtube.com/@tweakers/podcasts --language nl
+python -m prelexy pods sync --ingest
+python -m prelexy play   # Dutch remembered on your profile
+```
+
+## Owner verification commands — v2 (Dutch)
+
+```bash
+# one-time: the Dutch spaCy model
+python -m spacy download nl_core_news_md
+
+# ingest a real Dutch podcast transcript (.txt, .srt, or .vtt all work)
+python -m prelexy ingest path/to/episode.srt --language nl
+python -m prelexy words --language nl --limit 20
+
+# optional but recommended: fill OMW's gloss gaps from Wiktionary.
+# Download the Dutch extract (kaikki.org → Dictionaries → Dutch,
+# "senses" JSONL, ~100+ MB), then:
+python -m prelexy import-glosses path/to/kaikki.org-dictionary-Dutch.jsonl --language nl
+
+# play in Dutch (remembered per profile after the first time)
+STAMP=$(date +%F)
+python -m prelexy --debug play --language nl 2>&1 | tee docs/playtests/$STAMP-play-nl.txt
+
+# Dutch pronunciation (report in chat how it sounds)
+python -m prelexy say fiets --language nl
+
+git add docs/playtests
+git commit -m "Dutch playtest transcripts $STAMP"
+git push origin claude
+```
 
 ## Owner verification commands
 

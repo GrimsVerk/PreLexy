@@ -1,7 +1,50 @@
 from click.testing import CliRunner
 
-from prelexy.clean import clean_text
+from prelexy.clean import clean_text, strip_subtitles
 from prelexy.cli import cli
+
+SRT_SAMPLE = """\
+1
+00:00:01,000 --> 00:00:04,000
+Hallo, welkom bij de podcast.
+
+2
+00:00:04,500 --> 00:00:07,000
+Vandaag praten we
+over fietsen.
+"""
+
+VTT_SAMPLE = """\
+WEBVTT
+
+NOTE
+this comment block disappears
+
+00:00.000 --> 00:04.000
+Hallo, <i>welkom</i> bij de podcast.
+
+00:04.500 --> 00:07.000
+Vandaag praten we over fietsen.
+"""
+
+
+def test_strip_subtitles_srt():
+    text = strip_subtitles(SRT_SAMPLE)
+    assert text == "Hallo, welkom bij de podcast. Vandaag praten we over fietsen."
+
+
+def test_strip_subtitles_vtt_drops_header_notes_and_tags():
+    text = strip_subtitles(VTT_SAMPLE)
+    assert text == "Hallo, welkom bij de podcast. Vandaag praten we over fietsen."
+    assert "NOTE" not in text and "<i>" not in text
+
+
+def test_strip_subtitles_reparagraphs_long_streams_at_sentence_ends():
+    cue = "00:00.000 --> 00:01.000\nDit is een zin die eindigt.\n\n"
+    text = strip_subtitles("WEBVTT\n\n" + cue * 120)
+    paragraphs = text.split("\n\n")
+    assert len(paragraphs) > 1
+    assert all(p.endswith(".") for p in paragraphs)  # no mid-sentence cuts
 
 
 def test_pipe_becomes_I():

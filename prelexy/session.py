@@ -26,6 +26,7 @@ class SessionSummary:
     asked: int = 0
     correct: int = 0
     suspended: int = 0
+    had_items: bool = False  # did the language have anything to serve?
 
 
 def run_session(
@@ -37,21 +38,30 @@ def run_session(
     n_questions: int = 10,
     rng=None,
     band=None,
+    pool_size=None,
+    show_context: bool = True,
+    tts_voice: str | None = None,
+    code_own_pool=None,
 ) -> SessionSummary:
     now = datetime.now(timezone.utc)
     items = scheduler.next_items(store, profile_id, language, now, n_questions)
-    summary = SessionSummary()
+    summary = SessionSummary(had_items=bool(items))
     if not items:
-        click.echo("Nothing to practice — ingest a text first, or you're all caught up.")
+        _report_nothing_to_practice(store, language)
         return summary
 
     for item in items:
-        question = build_question(store, item, similarity=similarity, rng=rng, band=band)
+        question = build_question(
+            store, item, similarity=similarity, rng=rng, band=band,
+            pool_size=pool_size, code_own_pool=code_own_pool,
+        )
         if question is None:
             store.upsert_item_state(profile_id, item["id"], "suspended", None, {})
             summary.suspended += 1
             continue
-        answered = _ask(question, number=summary.asked + 1)
+        answered = _ask(
+            question, number=summary.asked + 1, language=language, tts_voice=tts_voice
+        )
         if answered is None:  # player quit (q / EOF)
             break
         choice, latency_ms = answered
@@ -62,7 +72,7 @@ def run_session(
             click.secho("  ✓ correct", fg="green")
         else:
             click.secho(f"  ✗ it means: {question.options[question.answer]}", fg="red")
-        if question.context:
+        if question.context and show_context:
             # revealed only after answering: seeing the sentence first makes
             # the definition guessable from context
             click.echo(f"  seen in: “{question.context}”")
@@ -88,7 +98,23 @@ def run_session(
     return summary
 
 
-def _ask(question, number: int) -> tuple[int, int] | None:
+def _report_nothing_to_practice(store, language: str) -> None:
+    """Explain the empty session and point at languages that do have items."""
+    counts = store.language_item_counts()
+    if not counts.get(language):
+        click.echo(f"Nothing stored for {language!r} yet — ingest a text first.")
+    else:
+        click.echo(f"Nothing due in {language!r} right now — you're all caught up.")
+    others = [(lang, n) for lang, n in counts.items() if lang != language and n]
+    if others:
+        summary = ", ".join(f"{lang} ({n} items)" for lang, n in others)
+        click.echo(f"Other languages with words: {summary}")
+        click.echo(f"Practice one with: prelexy play --language {others[0][0]}")
+
+
+def _ask(
+    question, number: int, language: str = "en", tts_voice: str | None = None
+) -> tuple[int, int] | None:
     """Render one question and return (chosen index, latency ms); None = quit."""
     click.echo()
     click.echo(f"{number}. What does “{question.form}” mean?")
@@ -104,7 +130,7 @@ def _ask(question, number: int) -> tuple[int, int] | None:
         if raw == "q":
             return None
         if raw == "p":
-            if not pronounce(question.form):
+            if not pronounce(question.form, language, voice=tts_voice):
                 click.echo(f"  ({INSTALL_HINT})")
             continue
         if raw.isdigit() and 1 <= int(raw) <= len(question.options):

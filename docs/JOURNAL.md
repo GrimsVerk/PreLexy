@@ -32,6 +32,14 @@ and are referenced from entries.
   "rewrite Y") so the classifier can see the action is sanctioned.
 - Distractor band values (0.45 / 0.85) are provisional — calibrate against
   `[mcq]` score lines from owner `--debug` playtests before trusting them.
+- `pods sync --ingest` verified at scale (owner 2026-07-07): 429 Tweakers
+  episodes fetched via yt-dlp and ingested, ~1,500 items each. Dutch v2 is
+  the owner's real corpus now. yt-dlp warns "no impersonate target" — a
+  cosmetic warning, downloads succeed anyway.
+- Python docs archive names carry the micro version
+  (`python-3.13.x-docs-html.zip`); resolve the name from
+  docs.python.org/3/download.html rather than hard-coding, and always
+  `curl -fL` (without -f, curl exits 0 on a 404 error page).
 
 ## Log
 
@@ -81,3 +89,124 @@ and are referenced from entries.
   languages → v3 code docs) per owner instruction; ROADMAP v2/v3 plans
   written. Owner merges to main next; unattended work then accumulates on
   `claude`.
+
+### 2026-07-06 — unattended run: Stage 1 complete, Stage 2 built, v3 spike
+
+- Pre-work per owner instruction: reviewed the two rate-limit-era commits
+  (249da44, 5e28c8a) — content accurate; fixed two stale ROADMAP phase
+  annotations found during the review (d4fd489). Owner had merged
+  claude↔main (PRs #2/#3); rebased onto the merge.
+- **Stage 1 (all eight items):** named-entity distractor exclusion +
+  non-instance gloss preference ("china" → porcelain); distractor pool
+  follows the gloss's POS (gartered/tabooed leak); GitHub Actions CI;
+  gloss length gate (2.5×/40-char slack); shortest-complete example
+  sentences (also dodges OCR-pipe contexts); band calibration verdict —
+  values confirmed, WordNet synonym/relative guard added instead of band
+  movement (DECISIONS 022); the six config settings wired end to end
+  (default_profile/default_language/db_path/tts_voice/pool_size/
+  show_context); cleaned-corpora gitignore.
+- **Stage 2 (items 1–7):** language registry (en+nl; unsupported → error
+  naming missing pieces); wordfreq membership gate for non-English; OMW
+  bilingual glosses — Dutch words get English definitions offline, with
+  surface→lemma fallback ("liep"→"lopen") (DECISIONS 023); kaikki.org
+  Wiktionary importer for OMW's thin adjectives; Dutch distractor pools +
+  language-aware synonym guard (huis/woning); profile language memory;
+  .srt/.vtt ingestion with sentence-safe re-paragraphing. A Dutch MCQ
+  builds fully offline in tests. Item 8 (real-model/transcript run)
+  AWAITING OWNER — commands in VERIFICATION.
+- **Stage 3:** design spike written into DESIGN.md ("Code documentation
+  mode (v3) — PROPOSED"): objects.inv + Sphinx HTML ingestion, docs as
+  their own dictionary, description-similarity distractors, no schema
+  changes, zero new dependencies; four open questions listed. AWAITING
+  OWNER REVIEW — per backlog, no v3 implementation until then.
+- Suite grew 102 → 137 passing (+1 model skip). No permission prompts,
+  denials, or classifier blocks this run (friction log: one transient
+  classifier outage, retried fine; one non-fast-forward push resolved by
+  rebase after the owner's merges).
+- CI initially failed on every run — setup-python's `cache: pip` needs a
+  requirements.txt/pyproject.toml to key on and dies before pytest when
+  none exists. Dropped the cache option; run `362b31f` is **green on
+  GitHub's runner** (checked via the Actions API from the sandbox).
+  Lesson for the ledger: "CI added" ≠ "CI verified" until a run passes.
+- Hand-off: owner returns → (1) v1-feel playtest + v2 Dutch commands in
+  VERIFICATION, (2) review the v3 design + its four questions, (3) check
+  CI runs on GitHub Actions. Everything else is done or owner-gated.
+
+### 2026-07-07 — owner feedback round: Dutch verified, new work planned
+
+- Owner questions answered: the two reviewed commits (249da44, 5e28c8a)
+  are ancestors of the current branch (`git merge-base --is-ancestor`
+  confirms) — the "divergence" on GitHub is the PR #2/#3 merge topology,
+  no content lost. CI reds were purely the workflow config bug (pip cache
+  needing a requirements file, job died before pytest); the local suite
+  passed for every commit, and the same code went green once fixed.
+- Dutch playtest (playtests/2026-07-07-play-nl.txt): end-to-end WORKS —
+  real podcast transcript, 1,685 items, 3/3 correct with English glosses
+  (owner had imported the deprecated kaikki Dutch extract). Failures it
+  exposed, feeding Stage 2b: 7/10 served words had no gloss → suspended
+  forever (imports must un-suspend items they gloss); form-of glosses
+  ("inflection of abonneren:", "diminutive of graat") are useless as
+  answers and stylistic tells; Dutch in-band counts are low (1–34/500 vs
+  English 31–341) — the below-floor pool fallback carried those questions,
+  as designed.
+- Owner rulings captured this round: kaikki per-language extracts are
+  deprecated → support the raw wiktextract dump (downloaded on the owner's
+  machine; kaikki.org is 403-blocked from the sandbox); YouTube transcript
+  fetching + pod subscriptions wanted (test channel:
+  youtube.com/@tweakers/podcasts); v3 defaults to the ENTIRE stdlib with
+  module filtering optional, cross-corpus distractors as a user choice,
+  source line shown only after answering; one ingest for everything
+  confirmed (subtitles already work for v1/English); TTS upgrade parked in
+  Deferred (voice quality poor in both languages, owner: later).
+
+### 2026-07-07 (later) — Stage 2b + Stage 3 implemented
+
+- **Stage 2b (all five items):** import-glosses streams .jsonl.gz raw
+  wiktextract dumps (magic-byte sniff), filters by lang_code, ranks real
+  glosses over form-of (the lemma entry now beats "inflection of
+  abonneren:"), un-suspends items it glosses; `prelexy fetch <url>`
+  downloads YouTube (auto-)subtitles via yt-dlp (external tool, install
+  hint, env pip dep) with --ingest; `prelexy pods add/list/remove/sync`
+  stores subscriptions in the meta table and syncs via yt-dlp's download
+  archive. Real-network verification is the owner's (commands in
+  VERIFICATION "Stage 2b").
+- **Stage 3 (all items):** registry kind split (natural|code, python
+  registered); prelexy/docsproc.py parses Sphinx objects.inv (stdlib
+  zlib) and extracts signature + first description sentence per object
+  (stdlib html.parser); `prelexy ingest-docs <dir>` stores the WHOLE
+  corpus by default with --modules as the optional filter (metadata:
+  kind/module/signature/order); code distractors come from store.code_pool
+  — cross-language by default, config code_pool_own_language restricts;
+  scheduler serves code items in inventory order (item_order in the sort
+  key); the signature line rides the existing after-answer context path.
+  Sandbox-verified end to end on a synthetic docs tree; the real
+  full-stdlib run is the owner's (VERIFICATION "v3").
+- Suite: 137 → 158 passing (+1 model skip). Friction: none (no prompts,
+  denials, or classifier events this run).
+- Hand-off: everything in Approved is implemented. Owner verifies: Stage 1
+  feel, v2 raw-gloss + pods flow, v3 full stdlib. All commands live in
+  docs/VERIFICATION.md, newest sections first.
+
+### 2026-07-07 (later) — bug fixes from the owner's first real v2/v3 run
+
+Owner ran `pods sync --ingest` (429 Tweakers episodes, huge win — v2 works
+at scale) then a v3 attempt that failed. Four bugs, all fixed:
+- **Docs download URL wrong.** Hard-coded `python-3.13-docs-html.zip`
+  doesn't exist (archives carry the micro version); curl without -f exited
+  0 on the 404 page, failing only at unzip. VERIFICATION now resolves the
+  name from the download page and uses `curl -fL` (also for kaikki).
+- **Language-memory trap.** `play --language python` on the empty python
+  corpus served nothing but still pinned python as the profile's language,
+  so a later plain `play` hid the 429-episode Dutch corpus behind
+  "Nothing to practice". Fix: run_session reports `had_items`; play
+  remembers the language only when the session had items.
+- **Uninformative empty message.** Now names the empty language and lists
+  other languages that have words with the exact `play --language <x>`
+  command (store.language_item_counts).
+- **example_for unbounded.** Fetched every occurrence to pick the shortest
+  complete sentence — tens of thousands after the mega-ingest. Added
+  `ORDER BY length(context) LIMIT 200` (best sentence is always shortest,
+  so the choice is unchanged).
+- Suite 158 → 161. Friction: none. All Approved work remains implemented;
+  the outstanding items are still owner verification (v2 raw glosses, v3
+  full stdlib).

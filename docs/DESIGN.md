@@ -196,6 +196,94 @@ sentences). Tier 3's custom-trained code embeddings (needed because `pop`
 the Python method is nothing like `pop` the English word) plug in here
 without touching the MCQ generator, which depends only on this interface.
 
+## Languages (v2)
+
+`prelexy/languages.py` is the registry: a language is supported when the
+whole stack supports it — spaCy pipelines, wordfreq data, an OMW code for
+glosses/candidate pools, and an espeak voice. Anything else raises
+`UnsupportedLanguageError` naming the missing pieces (such languages are
+listed in BACKLOG "Deferred"). English and Dutch are registered.
+
+The bilingual gloss chain (DECISIONS 023): senses cache → Open
+Multilingual Wordnet (`synsets(word, lang='nld')` — the synsets are
+language-independent, so `.definition()` is already the English gloss) →
+`prelexy import-glosses` with a kaikki.org Wiktionary extract for OMW's
+coverage gaps (thin Dutch adjectives) → free API (English only). Surface
+forms fall back to their lemma at lookup ("liep" → "lopen"): the learner
+practices the exact form heard, defined through its lemma. Distractor
+pools come from OMW lemma names of the target's language; the options are
+strong-language (English) text, so gloss similarity always uses the
+English vectors. Profiles remember their last language; `strong_language`
+is stored per profile for future per-profile glossing but glossing is
+currently always English.
+
+Subtitle files (`.srt`/`.vtt`) are converted to prose at ingest: cue
+numbers, timestamps, headers, and tags dropped; cue texts joined (sentences
+span cues) and re-paragraphed at sentence ends.
+
+## Code documentation mode (v3) — design (owner-approved 2026-07-07)
+
+Reviewed and amended by the owner (DECISIONS 024): whole-corpus ingestion
+is the default, cross-corpus distractors are a user choice, and the
+source/signature line appears only after answering.
+
+**Items.** Qualified names from official documentation — `list.pop`,
+`itertools.chain`, `pandas.DataFrame.merge` — under `language="python"`
+(the namespace ruling, DECISIONS 003; the `sources` row distinguishes
+stdlib from a library corpus). `items.metadata` carries
+`{"kind": "method|function|class", "module": "itertools",
+"signature": "..."}`. No schema changes anywhere.
+
+**Ingestion.** `prelexy ingest-docs <local-docs-dir>` pointed at a
+downloaded Sphinx HTML tree (CPython and most scientific-Python docs are
+Sphinx-built and downloadable — free and offline, matching rule 4):
+
+1. Parse `objects.inv` (the intersphinx inventory at the docs root): a
+   zlib-compressed index of every documented object with its role
+   (`py:function`, `py:method`, …) and page anchor. Stdlib `zlib` reads
+   it — no new dependency.
+2. For each inventory entry, open the referenced HTML page and take the
+   first sentence of the object's description as the gloss (provider
+   `docs` — the docs are their own dictionary; no WordNet, no membership
+   gate) plus the signature; example code lines become occurrences.
+   Stdlib `html.parser` suffices for Sphinx's regular `dl/dt/dd`
+   structure — no new dependency.
+
+**Ingestion scope.** Default: the ENTIRE documentation corpus (the whole
+Python stdlib inventory) — the owner's use case is "import everything and
+start memorizing", and a big pool is what makes distractors hard. An
+optional `--modules itertools,functools` filter narrows to a subset for
+focused study; filtering is the option, not the default.
+
+**Questions.** The same "pick the correct description" MCQ. Distractor
+pool = same-kind items (method vs method) from the code corpora in the
+store; rarity stays banned per ruling 013. By default the pool spans ALL
+code languages the user has ingested — practicing Python and Java
+together maximizes distractor difficulty (owner ruling); restricting the
+pool to the target's own language is the configurable choice. Because the
+options are English prose descriptions, the existing gloss-text similarity
+works unchanged — the feared "pop the method vs pop the word" embedding
+problem largely evaporates when comparing descriptions instead of
+identifiers. Custom-trained code embeddings stay deferred unless
+description similarity proves inadequate (new dependency → owner
+approval, rule 4).
+
+**Presentation.** Exactly like natural-language mode: the question shows
+only the qualified name and the options; the signature/source line is
+revealed only after answering (shown up front it gives the answer away —
+owner ruling). New-item ordering: corpus (inventory) order within the
+ingested scope; module grouping comes free via `--modules`.
+
+**Scheduling/profiles.** Untouched — items are opaque to the scheduler by
+design (DECISIONS 005).
+
+**Registry fit.** Natural-language registry entries require spaCy/OMW/TTS;
+code languages need none of those. A `kind` field on the registry entry
+(`natural` | `code`) declares per-kind required pieces (owner-approved).
+
+First corpus: the full Python stdlib docs (downloaded HTML archive from
+docs.python.org — free, offline).
+
 ## Diagnostics
 
 `prelexy --debug <command>` (or `PRELEXY_DEBUG=1`) turns on diagnostic

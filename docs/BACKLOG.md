@@ -13,100 +13,99 @@ parked by the owner — do not start them, do not delete them.
 
 ## Approved
 
-### Stage 1 — v1 polish (English mode)
+### Stage 1 — v1 polish (English mode) — ✅ COMPLETED 2026-07-06
 
-1. **Exclude instance synsets from the distractor pool.** Named entities
-   ("Argentine revolutionary leader … Guevara") are absurd distractors;
-   WordNet marks them as instances (`instance_hypernyms()`), cheap to
-   filter at candidate time.
-2. **Fix the POS-fallback gloss-style leak.** When the target's gloss
-   comes from a fallback POS (adjective "gartered" got the verb gloss
-   "fasten with…"), its phrasing fingerprints it among same-POS distractor
-   glosses. Draw the candidate pool from the POS the gloss actually came
-   from.
-3. **GitHub Actions CI**: pytest on every push (downloads NLTK data in the
-   workflow; no spaCy model, so the one model test skips — same as the
-   sandbox). Gives the owner an impartial green/red.
-4. **Length/style-match distractor glosses** to the correct one — a crisp
-   answer among sprawling encyclopedic options (or vice versa) is a tell.
-5. **Context sentences: prefer the shortest sentence-complete
-   occurrence.** Playtest evidence: 'comeliness' served a ~1,400-character
-   sentence; OCR page breaks truncate others mid-sentence.
-6. **Band calibration** from `docs/playtests/` data: first pass now
-   (observed: in-band counts 31–341/500; 'gleefulness' at 0.716 acted as a
-   near-synonym under the 0.85 ceiling → likely lower the ceiling; propose
-   new defaults in config + mcq). Final pass needs a post-change owner
-   playtest — note that in VERIFICATION and move on.
-7. **Config additions:** `default_profile` (skip the picker),
-   `default_language`, `db_path`, pronunciation voice/engine, `pool_size`,
-   context-sentence toggle.
-8. **gitignore `*.cleaned.txt`** — cleaned corpora are derived artifacts.
+All eight items done (instance-synset exclusion, POS-follow pool, CI,
+length gate, shortest-complete contexts, band calibration + synonym guard
+per DECISIONS 022, the six config settings, cleaned-corpora gitignore).
+Details: docs/JOURNAL.md entry of 2026-07-06 and the commit history.
+Owner re-verification of question feel: next playtest.
 
 ### Stage 2 — v2: learn a new language from zero (test language: Dutch)
+### — items 1–7 ✅ COMPLETED 2026-07-06; item 8 AWAITING OWNER
 
-Design anchors: DECISIONS 002 (surface forms, not lemmas), the `senses.
-gloss_language` field (glosses shown in the learner's strong language —
-English for the owner), ROADMAP "v2" for success criteria. The sandbox
-cannot download spaCy models for any language — develop against hand-built
-Docs as in tests/test_textproc.py; real-model verification is the owner's.
+Implemented: language registry (unsupported → clear error naming missing
+pieces), Dutch plumbing + wordfreq noise gate, OMW bilingual glosses with
+surface→lemma fallback (DECISIONS 023), kaikki.org Wiktionary importer
+(`prelexy import-glosses`), Dutch distractor pools with the synonym guard,
+profile language memory (+ stored `strong_language` for future
+per-profile glossing), `.srt`/`.vtt` ingestion, Dutch espeak voice.
 
-1. **Language-support registry.** One table (code) declaring what each
-   language needs: spaCy pipeline names, wordfreq availability, gloss
-   source, espeak voice. `--language xx` for an unsupported language →
-   clear error listing exactly which pieces are missing; such languages
-   are recorded under Deferred ("maybe later"), not half-implemented.
-2. **Dutch NLP plumbing.** spaCy model mapping (`nl_core_news_md`
-   preferred, `sm` fallback); dictionary-membership gate for non-English
-   (wordfreq zipf > 0 as the noise filter, since WordNet is
-   English-only); surface-form policy already exists in
-   `textproc.item_form`.
-3. **Bilingual gloss chain.** Spike first: Open Multilingual Wordnet via
-   nltk (`synsets(word, lang='nld')` → English gloss) — measure coverage
-   on real Dutch words. Richer path: kaikki.org Wiktionary extract for
-   Dutch (free, downloadable once, parsed into the senses cache).
-   Cached free API as last resort. Chain order and findings → DECISIONS.
-4. **Distractors for non-English targets.** Candidate pool from the Dutch
-   lemma source (OMW/kaikki), same POS; since options are *English*
-   glosses, the existing gloss-vs-gloss similarity (English vectors)
-   works unchanged — reuse it.
-5. **Profile language settings.** `strong_language` and active language
-   per profile (profiles.settings JSON); `default_language` from config;
-   en and nl items coexisting in one DB (already keyed by language —
-   verify with tests end to end).
-6. **Subtitle/transcript formats.** Accept `.srt`/`.vtt` in ingest/clean
-   (strip timestamps and cue numbers) — podcast transcripts often ship as
-   subtitles.
-7. **Dutch pronunciation.** espeak voice mapping exists (`nl`); verify the
-   full path and cover with tests.
-8. **Owner verification.** Needs a real Dutch podcast transcript from the
-   owner + a playtest; add v2 rows to docs/VERIFICATION.md with the exact
-   commands. Until then, verify with a small hand-made Dutch sample.
+8. ~~Owner verification~~ ✅ 2026-07-07: 3/3 on a real podcast transcript;
+   Dutch TTS works (quality parked in Deferred). Findings drive Stage 2b.
+
+### Stage 2b — v2 hardening from the 2026-07-07 Dutch playtest
+### — ✅ COMPLETED 2026-07-07 (owner verification of real downloads open)
+
+All five items implemented and sandbox-tested (raw wiktextract streaming
++ lang_code filter, form-of resolution, un-suspend on import, `prelexy
+fetch`, `prelexy pods add/list/remove/sync`). Real-network verification
+(actual kaikki download, actual YouTube fetch) is the owner's — commands
+in docs/VERIFICATION.md "Stage 2b". Original items follow for reference.
+
+1. **Raw wiktextract support in `import-glosses`.** kaikki's per-language
+   extracts are deprecated; the future-proof source is the raw wiktextract
+   dump (kaikki.org/dictionary/rawdata.html — the owner downloads it, the
+   sandbox is egress-blocked). The importer must: stream `.jsonl.gz`
+   directly (stdlib `gzip`, no decompressing a ~20 GB file to disk);
+   filter entries by `lang_code` == the requested language (the raw dump
+   mixes all languages — skipping this would attach wrong-language
+   glosses); keep accepting the old per-language extracts. Exact download
+   + import commands go into docs/VERIFICATION.md.
+2. **Form-of gloss resolution.** "inflection of abonneren:" and
+   "diminutive of graat" are useless as answers (playtest evidence).
+   kaikki senses carry `form_of`/`tags`; prefer senses with real glosses,
+   and for pure form-of entries resolve to the referenced lemma's gloss
+   (the referenced word passes through the same import stream), rendering
+   as e.g. "form of abonneren: to subscribe". Never emit a bare
+   "inflection of X:" gloss.
+3. **Un-suspend on new glosses.** Words suspended for having no definition
+   must return to play once an import gives them one (7/10 words in the
+   playtest are currently suspended forever). `import-glosses` deletes the
+   suspended `item_state` rows (all profiles) for items it just glossed.
+4. **`prelexy fetch <youtube-url>`.** Download a video's (auto-)subtitles
+   as `.vtt` via `yt-dlp` — external tool like espeak (shutil.which +
+   install hint), added to environment.yml's pip list — into
+   `data/pods/`, with `--language` for the subtitle track and `--ingest`
+   to ingest immediately. Works for single videos and playlist/channel
+   URLs (yt-dlp handles both).
+5. **Pod subscriptions.** `prelexy pods add|list|remove|sync`: saved
+   channel/playlist URLs live in the store's `meta` table (no schema
+   change); `sync` fetches new episodes' subtitles using yt-dlp's
+   `--download-archive` (no re-downloads), `--ingest` optional. Owner's
+   test channel: https://www.youtube.com/@tweakers/podcasts. Network
+   tests are mocked in the sandbox; real fetching is owner-verified.
 
 ### Stage 3 — v3: learn programming languages from official docs
+### — ✅ IMPLEMENTED 2026-07-07 (owner verification of the real stdlib open)
 
-Coarse on purpose — item 1 refines this stage before code is written.
-Constraint from day one (CLAUDE.md rule 5): nothing in v1/v2 may break.
+All items below are done and sandbox-verified end to end (synthetic
+Sphinx tree → ingest-docs → playable session with signature-after-answer).
+Open: the owner's real run (full stdlib docs + real vectors) — commands in
+docs/VERIFICATION.md "v3 (Python docs)". Original items for reference:
 
-1. **Design spike → docs/DESIGN.md section + DECISIONS entries.** What an
-   item is for code (qualified names: `list.pop`, `itertools.chain`);
-   what a gloss is (the doc entry's summary sentence — docs are their own
-   dictionary, no WordNet); ingestion sources (official Python docs
-   first; Sphinx `objects.inv` inventories as structured entry points).
-   Owner reviews the design before implementation continues.
-2. **Docs ingester.** Extraction policy for `language="python"`; parse
-   inventory + doc text into items/occurrences (usage examples as context
-   sentences).
-3. **Glosses from the docs** stored in senses with provider `docs`.
-4. **Distractors from the same corpus.** Pool = other items of the same
-   docs corpus (kind-matched: method vs method); first pass reuses the
-   existing gloss-text similarity on English doc descriptions. Custom
-   code embeddings (the "pop ≠ pop" problem) only if that proves
-   inadequate — training them means a new dependency, which needs owner
-   approval (CLAUDE.md rule 4).
-5. **Ordering/curriculum for code items** (corpus frequency? module
-   grouping?) — bring options to the owner for a ruling.
-6. **End to end:** ingest a Python stdlib subset (e.g. `itertools`,
-   `collections`) → playable sessions; en/nl regression suites stay green.
+1. ~~Design spike~~ ✅ written 2026-07-06, owner-reviewed with amendments
+   2026-07-07 (whole-corpus default, cross-corpus pools, line-after).
+2. **Registry `kind` split.** `natural` vs `code` entries with per-kind
+   required pieces; register `python` as the first code language.
+3. **`prelexy ingest-docs <local-sphinx-dir>`.** Parse `objects.inv`
+   (stdlib zlib) for the full inventory — the WHOLE corpus by default,
+   `--modules a,b` as the optional filter — then pull each entry's first
+   description sentence (gloss, provider `docs`) and signature from the
+   HTML (stdlib html.parser). Items: qualified names under
+   `language="python"`, metadata {kind, module, signature}; signature/
+   example line stored as the occurrence context.
+4. **Code-mode questions.** Distractor pool = same-kind items from the
+   store's code corpora — ALL code languages by default (owner ruling),
+   own-language-only as a config choice; existing gloss-text similarity;
+   rarity stays banned. Signature/source line revealed only after
+   answering (reuse the context-after-answer path).
+5. **New-item ordering for code:** inventory order (module grouping falls
+   out of `--modules`); zipf is meaningless for code — order by corpus
+   position stored in metadata.
+6. **End to end:** ingest the full stdlib docs → playable sessions;
+   en/nl regression suites stay green; owner verification commands into
+   docs/VERIFICATION.md (docs.python.org HTML archive download).
 
 ## Proposed
 
@@ -120,7 +119,11 @@ Constraint from day one (CLAUDE.md rule 5): nothing in v1/v2 may break.
 ## Deferred (owner: later — do not start)
 
 - `stats` command (counts by status, due dates)
-- Wiktionary human pronunciation recordings (cached), replacing OS TTS
+- **TTS quality upgrade** (owner 2026-07-07: OS voices work but sound bad
+  in both languages — implement later). Candidates: Wiktionary human
+  recordings (cached, real pronunciation) and/or a neural offline engine
+  (e.g. Piper — free, ~50MB voice models; new dependency → owner approval
+  at implementation time).
 - FSRS or RL-personalized scheduler trained on the review log
 - **Unsupported languages** (grows as v2's registry rejects them): any
   language missing a spaCy pipeline, wordfreq data, a gloss source, or a
