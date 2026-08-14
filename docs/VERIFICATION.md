@@ -37,7 +37,7 @@ observed working end-to-end anywhere.
 | v3: docs ingestion + code-mode questions | sandbox (synthetic Sphinx tree) | end-to-end play verified offline; owner: real stdlib run below |
 | v3: full Python stdlib corpus (real model) | AWAITING OWNER | commands below |
 | Template toolchain: ruff + mypy --strict + pytest via uv | sandbox | `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` (34 files clean), `uv run pytest` (161 passed, 1 skipped) — all run 2026-08-14 |
-| `ci.yml` WordNet fetch step | UNVERIFIED (sandbox cannot run it) | NLTK refuses proxied downloads and this sandbox proxies all egress; the command matches the one `tests.yml` ran green on GitHub. Owner/CI: confirm the `checks` job goes green on the first run |
+| Corpus bootstrap in the root `conftest.py` | sandbox (exercised with the corpora deleted) | 2026-08-14: removed `~/nltk_data` entirely, ran the suite — the bootstrap re-fetched wordnet + omw-2.0 and 161 passed. Under `uv run` the venv's newer NLTK refuses a *proxied* fetch (SSRF guard, sandbox-only: it triggers on `HTTPS_PROXY` being set); with `NLTK_ALLOW_PROXIED_URLOPEN=1` that path also downloads and passes. CI sets no proxy, so the guard does not apply there |
 | `ci.yml` gate jobs (plan, template-sync, secrets, test-the-tests) | UNVERIFIED | never executed — they arrive with this change. `template-sync` also needs a `TEMPLATE_TOKEN` repository Actions secret, since the template repo is private |
 
 ## Owner verification commands — v3 (Python docs)

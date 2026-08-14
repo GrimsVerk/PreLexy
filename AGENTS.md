@@ -60,9 +60,10 @@ the code. The same checks run as git hooks via `.pre-commit-config.yaml`
 (enable with `pre-commit install`). A failing gate is fixed, never bypassed:
 no `--no-verify`, no skipping or weakening checks to get green.
 
-`ci.yml` carries one project-specific step the template does not: fetching the
-WordNet/OMW corpora before pytest. It is marked in the file, and a template
-update that overwrites `ci.yml` must have it re-applied.
+`ci.yml` is the template's file, unmodified — keep it that way. Project-specific
+test setup belongs in the root `conftest.py`, which the template does not ship
+and therefore never overwrites; that is where the WordNet/OMW corpora are
+ensured before the suite runs.
 
 ## Language-specific
 

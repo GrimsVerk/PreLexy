@@ -337,8 +337,13 @@ Strict mypy was chosen over a laxer scope (owner ruling, 2026-08-14) precisely
 so `pyproject.toml` needs no per-module escapes to maintain. Moving 17 modules
 into `src/` and bumping the runtime are real changes to the project rather than
 consequences of adopting a template, so both were left alone.
-**Residual:** `ci.yml` carries one step the template has no notion of —
-fetching the WordNet/OMW corpora before pytest, without which eight Dutch/OMW
-tests fail. A template update that overwrites `ci.yml` drops it; the step is
-commented in place and noted in AGENTS.md so it can be re-applied. Upstreaming
-a per-project "extra setup step" hook to the template would remove the need.
+**Residual:** none in the workflow. The suite needs the WordNet/OMW corpora on
+disk — prelexy fetches them lazily, but `tests/conftest.py` blocks outbound
+sockets, so a lazy fetch inside a test fails. That requirement is met by a root
+`conftest.py`, which ensures the corpora once at startup before any test's
+monkeypatch is active. The root path is deliberate: the template ships
+`tests/conftest.py` but no root `conftest.py`, so the file is project-owned and
+survives every template update untouched — where the same step written into
+`ci.yml` would be overwritten by each update and would break the byte-for-byte
+`template-sync` check. `ci.yml` is therefore kept byte-identical to the
+template's own render.
