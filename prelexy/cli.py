@@ -1,11 +1,14 @@
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 import click
 
 from prelexy import debug
+from prelexy.config import Config
+from prelexy.docsproc import DocEntry
 from prelexy.store import Store
-from prelexy.textproc import extract_candidates
+from prelexy.textproc import Candidate, extract_candidates
 
 _db_option = click.option(
     "--db",
@@ -24,7 +27,7 @@ _language_option = click.option(
 )
 
 
-def _resolve_db(db_path, config):
+def _resolve_db(db_path: Path | None, config: Config) -> Path | None:
     """--db flag > PRELEXY_DB env (both land in db_path) > config > XDG."""
     if db_path:
         return db_path
@@ -33,24 +36,28 @@ def _resolve_db(db_path, config):
     return None
 
 
-def _validate_language(code):
+def _validate_language(code: str) -> str:
     from prelexy.languages import UnsupportedLanguageError, get_language
 
     try:
         get_language(code)
     except UnsupportedLanguageError as error:
-        raise click.ClickException(str(error))
+        raise click.ClickException(str(error)) from error
     return code
 
 
-def _resolve_language(language, config):
+def _resolve_language(language: str | None, config: Config) -> str:
     return _validate_language(language or config["default_language"])
 
 
 @click.group()
-@click.option("--debug", "debug_flag", is_flag=True,
-              help="Print diagnostic detail to stderr (e.g. distractor scores).")
-def cli(debug_flag):
+@click.option(
+    "--debug",
+    "debug_flag",
+    is_flag=True,
+    help="Print diagnostic detail to stderr (e.g. distractor scores).",
+)
+def cli(debug_flag: bool) -> None:
     """PreLexy — learn the vocabulary of the texts you actually read."""
     if debug_flag:
         debug.enable()
@@ -67,7 +74,13 @@ def cli(debug_flag):
     help="[default: book, or subtitles for .srt/.vtt files]",
 )
 @_db_option
-def ingest(file, language, title, kind, db_path):
+def ingest(
+    file: Path,
+    language: str | None,
+    title: str | None,
+    kind: str | None,
+    db_path: Path | None,
+) -> None:
     """Extract learnable vocabulary from FILE and store it.
 
     Plain text, .srt, and .vtt are accepted; subtitle files are converted
@@ -87,12 +100,17 @@ def ingest(file, language, title, kind, db_path):
         click.echo("\nRarest finds:")
         for candidate in candidates[:10]:
             click.echo(
-                f"  {candidate.form:<22} zipf {candidate.zipf:4.2f}"
-                f"  ×{len(candidate.occurrences)}"
+                f"  {candidate.form:<22} zipf {candidate.zipf:4.2f}  ×{len(candidate.occurrences)}"
             )
 
 
-def _ingest_file(store, file: Path, language: str, title=None, kind=None):
+def _ingest_file(
+    store: Store,
+    file: Path,
+    language: str,
+    title: str | None = None,
+    kind: str | None = None,
+) -> tuple[list[Candidate], int] | None:
     """Extract and store one file; None when its path is already ingested."""
     from prelexy.clean import SUBTITLE_SUFFIXES, strip_subtitles
 
@@ -128,7 +146,7 @@ def _ingest_file(store, file: Path, language: str, title=None, kind=None):
 @_language_option
 @click.option("--limit", default=20, show_default=True)
 @_db_option
-def words(language, limit, db_path):
+def words(language: str | None, limit: int, db_path: Path | None) -> None:
     """List stored vocabulary, rarest first."""
     config = _load_config_or_die()
     language = _resolve_language(language, config)
@@ -142,9 +160,7 @@ def words(language, limit, db_path):
     click.echo(f"{'form':<22} {'pos':<6} {'zipf':>5}  occurrences")
     for row in ranked[:limit]:
         zipf = json.loads(row["metadata"]).get("zipf", 0.0)
-        click.echo(
-            f"{row['form']:<22} {row['pos'] or '?':<6} {zipf:>5.2f}  {row['n_occurrences']}"
-        )
+        click.echo(f"{row['form']:<22} {row['pos'] or '?':<6} {zipf:>5.2f}  {row['n_occurrences']}")
 
 
 @cli.command()
@@ -156,7 +172,7 @@ def words(language, limit, db_path):
     default=None,
     help="Where to write [default: <name>.cleaned.<ext> beside the input]",
 )
-def clean(file, output):
+def clean(file: Path, output: Path | None) -> None:
     """Clean a text file before ingesting it.
 
     Fixes common OCR artifacts; .srt/.vtt subtitle files are additionally
@@ -188,10 +204,17 @@ def clean(file, output):
     show_default=True,
     help="Where fetched subtitle files land.",
 )
-@click.option("--ingest", "do_ingest", is_flag=True,
-              help="Ingest the fetched subtitles immediately.")
+@click.option(
+    "--ingest", "do_ingest", is_flag=True, help="Ingest the fetched subtitles immediately."
+)
 @_db_option
-def fetch(url, language, dest, do_ingest, db_path):
+def fetch(
+    url: str,
+    language: str | None,
+    dest: Path,
+    do_ingest: bool,
+    db_path: Path | None,
+) -> None:
     """Download a YouTube video/playlist/channel's subtitles via yt-dlp.
 
     Grabs the (auto-generated) subtitle track for --language as .vtt files
@@ -209,7 +232,9 @@ def fetch(url, language, dest, do_ingest, db_path):
         _ingest_paths(new_files, language, config, db_path)
 
 
-def _ingest_paths(files, language, config, db_path):
+def _ingest_paths(
+    files: Sequence[Path], language: str, config: Config, db_path: Path | None
+) -> None:
     with Store(_resolve_db(db_path, config)) as store:
         for file in files:
             result = _ingest_file(store, file, language)
@@ -217,20 +242,21 @@ def _ingest_paths(files, language, config, db_path):
                 click.echo(f"  {file.name}: already ingested, skipped")
             else:
                 candidates, n_occurrences = result
-                click.echo(
-                    f"  {file.name}: {len(candidates)} items ({n_occurrences} occurrences)"
-                )
+                click.echo(f"  {file.name}: {len(candidates)} items ({n_occurrences} occurrences)")
 
 
 @cli.command("ingest-docs")
 @click.argument("docs_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.option("--language", default="python", show_default=True,
-              help="Code language namespace for the items.")
-@click.option("--modules", default=None,
-              help="Comma-separated module filter, e.g. 'itertools,functools' "
-                   "[default: the whole corpus]")
+@click.option(
+    "--language", default="python", show_default=True, help="Code language namespace for the items."
+)
+@click.option(
+    "--modules",
+    default=None,
+    help="Comma-separated module filter, e.g. 'itertools,functools' [default: the whole corpus]",
+)
 @_db_option
-def ingest_docs(docs_dir, language, modules, db_path):
+def ingest_docs(docs_dir: Path, language: str, modules: str | None, db_path: Path | None) -> None:
     """Ingest a downloaded Sphinx HTML documentation tree.
 
     Reads objects.inv at DOCS_DIR's root and stores every documented
@@ -256,17 +282,18 @@ def ingest_docs(docs_dir, language, modules, db_path):
     try:
         entries = parse_inventory(inventory)
     except ValueError as error:
-        raise click.ClickException(str(error))
+        raise click.ClickException(str(error)) from error
     if modules:
         wanted = {m.strip() for m in modules.split(",") if m.strip()}
         entries = [
-            e for e in entries
+            e
+            for e in entries
             if e.module in wanted or any(e.module.startswith(m + ".") for m in wanted)
         ]
     if not entries:
         raise click.ClickException("Nothing learnable matched in the inventory.")
 
-    by_page: dict[str, list] = {}
+    by_page: dict[str, list[DocEntry]] = {}
     for entry in entries:
         by_page.setdefault(entry.page, []).append(entry)
 
@@ -306,9 +333,7 @@ def ingest_docs(docs_dir, language, modules, db_path):
                         "order": order,
                     },
                 )
-                store.add_occurrences(
-                    item_id, source_id, [(signature or entry.name, order)]
-                )
+                store.add_occurrences(item_id, source_id, [(signature or entry.name, order)])
                 if not store.senses_for(item_id):
                     store.add_sense(item_id, gloss, "en", "docs")
                 stored += 1
@@ -322,7 +347,7 @@ def ingest_docs(docs_dir, language, modules, db_path):
 
 
 @cli.group()
-def pods():
+def pods() -> None:
     """Save podcast channels and sync their transcripts."""
 
 
@@ -330,7 +355,7 @@ def pods():
 @click.argument("url")
 @_language_option
 @_db_option
-def pods_add(url, language, db_path):
+def pods_add(url: str, language: str | None, db_path: Path | None) -> None:
     """Save a channel/playlist URL (e.g. youtube.com/@tweakers/podcasts)."""
     config = _load_config_or_die()
     language = _resolve_language(language, config)
@@ -348,7 +373,7 @@ def pods_add(url, language, db_path):
 
 @pods.command("list")
 @_db_option
-def pods_list(db_path):
+def pods_list(db_path: Path | None) -> None:
     """Show the saved pods."""
     config = _load_config_or_die()
     with Store(_resolve_db(db_path, config)) as store:
@@ -363,7 +388,7 @@ def pods_list(db_path):
 @pods.command("remove")
 @click.argument("url")
 @_db_option
-def pods_remove(url, db_path):
+def pods_remove(url: str, db_path: Path | None) -> None:
     """Forget a saved pod."""
     config = _load_config_or_die()
     with Store(_resolve_db(db_path, config)) as store:
@@ -382,10 +407,11 @@ def pods_remove(url, db_path):
     default=Path("data/pods"),
     show_default=True,
 )
-@click.option("--ingest", "do_ingest", is_flag=True,
-              help="Ingest every new transcript immediately.")
+@click.option(
+    "--ingest", "do_ingest", is_flag=True, help="Ingest every new transcript immediately."
+)
 @_db_option
-def pods_sync(dest, do_ingest, db_path):
+def pods_sync(dest: Path, do_ingest: bool, db_path: Path | None) -> None:
     """Fetch new episodes' subtitles from every saved pod.
 
     yt-dlp's download archive remembers what has already been fetched,
@@ -415,7 +441,7 @@ def pods_sync(dest, do_ingest, db_path):
 @click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @_language_option
 @_db_option
-def import_glosses(file, language, db_path):
+def import_glosses(file: Path, language: str | None, db_path: Path | None) -> None:
     """Fill missing definitions from a kaikki.org Wiktionary extract.
 
     Download the language's JSONL from https://kaikki.org/dictionary/
@@ -438,7 +464,7 @@ def import_glosses(file, language, db_path):
 @cli.command()
 @click.argument("word")
 @_language_option
-def say(word, language):
+def say(word: str, language: str | None) -> None:
     """Pronounce a word aloud using the system speech engine."""
     from prelexy.speech import INSTALL_HINT, pronounce
 
@@ -454,7 +480,7 @@ def definitions_language() -> str:
     return STRONG_LANGUAGE
 
 
-def _load_config_or_die() -> dict:
+def _load_config_or_die() -> Config:
     import tomllib
 
     from prelexy.config import config_path, load_config
@@ -462,10 +488,10 @@ def _load_config_or_die() -> dict:
     try:
         return load_config()
     except (OSError, ValueError, tomllib.TOMLDecodeError) as error:
-        raise click.ClickException(f"Bad config file ({config_path()}): {error}")
+        raise click.ClickException(f"Bad config file ({config_path()}): {error}") from error
 
 
-def _choose_profile(store) -> int:
+def _choose_profile(store: Store) -> int:
     """Ask who is playing: pick an existing profile or create one."""
     profiles = store.list_profiles()
     if not profiles:
@@ -482,7 +508,7 @@ def _choose_profile(store) -> int:
             if name:
                 return store.get_or_create_profile(name)
         elif raw.isdigit() and 1 <= int(raw) <= len(profiles):
-            return profiles[int(raw) - 1]["id"]
+            return int(profiles[int(raw) - 1]["id"])
         click.echo(f"  Pick 1–{len(profiles)}, or n for a new profile.")
 
 
@@ -490,7 +516,7 @@ def _choose_profile(store) -> int:
 @click.argument("form")
 @_language_option
 @_db_option
-def question(form, language, db_path):
+def question(form: str, language: str | None, db_path: Path | None) -> None:
     """Preview a multiple-choice question for a stored word (* marks the answer).
 
     Debug view: unlike a play session, the context sentence and the answer
@@ -550,13 +576,29 @@ def question(form, language, db_path):
     help="Language to practice [default: the profile's last language, "
     "else default_language from the config file]",
 )
-@click.option("--new", "new_words", default=None, type=click.IntRange(min=0),
-              help="New words this session [default: new_words from the config file]")
-@click.option("--seen", "seen_words", default=None, type=click.IntRange(min=0),
-              help="Previously seen words (due reviews) this session "
-                   "[default: seen_words from the config file]")
+@click.option(
+    "--new",
+    "new_words",
+    default=None,
+    type=click.IntRange(min=0),
+    help="New words this session [default: new_words from the config file]",
+)
+@click.option(
+    "--seen",
+    "seen_words",
+    default=None,
+    type=click.IntRange(min=0),
+    help="Previously seen words (due reviews) this session "
+    "[default: seen_words from the config file]",
+)
 @_db_option
-def play(profile_name, language, new_words, seen_words, db_path):
+def play(
+    profile_name: str | None,
+    language: str | None,
+    new_words: int | None,
+    seen_words: int | None,
+    db_path: Path | None,
+) -> None:
     """Start a practice session."""
     from prelexy.scheduler import SM2Scheduler
     from prelexy.session import run_session
@@ -576,9 +618,7 @@ def play(profile_name, language, new_words, seen_words, db_path):
         similarity = None  # no vectors: distractor band is skipped
     with Store(_resolve_db(db_path, config)) as store:
         profile_id = (
-            store.get_or_create_profile(profile_name)
-            if profile_name
-            else _choose_profile(store)
+            store.get_or_create_profile(profile_name) if profile_name else _choose_profile(store)
         )
         settings = store.get_profile_settings(profile_id)
         language = _validate_language(

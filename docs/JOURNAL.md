@@ -50,6 +50,56 @@ and are referenced from entries.
 
 ## Log
 
+### 2026-08-14 — template update prep: toolchain adopted, CI restored
+
+- `copier update` to the current template (v0.4.5) was failing before it
+  started. Two causes, both recorded in `.copier-answers.yml`:
+  **project_name** — v0.4.0 added a validator requiring a package-shaped
+  name; `PreLexy` fails it. Copier does not error on an invalid recorded
+  answer, it silently deletes it, then falls back to a default that renders
+  empty inside the update scratch directory — so `--defaults` dies with
+  "A project name is required", naming a field that *is* recorded.
+  Now `prelexy`, which is what the package directory is called anyway.
+  **_src_path** — was `ssh://git@github.com/...`. That form matches neither
+  `insteadOf` rewrite CI installs (`https://github.com/` and
+  `git@github.com:`), verified with an isolated git config, so the private
+  template clone fails in CI regardless of `TEMPLATE_TOKEN`; and the bare
+  host carries no key on the owner's machine either. Now the https URL,
+  which is what template v0.4.5 records by design.
+- Restored what the 2026-07-20 adoption declined, since copier treats a
+  declined file as deleted and never brings it back: `pyproject.toml`,
+  `uv.lock`, `.github/workflows/ci.yml`. **Not** restored:
+  `src/prelexy/__init__.py` (would add a second, empty `prelexy` package
+  shadowing the real one) and `tests/test_placeholder.py` (161 real tests).
+- Adopting the template's CI meant adopting its toolchain: ruff (22 errors,
+  19 files reformatted) and mypy `--strict` (573 errors → 0). The typing
+  work found no bugs but did surface real looseness — Optional rows indexed
+  without a check all over the tests, now asserted; `list.append(x) or True`
+  in two test doubles; a `Config` TypedDict replacing `dict[str, object]`.
+  Owner ruled for full strict rather than a scoped config (chat, 2026-08-14).
+- `tests.yml` retired; `ci.yml` replaces it. It is restored **byte-identical
+  to the template's own render**, deliberately: the suite's WordNet/OMW
+  requirement is met by a new root `conftest.py` instead of a step in the
+  workflow. The template ships `tests/conftest.py` but no root one, so the
+  bootstrap is project-owned, survives updates untouched, and leaves
+  `ci.yml` clean for the byte-for-byte `template-sync` check. Owner's point
+  (chat): PreLexy's corpora are PreLexy's problem and have no business
+  upstream — which is equally an argument against putting them in a
+  template-owned file here.
+- Friction: pushing a **tag** is denied for agent sessions (403 from the git
+  proxy, and the GitHub API refuses ref writes) — the owner pushed the
+  template's v0.1.0 tag. Branch pushes are fine. Also, NLTK refuses proxied
+  downloads in this sandbox, so the new `ci.yml` fetch step could not be
+  exercised through `uv run` here — though the bootstrap itself was verified
+  by deleting `~/nltk_data` and watching the suite re-fetch it
+  (docs/VERIFICATION.md).
+- Hand-off: this branch is prep only — it does **not** update the template.
+  Once merged, `copier update --defaults --trust` from `main` lands v0.4.5
+  cleanly (verified on a scratch clone). Expect conflicts in `README.md`,
+  `docs/DESIGN.md`, and `.claude/settings.json`: the template now ships files
+  at paths PreLexy already owns. `template-sync` will need a `TEMPLATE_TOKEN`
+  repository Actions secret before it can pass.
+
 ### 2026-07-20 — CI green: omw-2.0 corpus
 
 - CI was failing: 8 Dutch/OMW tests raised `LookupError: Resource

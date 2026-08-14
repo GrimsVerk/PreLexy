@@ -17,17 +17,21 @@ fall back to random same-POS picks.
 from __future__ import annotations
 
 import random
+import sqlite3
 from dataclasses import dataclass
 
 from prelexy import debug
 from prelexy.config import DEFAULTS
 from prelexy.definitions import (
+    Sense,
     ensure_sense,
     synonym_conflict,
     wordnet_lemma_names,
     wordnet_sense,
 )
 from prelexy.languages import code_language_codes, get_language
+from prelexy.similarity import SimilarityProvider
+from prelexy.store import Store
 
 # The distractor band, applied to definition-text similarity: above the
 # ceiling the two definitions nearly coincide (near-synonym — ambiguous,
@@ -66,13 +70,13 @@ class Question:
 
 
 def build_question(
-    store,
-    item,
-    similarity=None,
-    rng=None,
-    band=None,
-    pool_size=None,
-    code_own_pool=None,
+    store: Store,
+    item: sqlite3.Row,
+    similarity: SimilarityProvider | None = None,
+    rng: random.Random | None = None,
+    band: tuple[float, float] | None = None,
+    pool_size: int | None = None,
+    code_own_pool: bool | None = None,
 ) -> Question | None:
     """Build an MCQ for an item row.
 
@@ -104,7 +108,12 @@ def build_question(
 
 
 def _distractors(
-    item, correct_sense, similarity, rng, band=None, pool_size=None
+    item: sqlite3.Row,
+    correct_sense: Sense,
+    similarity: SimilarityProvider | None,
+    rng: random.Random,
+    band: tuple[float, float] | None = None,
+    pool_size: int | None = None,
 ) -> list[str]:
     """Up to N_OPTIONS-1 distractor glosses, sampled from the hardest available.
 
@@ -143,13 +152,12 @@ def _distractors(
             return True
         debug.log("mcq", f"{item['form']!r} ✗ {word!r} (WordNet synonym/relative)")
         return False
+
     for candidate in _wordnet_candidates(pool_pos, item["language"], rng):
         scanned += 1
         if candidate == target_lemma:
             continue
-        sense = wordnet_sense(
-            candidate, pool_pos, item["language"], include_instances=False
-        )
+        sense = wordnet_sense(candidate, pool_pos, item["language"], include_instances=False)
         if sense is None or sense.gloss in seen_glosses:
             continue
         if target_lemma in sense.gloss.lower().split():
@@ -157,11 +165,7 @@ def _distractors(
         if not _length_compatible(correct_gloss, sense.gloss):
             continue
         seen_glosses.add(sense.gloss)
-        score = (
-            similarity.text_similarity(correct_gloss, sense.gloss)
-            if similarity
-            else None
-        )
+        score = similarity.text_similarity(correct_gloss, sense.gloss) if similarity else None
         if score is None:
             # without a provider the scan stops at `needed`, so the
             # fairness guard must apply before counting, not after
@@ -171,9 +175,7 @@ def _distractors(
                 break
             continue
         if score >= ceiling:
-            debug.log(
-                "mcq", f"{item['form']!r} ✗ {candidate!r} score {score:.3f} (near-synonym)"
-            )
+            debug.log("mcq", f"{item['form']!r} ✗ {candidate!r} score {score:.3f} (near-synonym)")
             continue
         scored.append((score, candidate, sense.gloss))
 
@@ -188,7 +190,7 @@ def _distractors(
     scored.sort(reverse=True)  # hardest first
     in_band = [entry for entry in scored if entry[0] > floor]
     ranked = in_band if len(in_band) >= needed else scored
-    pool = []
+    pool: list[tuple[float, str, str]] = []
     for entry in ranked:
         if len(pool) == pool_size:
             break
@@ -205,11 +207,9 @@ def _distractors(
     )
     glosses = [gloss for _, _, gloss in sampled]
     if len(glosses) < needed:
-        glosses += [
-            gloss
-            for word, gloss in unscored
-            if gloss not in glosses and fair(word)
-        ][: needed - len(glosses)]
+        glosses += [gloss for word, gloss in unscored if gloss not in glosses and fair(word)][
+            : needed - len(glosses)
+        ]
     return glosses
 
 
@@ -219,7 +219,14 @@ def _length_compatible(correct_gloss: str, candidate_gloss: str) -> bool:
 
 
 def _code_distractors(
-    store, item, correct_gloss, similarity, rng, band=None, pool_size=None, own_pool=None
+    store: Store,
+    item: sqlite3.Row,
+    correct_gloss: str,
+    similarity: SimilarityProvider | None,
+    rng: random.Random,
+    band: tuple[float, float] | None = None,
+    pool_size: int | None = None,
+    own_pool: bool | None = None,
 ) -> list[str]:
     """Distractors for code items: same-kind glosses from ingested corpora.
 
@@ -283,21 +290,22 @@ def _code_distractors(
     return glosses
 
 
-def _pool_pos(item, correct_sense) -> str | None:
+def _pool_pos(item: sqlite3.Row, correct_sense: Sense) -> str | None:
     """The POS the correct gloss was sourced from.
 
     Cache reads carry no POS (the senses table stores none), so re-derive
     by asking WordNet afresh and checking it yields the same gloss.
     """
-    if correct_sense.pos:
+    if correct_sense.pos is not None:
         return correct_sense.pos
     fresh = wordnet_sense(item["form"], item["pos"], item["language"])
     if fresh is not None and fresh.gloss == correct_sense.gloss and fresh.pos:
         return fresh.pos
-    return item["pos"]
+    pos = item["pos"]
+    return str(pos) if pos is not None else None
 
 
-def _wordnet_candidates(pos, language, rng) -> list[str]:
+def _wordnet_candidates(pos: str | None, language: str, rng: random.Random) -> list[str]:
     """A fresh random sample of same-POS WordNet lemmas for one question."""
     names = wordnet_lemma_names(pos, language)
-    return rng.sample(names, min(len(names), _SCAN_LIMIT))
+    return list(rng.sample(names, min(len(names), _SCAN_LIMIT)))

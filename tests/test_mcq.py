@@ -1,4 +1,7 @@
 import random
+import sqlite3
+from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -11,7 +14,7 @@ IN_BAND = (SIMILARITY_FLOOR + SIMILARITY_CEILING) / 2
 
 
 @pytest.fixture(autouse=True)
-def no_network(monkeypatch):
+def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         definitions, "_fetch_api_json", lambda url: pytest.fail("unexpected API call")
     )
@@ -20,39 +23,47 @@ def no_network(monkeypatch):
 class FakeSimilarity:
     """Similarity by lookup table; None (= no usable vector) otherwise."""
 
-    def __init__(self, table):
+    def __init__(self, table: dict[frozenset[str], float]) -> None:
         self.table = table
 
-    def similarity(self, a, b):
+    def similarity(self, a: str, b: str) -> float | None:
         return self.table.get(frozenset((a, b)))
 
-    def text_similarity(self, a, b):
+    def text_similarity(self, a: str, b: str) -> float | None:
         return self.table.get(frozenset((a, b)))
 
 
-def gloss_of(word):
-    return definitions.wordnet_sense(word, "ADJ").gloss
+def gloss_of(word: str) -> str:
+    sense = definitions.wordnet_sense(word, "ADJ")
+    assert sense is not None
+    return sense.gloss
 
 
 @pytest.fixture
-def store(tmp_path):
+def store(tmp_path: Path) -> Iterator[Store]:
     with Store(tmp_path / "test.db") as s:
         yield s
 
 
-def add_target(store, form="sagacious", pos="ADJ", gloss="having keen judgement"):
-    item_id = store.get_or_create_item(
-        "en", form, lemma=form, pos=pos, metadata={"zipf": 2.5}
-    )
+def add_target(
+    store: Store,
+    form: str = "sagacious",
+    pos: str = "ADJ",
+    gloss: str = "having keen judgement",
+) -> sqlite3.Row:
+    item_id = store.get_or_create_item("en", form, lemma=form, pos=pos, metadata={"zipf": 2.5})
     store.add_sense(item_id, gloss, "en", "wordnet")
-    return store.find_item("en", form)
+    item = store.find_item("en", form)
+    assert item is not None
+    assert item is not None
+    return item
 
 
-def use_candidates(monkeypatch, words):
+def use_candidates(monkeypatch: pytest.MonkeyPatch, words: list[str]) -> None:
     monkeypatch.setattr(mcq, "_wordnet_candidates", lambda pos, language, rng: list(words))
 
 
-def test_question_built_from_real_wordnet_pool(store):
+def test_question_built_from_real_wordnet_pool(store: Store) -> None:
     """Integration: no patched pool, no provider — the WordNet fallback path."""
     item = add_target(store)
     question = build_question(store, item, rng=random.Random(42))
@@ -62,14 +73,18 @@ def test_question_built_from_real_wordnet_pool(store):
     assert len(set(question.options)) == 4
 
 
-def test_options_vary_between_sessions(store):
+def test_options_vary_between_sessions(store: Store) -> None:
     item = add_target(store)
     first = build_question(store, item, rng=random.Random(1))
+    assert first is not None
     second = build_question(store, item, rng=random.Random(2))
+    assert second is not None
     assert set(first.options) != set(second.options)
 
 
-def test_band_governs_selection_by_gloss_similarity(store, monkeypatch):
+def test_band_governs_selection_by_gloss_similarity(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     correct = "having keen judgement"
     item = add_target(store, gloss=correct)
     use_candidates(monkeypatch, ["wise", "gaunt", "sallow", "listless", "crimson"])
@@ -83,12 +98,13 @@ def test_band_governs_selection_by_gloss_similarity(store, monkeypatch):
         }
     )
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
+    assert question is not None
     assert gloss_of("wise") not in question.options
     assert gloss_of("crimson") not in question.options
     assert len(question.options) == 4
 
 
-def test_unscored_candidates_only_top_up(store, monkeypatch):
+def test_unscored_candidates_only_top_up(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
     correct = "having keen judgement"
     item = add_target(store, gloss=correct)
     # 'gaunt' has no score (no usable vector); the three in-band glosses win.
@@ -101,23 +117,39 @@ def test_unscored_candidates_only_top_up(store, monkeypatch):
         }
     )
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
+    assert question is not None
     assert gloss_of("gaunt") not in question.options
 
     # with one in-band word missing, the unscored candidate fills the gap
     use_candidates(monkeypatch, ["gaunt", "sallow", "listless"])
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
+    assert question is not None
     assert gloss_of("gaunt") in question.options
 
 
-def test_pool_biases_toward_hardest_candidates(store, monkeypatch):
+def test_pool_biases_toward_hardest_candidates(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import prelexy.mcq as mcq_module
 
     correct = "having keen judgement"
     item = add_target(store, gloss=correct)
     # 12 in-band candidates with ascending scores: the 2 weakest fall
     # outside the top-10 pool and must never be sampled.
-    words = ["gaunt", "sallow", "listless", "sombre", "wan", "ashen",
-             "haggard", "drawn", "pallid", "peaked", "sickly", "drab"]
+    words = [
+        "gaunt",
+        "sallow",
+        "listless",
+        "sombre",
+        "wan",
+        "ashen",
+        "haggard",
+        "drawn",
+        "pallid",
+        "peaked",
+        "sickly",
+        "drab",
+    ]
     table, glosses = {}, {}
     for rank, word in enumerate(words):
         gloss = f"gloss number {rank} for {word}"
@@ -132,18 +164,21 @@ def test_pool_biases_toward_hardest_candidates(store, monkeypatch):
     )
     use_candidates(monkeypatch, words)
 
-    seen = set()
+    seen: set[str] = set()
     for seed in range(20):
         question = build_question(
             store, item, similarity=FakeSimilarity(table), rng=random.Random(seed)
         )
+        assert question is not None
         seen.update(question.options)
     assert glosses["gaunt"] not in seen  # weakest two: outside the pool
     assert glosses["sallow"] not in seen
     assert glosses["drab"] in seen  # the hardest is reachable
 
 
-def test_below_floor_candidates_fill_when_band_is_empty(store, monkeypatch):
+def test_below_floor_candidates_fill_when_band_is_empty(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     correct = "having keen judgement"
     item = add_target(store, gloss=correct)
     use_candidates(monkeypatch, ["gaunt", "sallow", "listless", "crimson"])
@@ -156,21 +191,27 @@ def test_below_floor_candidates_fill_when_band_is_empty(store, monkeypatch):
         }
     )
     question = build_question(store, item, similarity=similarity, rng=random.Random(0))
+    assert question is not None
     assert len(question.options) == 4  # most-similar-available, not none
 
 
-def test_wordnet_synonyms_never_become_distractors(store, monkeypatch):
-    item = add_target(
-        store, form="joy", pos="NOUN", gloss="the emotion of great happiness"
-    )
+def test_wordnet_synonyms_never_become_distractors(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    item = add_target(store, form="joy", pos="NOUN", gloss="the emotion of great happiness")
     use_candidates(monkeypatch, ["delight", "brickfield", "scaup", "probity"])
     question = build_question(store, item, rng=random.Random(0))
-    delight_gloss = definitions.wordnet_sense("delight", "NOUN").gloss
+    assert question is not None
+    delight_sense = definitions.wordnet_sense("delight", "NOUN")
+    assert delight_sense is not None
+    delight_gloss = delight_sense.gloss
     assert delight_gloss not in question.options  # 'delight' is a synonym of 'joy'
     assert len(question.options) == 4
 
 
-def test_length_mismatched_glosses_are_excluded(store, monkeypatch):
+def test_length_mismatched_glosses_are_excluded(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from prelexy.mcq import _length_compatible
 
     short = "a vivid red"
@@ -188,33 +229,37 @@ def test_length_mismatched_glosses_are_excluded(store, monkeypatch):
     # end to end: the monster gloss never appears even when in band
     item = add_target(store, gloss=short)
     use_candidates(monkeypatch, ["gaunt", "sallow", "listless", "crimson"])
-    table = {frozenset((short, gloss_of(w))): IN_BAND
-             for w in ("gaunt", "sallow", "listless", "crimson")}
+    table = {
+        frozenset((short, gloss_of(w))): IN_BAND for w in ("gaunt", "sallow", "listless", "crimson")
+    }
     monkeypatch.setattr(
         "prelexy.mcq._length_compatible",
         lambda correct, cand: cand != gloss_of("crimson"),
     )
     question = build_question(store, item, similarity=FakeSimilarity(table), rng=random.Random(0))
+    assert question is not None
     assert gloss_of("crimson") not in question.options
     assert len(question.options) == 4
 
 
-def test_candidate_pool_follows_the_gloss_pos(store, monkeypatch):
+def test_candidate_pool_follows_the_gloss_pos(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import prelexy.mcq as mcq_module
 
     asked = []
     real_candidates = mcq_module._wordnet_candidates
 
-    def recording_candidates(pos, language, rng):
+    def recording_candidates(pos: str | None, language: str, rng: random.Random) -> list[str]:
         asked.append(pos)
         return real_candidates(pos, language, rng)
 
     monkeypatch.setattr(mcq_module, "_wordnet_candidates", recording_candidates)
 
     # fresh lookup: 'gartered' stored as ADJ, glossed from the verb 'garter'
-    store.get_or_create_item("en", "gartered", lemma="gartered", pos="ADJ",
-                             metadata={"zipf": 1.0})
+    store.get_or_create_item("en", "gartered", lemma="gartered", pos="ADJ", metadata={"zipf": 1.0})
     item = store.find_item("en", "gartered")
+    assert item is not None
     question = build_question(store, item, rng=random.Random(0))
     assert question is not None
     assert asked == ["VERB"]
@@ -226,23 +271,41 @@ def test_candidate_pool_follows_the_gloss_pos(store, monkeypatch):
     assert asked == ["VERB"]
 
 
-def add_code_item(store, form, gloss, language="python", kind="method", order=0):
+def add_code_item(
+    store: Store,
+    form: str,
+    gloss: str,
+    language: str = "python",
+    kind: str = "method",
+    order: int = 0,
+) -> sqlite3.Row:
     item_id = store.get_or_create_item(
-        language, form, lemma=form, pos=kind,
-        metadata={"kind": kind, "module": form.split(".")[0],
-                  "signature": f"{form}(...)", "order": order},
+        language,
+        form,
+        lemma=form,
+        pos=kind,
+        metadata={
+            "kind": kind,
+            "module": form.split(".")[0],
+            "signature": f"{form}(...)",
+            "order": order,
+        },
     )
     store.add_sense(item_id, gloss, "en", "docs")
-    return item_id
+    item = store.find_item(language, form)
+    assert item is not None
+    assert item is not None
+    return item
 
 
-def test_code_question_uses_corpus_pool(store, monkeypatch):
+def test_code_question_uses_corpus_pool(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
     add_code_item(store, "list.pop", "Remove and return the item at the given position.")
     add_code_item(store, "list.append", "Add an item to the end of the list.")
     add_code_item(store, "dict.get", "Return the value for a key if present.")
     add_code_item(store, "set.add", "Add an element to the set.")
     add_code_item(store, "list.index", "Return the index of the first matching item.")
     item = store.find_item("python", "list.pop")
+    assert item is not None
 
     question = build_question(store, item, rng=random.Random(3))
     assert question is not None
@@ -251,7 +314,9 @@ def test_code_question_uses_corpus_pool(store, monkeypatch):
     assert len(set(question.options)) == 4
 
 
-def test_code_pool_spans_languages_unless_restricted(store, monkeypatch):
+def test_code_pool_spans_languages_unless_restricted(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from prelexy.languages import LANGUAGES, Language
 
     monkeypatch.setitem(LANGUAGES, "java", Language(code="java", kind="code"))
@@ -261,22 +326,25 @@ def test_code_pool_spans_languages_unless_restricted(store, monkeypatch):
     add_code_item(store, "list.append", "Add an item to the end of the list.")
     add_code_item(store, "dict.get", "Return the value for a key if present.")
     item = store.find_item("python", "list.pop")
+    assert item is not None
 
     question = build_question(store, item, rng=random.Random(0), code_own_pool=False)
+    assert question is not None
     assert java_gloss in question.options  # cross-corpus by default
 
     seen = set()
     for seed in range(10):
         question = build_question(store, item, rng=random.Random(seed), code_own_pool=True)
+        assert question is not None
         seen.update(question.options)
     assert java_gloss not in seen  # restricted to python
 
 
-def test_dutch_question_end_to_end_offline(store):
+def test_dutch_question_end_to_end_offline(store: Store) -> None:
     """A Dutch item gets an English-glossed MCQ with Dutch-pool distractors."""
-    store.get_or_create_item("nl", "fiets", lemma="fiets", pos="NOUN",
-                             metadata={"zipf": 4.0})
+    store.get_or_create_item("nl", "fiets", lemma="fiets", pos="NOUN", metadata={"zipf": 4.0})
     item = store.find_item("nl", "fiets")
+    assert item is not None
     question = build_question(store, item, rng=random.Random(7))
     assert question is not None
     assert len(question.options) == 4
@@ -284,55 +352,65 @@ def test_dutch_question_end_to_end_offline(store):
     assert len(set(question.options)) == 4
 
 
-def test_named_entities_never_become_distractors(store, monkeypatch):
-    item = add_target(store, form="carthorse", pos="NOUN", gloss="draft horse kept for pulling carts")
+def test_named_entities_never_become_distractors(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    item = add_target(
+        store, form="carthorse", pos="NOUN", gloss="draft horse kept for pulling carts"
+    )
     use_candidates(monkeypatch, ["guevara", "jacksonville", "scaup", "denizen", "probity"])
     question = build_question(store, item, rng=random.Random(0))
+    assert question is not None
     joined = " ".join(question.options)
     assert "Argentine" not in joined
     assert "Florida" not in joined
     assert len(question.options) == 4  # the ordinary words still fill the set
 
 
-def test_gloss_naming_the_target_is_excluded(store, monkeypatch):
+def test_gloss_naming_the_target_is_excluded(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
     # "sagacious" defines itself as "acutely insightful and wise" — for the
     # target "wise" that option would give the game away.
     item = add_target(store, form="wise", gloss="having or prompted by wisdom")
     use_candidates(monkeypatch, ["sagacious", "gaunt", "sallow", "listless"])
     question = build_question(store, item, rng=random.Random(0))
+    assert question is not None
     assert gloss_of("sagacious") not in question.options
     assert len(question.options) == 4
 
 
-def test_target_lemma_never_a_distractor(store, monkeypatch):
+def test_target_lemma_never_a_distractor(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
     item = add_target(store)
     use_candidates(monkeypatch, ["sagacious", "gaunt", "sallow", "listless"])
     question = build_question(store, item, rng=random.Random(0))
+    assert question is not None
     assert question.options.count("having keen judgement") == 1
     assert len(question.options) == 4
 
 
-def test_exhausted_pool_yields_fewer_options(store, monkeypatch):
+def test_exhausted_pool_yields_fewer_options(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
     item = add_target(store)
     use_candidates(monkeypatch, ["gaunt"])
     question = build_question(store, item, rng=random.Random(0))
+    assert question is not None
     assert len(question.options) == 2
 
     use_candidates(monkeypatch, [])
     assert build_question(store, item, rng=random.Random(0)) is None
 
 
-def test_unknown_definition_returns_none(store, monkeypatch):
+def test_unknown_definition_returns_none(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(definitions, "_fetch_api_json", lambda url: None)
-    item_id = store.get_or_create_item("en", "xqzt", lemma="xqzt", pos="ADJ")
+    store.get_or_create_item("en", "xqzt", lemma="xqzt", pos="ADJ")
     item = store.find_item("en", "xqzt")
+    assert item is not None
     assert build_question(store, item) is None
 
 
-def test_all_vectors_missing_falls_back_entirely(store, monkeypatch):
+def test_all_vectors_missing_falls_back_entirely(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     item = add_target(store)
     use_candidates(monkeypatch, ["gaunt", "sallow", "listless"])
-    question = build_question(
-        store, item, similarity=FakeSimilarity({}), rng=random.Random(0)
-    )
+    question = build_question(store, item, similarity=FakeSimilarity({}), rng=random.Random(0))
+    assert question is not None
     assert len(question.options) == 4

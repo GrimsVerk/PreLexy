@@ -1,42 +1,40 @@
 import random
+from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
 import prelexy.definitions as definitions
 import prelexy.session as session
 from prelexy.scheduler import SimpleScheduler
-from prelexy.session import run_session
+from prelexy.session import SessionSummary, run_session
 from prelexy.store import Store
 
 
 @pytest.fixture(autouse=True)
-def no_network(monkeypatch):
+def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(definitions, "_fetch_api_json", lambda url: None)
 
 
 @pytest.fixture
-def store(tmp_path):
+def store(tmp_path: Path) -> Iterator[Store]:
     with Store(tmp_path / "test.db") as s:
         yield s
 
 
-def add_word(store, form, zipf=2.5, gloss=None):
-    item_id = store.get_or_create_item(
-        "en", form, lemma=form, pos="ADJ", metadata={"zipf": zipf}
-    )
+def add_word(store: Store, form: str, zipf: float = 2.5, gloss: str | None = None) -> int:
+    item_id = store.get_or_create_item("en", form, lemma=form, pos="ADJ", metadata={"zipf": zipf})
     if gloss:
         store.add_sense(item_id, gloss, "en", "wordnet")
     return item_id
 
 
-def feed_answers(monkeypatch, answers):
+def feed_answers(monkeypatch: pytest.MonkeyPatch, answers: list[str]) -> None:
     answer_iterator = iter(answers)
-    monkeypatch.setattr(
-        session.click, "prompt", lambda *args, **kwargs: next(answer_iterator)
-    )
+    monkeypatch.setattr("click.prompt", lambda *args, **kwargs: next(answer_iterator))
 
 
-def play(store, profile, n_questions=10):
+def play(store: Store, profile: int, n_questions: int = 10) -> SessionSummary:
     return run_session(
         store,
         profile,
@@ -47,7 +45,9 @@ def play(store, profile, n_questions=10):
     )
 
 
-def test_session_records_reviews_and_state(store, monkeypatch, capsys):
+def test_session_records_reviews_and_state(
+    store: Store, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     profile = store.get_or_create_profile("p")
     target = add_word(store, "sagacious", gloss="having keen judgement")
     add_word(store, "gaunt", gloss="very thin")
@@ -78,7 +78,7 @@ def test_session_records_reviews_and_state(store, monkeypatch, capsys):
         assert log["response"]  # the chosen gloss text, from WordNet at large
 
 
-def test_quit_stops_early_without_logging(store, monkeypatch):
+def test_quit_stops_early_without_logging(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
     profile = store.get_or_create_profile("p")
     add_word(store, "sagacious", gloss="having keen judgement")
     add_word(store, "gaunt", gloss="very thin")
@@ -89,7 +89,9 @@ def test_quit_stops_early_without_logging(store, monkeypatch):
     assert store._conn.execute("SELECT COUNT(*) c FROM review_log").fetchone()["c"] == 0
 
 
-def test_invalid_input_reprompts(store, monkeypatch, capsys):
+def test_invalid_input_reprompts(
+    store: Store, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     profile = store.get_or_create_profile("p")
     add_word(store, "sagacious", gloss="having keen judgement")
     add_word(store, "gaunt", gloss="very thin")
@@ -100,7 +102,7 @@ def test_invalid_input_reprompts(store, monkeypatch, capsys):
     assert "Please answer" in capsys.readouterr().out
 
 
-def test_undefinable_words_get_suspended(store, monkeypatch):
+def test_undefinable_words_get_suspended(store: Store, monkeypatch: pytest.MonkeyPatch) -> None:
     profile = store.get_or_create_profile("p")
     add_word(store, "xqzt", zipf=0.5)  # rarest → served first; no gloss anywhere
     add_word(store, "sagacious", gloss="having keen judgement")
@@ -121,15 +123,19 @@ def test_undefinable_words_get_suspended(store, monkeypatch):
     assert play(store, profile).suspended == 0
 
 
-def test_p_pronounces_and_still_records_one_review(store, monkeypatch):
+def test_p_pronounces_and_still_records_one_review(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     profile = store.get_or_create_profile("p")
     add_word(store, "sagacious", zipf=2.0, gloss="having keen judgement")  # served first
     add_word(store, "gaunt", zipf=2.6, gloss="very thin")
     spoken = []
-    monkeypatch.setattr(
-        session, "pronounce",
-        lambda word, language="en", voice=None: spoken.append(word) or True,
-    )
+
+    def fake_pronounce(word: str, language: str = "en", voice: str | None = None) -> bool:
+        spoken.append(word)
+        return True
+
+    monkeypatch.setattr(session, "pronounce", fake_pronounce)
     feed_answers(monkeypatch, ["p", "1", "q"])
 
     summary = play(store, profile)
@@ -138,20 +144,22 @@ def test_p_pronounces_and_still_records_one_review(store, monkeypatch):
     assert store._conn.execute("SELECT COUNT(*) c FROM review_log").fetchone()["c"] == 1
 
 
-def test_p_without_engine_shows_hint(store, monkeypatch, capsys):
+def test_p_without_engine_shows_hint(
+    store: Store, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     profile = store.get_or_create_profile("p")
     add_word(store, "sagacious", gloss="having keen judgement")
     add_word(store, "gaunt", gloss="very thin")
-    monkeypatch.setattr(
-        session, "pronounce", lambda word, language="en", voice=None: False
-    )
+    monkeypatch.setattr(session, "pronounce", lambda word, language="en", voice=None: False)
     feed_answers(monkeypatch, ["p", "q"])
 
     play(store, profile)
     assert "No speech engine found" in capsys.readouterr().out
 
 
-def test_show_context_false_hides_the_sentence(store, monkeypatch, capsys):
+def test_show_context_false_hides_the_sentence(
+    store: Store, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     profile = store.get_or_create_profile("p")
     target = add_word(store, "sagacious", gloss="having keen judgement")
     add_word(store, "gaunt", gloss="very thin")
@@ -160,31 +168,43 @@ def test_show_context_false_hides_the_sentence(store, monkeypatch, capsys):
     feed_answers(monkeypatch, ["1", "q"])
 
     run_session(
-        store, profile, "en", SimpleScheduler(),
-        rng=random.Random(42), show_context=False,
+        store,
+        profile,
+        "en",
+        SimpleScheduler(),
+        rng=random.Random(42),
+        show_context=False,
     )
     assert "seen in:" not in capsys.readouterr().out
 
 
-def test_p_passes_language_and_voice_to_pronounce(store, monkeypatch):
+def test_p_passes_language_and_voice_to_pronounce(
+    store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
     profile = store.get_or_create_profile("p")
     add_word(store, "sagacious", zipf=2.0, gloss="having keen judgement")
     add_word(store, "gaunt", zipf=2.6, gloss="very thin")
     calls = []
-    monkeypatch.setattr(
-        session, "pronounce",
-        lambda word, language="en", voice=None: calls.append((word, language, voice)) or True,
-    )
+
+    def fake_pronounce(word: str, language: str = "en", voice: str | None = None) -> bool:
+        calls.append((word, language, voice))
+        return True
+
+    monkeypatch.setattr(session, "pronounce", fake_pronounce)
     feed_answers(monkeypatch, ["p", "q"])
 
     run_session(
-        store, profile, "en", SimpleScheduler(),
-        rng=random.Random(42), tts_voice="en-gb",
+        store,
+        profile,
+        "en",
+        SimpleScheduler(),
+        rng=random.Random(42),
+        tts_voice="en-gb",
     )
     assert calls == [("sagacious", "en", "en-gb")]
 
 
-def test_empty_store_says_so(store, capsys):
+def test_empty_store_says_so(store: Store, capsys: pytest.CaptureFixture[str]) -> None:
     profile = store.get_or_create_profile("p")
     summary = play(store, profile)
     assert summary.asked == 0
@@ -192,7 +212,9 @@ def test_empty_store_says_so(store, capsys):
     assert "Nothing stored for 'en'" in capsys.readouterr().out
 
 
-def test_empty_session_points_at_other_languages(store, capsys):
+def test_empty_session_points_at_other_languages(
+    store: Store, capsys: pytest.CaptureFixture[str]
+) -> None:
     profile = store.get_or_create_profile("p")
     # a Dutch corpus exists, but we ask to play empty English
     for i in range(3):

@@ -54,19 +54,30 @@ blocked on something only the owner can provide.
 
 ## Enforcement
 
-CI (`.github/workflows/tests.yml`) runs the test suite on every push and
-pull request, regardless of which tool or agent wrote the code. Git-level
-hooks live in `.pre-commit-config.yaml` (enable with `pre-commit install`);
-note that its ruff/mypy hooks are ahead of this codebase — adopting those
-toolchains is an open owner decision, and until then only the gitleaks
-hook is expected to pass. A failing gate is fixed, never bypassed: no
-`--no-verify`, no skipping or weakening checks to get green.
+CI (`.github/workflows/ci.yml`) runs lint, formatting, typing, and the test
+suite on every push and pull request, regardless of which tool or agent wrote
+the code. The same checks run as git hooks via `.pre-commit-config.yaml`
+(enable with `pre-commit install`). A failing gate is fixed, never bypassed:
+no `--no-verify`, no skipping or weakening checks to get green.
+
+`ci.yml` is the template's file, unmodified — keep it that way. Project-specific
+test setup belongs in the root `conftest.py`, which the template does not ship
+and therefore never overwrites; that is where the WordNet/OMW corpora are
+ensured before the suite runs.
 
 ## Language-specific
 
-Python 3.11, conda-managed (`environment.yml`), package at `prelexy/`, no
-build step. Run the suite with `python -m pytest`. The offline rule is
-enforced by the autouse fixture in `tests/conftest.py` (plus per-module
-`no_network` fixtures). There is no lint/format/type configuration yet —
-introducing ruff/mypy/`pyproject.toml` is tracked as an open decision, not
-something to adopt unilaterally.
+Python 3.11, package at `prelexy/` (not `src/`), no build step. Dependencies
+are declared in `pyproject.toml` and locked in `uv.lock`; `environment.yml`
+remains the owner's conda environment and must be kept in step by hand when
+dependencies change.
+
+`pyproject.toml` is the source of truth for lint, format, and typing rules —
+follow it, don't restate or override it. The suite's offline rule is enforced
+by the autouse fixture in `tests/conftest.py` (plus per-module `no_network`
+fixtures). Run the full gate locally with:
+
+    uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
+
+The project is clean under `mypy --strict`; keep it that way rather than
+adding per-module escapes.

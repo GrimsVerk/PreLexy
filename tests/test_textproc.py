@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 import spacy
 from spacy.tokens import Doc
@@ -15,14 +17,19 @@ from prelexy.textproc import (
 VOCAB = spacy.blank("en").vocab
 
 
-def make_doc(words, lemmas, pos, sent_starts=None):
+def make_doc(
+    words: list[str],
+    lemmas: list[str],
+    pos: list[str],
+    sent_starts: list[bool | int | None] | None = None,
+) -> Any:
     """Build a fully annotated Doc by hand, so no statistical model is needed."""
     if sent_starts is None:
         sent_starts = [i == 0 for i in range(len(words))]
     return Doc(VOCAB, words=words, lemmas=lemmas, pos=pos, sent_starts=sent_starts)
 
 
-def test_paragraphs_yields_blocks_with_offsets():
+def test_paragraphs_yields_blocks_with_offsets() -> None:
     text = "First block.\n\nSecond\nblock.\n\n\n\nThird."
     blocks = list(_paragraphs(text))
     assert [b for b, _ in blocks] == ["First block.", "Second\nblock.", "Third."]
@@ -30,14 +37,14 @@ def test_paragraphs_yields_blocks_with_offsets():
         assert text[offset : offset + len(block)] == block
 
 
-def test_in_dictionary_accepts_real_words_and_rejects_ocr_garbage():
+def test_in_dictionary_accepts_real_words_and_rejects_ocr_garbage() -> None:
     assert in_dictionary("sagacious")
     assert in_dictionary("run")
     assert not in_dictionary("xqzt")
     assert not in_dictionary("wia")  # actual OCR junk from the Dorian Gray scan
 
 
-def test_collect_filters_stopwords_propn_and_garbage():
+def test_collect_filters_stopwords_propn_and_garbage() -> None:
     doc = make_doc(
         words=["The", "sagacious", "professor", "saw", "London", "and", "xqzt", "."],
         lemmas=["the", "sagacious", "professor", "see", "London", "and", "xqzt", "."],
@@ -47,7 +54,7 @@ def test_collect_filters_stopwords_propn_and_garbage():
     assert forms == {"sagacious", "professor", "see"}
 
 
-def test_collect_merges_inflections_into_one_lemma_item():
+def test_collect_merges_inflections_into_one_lemma_item() -> None:
     doc_a = make_doc(
         words=["He", "ran", "far", "."],
         lemmas=["he", "run", "far", "."],
@@ -64,21 +71,19 @@ def test_collect_merges_inflections_into_one_lemma_item():
     assert len(runs[0].occurrences) == 2
 
 
-def test_collect_records_sentence_context_and_absolute_offset():
+def test_collect_records_sentence_context_and_absolute_offset() -> None:
     doc = make_doc(
         words=["He", "perambulated", "slowly", "."],
         lemmas=["he", "perambulate", "slowly", "."],
         pos=["PRON", "VERB", "ADV", "PUNCT"],
     )
-    (candidate,) = [
-        c for c in collect_candidates([(doc, 500)], "en") if c.form == "perambulate"
-    ]
+    (candidate,) = [c for c in collect_candidates([(doc, 500)], "en") if c.form == "perambulate"]
     (context, position) = candidate.occurrences[0]
     assert context == "He perambulated slowly ."
     assert position == 500 + doc[1].idx
 
 
-def test_collect_ranks_rarest_first():
+def test_collect_ranks_rarest_first() -> None:
     doc = make_doc(
         words=["professor", "perambulated", "sagacious"],
         lemmas=["professor", "perambulate", "sagacious"],
@@ -90,7 +95,7 @@ def test_collect_ranks_rarest_first():
     assert candidates[-1].form == "professor"  # by far the most common of the three
 
 
-def test_item_form_policy_lemma_for_english_surface_otherwise():
+def test_item_form_policy_lemma_for_english_surface_otherwise() -> None:
     doc = make_doc(words=["running"], lemmas=["run"], pos=["VERB"])
     assert item_form(doc[0], "en") == "run"
     assert item_form(doc[0], "nl") == "running"
@@ -103,7 +108,7 @@ except (OSError, ValueError):
 
 
 @pytest.mark.skipif(_NLP is None, reason="no spaCy English model installed")
-def test_extract_candidates_end_to_end_with_real_model():
+def test_extract_candidates_end_to_end_with_real_model() -> None:
     text = (
         "The sagacious old man perambulated through London.\n\n"
         "He was perambulating again when Dorian saw him."

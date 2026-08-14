@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -17,43 +18,38 @@ EXPECTED_TABLES = {
 
 
 @pytest.fixture
-def db(tmp_path):
+def db(tmp_path: Path) -> Path:
     return tmp_path / "test.db"
 
 
-def test_creates_full_schema(db):
+def test_creates_full_schema(db: Path) -> None:
     with Store(db) as store:
-        rows = store._conn.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table'"
-        ).fetchall()
-    assert EXPECTED_TABLES <= {row["name"] for row in rows}
+        rows = store._conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+    assert {row["name"] for row in rows} >= EXPECTED_TABLES
 
 
-def test_schema_version_persists_and_mismatch_is_rejected(db):
+def test_schema_version_persists_and_mismatch_is_rejected(db: Path) -> None:
     with Store(db):
         pass
     with Store(db) as store:
-        row = store._conn.execute(
-            "SELECT value FROM meta WHERE key = 'schema_version'"
-        ).fetchone()
+        row = store._conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
         assert int(row["value"]) == SCHEMA_VERSION
-        store._conn.execute(
-            "UPDATE meta SET value = '999' WHERE key = 'schema_version'"
-        )
+        store._conn.execute("UPDATE meta SET value = '999' WHERE key = 'schema_version'")
     with pytest.raises(RuntimeError, match="schema version 999"):
         Store(db)
 
 
-def test_add_source_and_find_by_path(db):
+def test_add_source_and_find_by_path(db: Path) -> None:
     with Store(db) as store:
         source_id = store.add_source("Dorian Gray", "en", "book", "/tmp/dg.txt")
         assert source_id == 1
         found = store.find_source_by_path("/tmp/dg.txt")
+        assert found is not None
         assert found["title"] == "Dorian Gray"
         assert store.find_source_by_path("/nowhere") is None
 
 
-def test_get_or_create_item_dedupes_on_language_and_form(db):
+def test_get_or_create_item_dedupes_on_language_and_form(db: Path) -> None:
     with Store(db) as store:
         a = store.get_or_create_item("en", "run", lemma="run", pos="VERB")
         b = store.get_or_create_item("en", "run")
@@ -62,16 +58,14 @@ def test_get_or_create_item_dedupes_on_language_and_form(db):
         assert a != c
 
 
-def test_item_metadata_roundtrip(db):
+def test_item_metadata_roundtrip(db: Path) -> None:
     with Store(db) as store:
         item_id = store.get_or_create_item("en", "sagacious", metadata={"zipf": 2.5})
-        row = store._conn.execute(
-            "SELECT metadata FROM items WHERE id = ?", (item_id,)
-        ).fetchone()
+        row = store._conn.execute("SELECT metadata FROM items WHERE id = ?", (item_id,)).fetchone()
         assert json.loads(row["metadata"]) == {"zipf": 2.5}
 
 
-def test_list_items_counts_occurrences(db):
+def test_list_items_counts_occurrences(db: Path) -> None:
     with Store(db) as store:
         source_id = store.add_source("t", "en", "book", None)
         run = store.get_or_create_item("en", "run")
@@ -84,27 +78,25 @@ def test_list_items_counts_occurrences(db):
         assert store.list_items("nl") == []
 
 
-def test_get_or_create_profile_is_idempotent(db):
+def test_get_or_create_profile_is_idempotent(db: Path) -> None:
     with Store(db) as store:
         first = store.get_or_create_profile("thom")
         assert store.get_or_create_profile("thom") == first
         assert store.get_or_create_profile("guest") != first
 
 
-def test_meta_roundtrip(db):
+def test_meta_roundtrip(db: Path) -> None:
     with Store(db) as store:
         assert store.get_meta("pod_subscriptions", []) == []
         store.set_meta("pod_subscriptions", [{"url": "u", "language": "nl"}])
         store.set_meta("pod_subscriptions", [{"url": "v", "language": "en"}])
         assert store.get_meta("pod_subscriptions") == [{"url": "v", "language": "en"}]
         # the schema_version key is untouched by meta helpers
-        row = store._conn.execute(
-            "SELECT value FROM meta WHERE key = 'schema_version'"
-        ).fetchone()
+        row = store._conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
         assert row["value"] == "1"
 
 
-def test_profile_settings_roundtrip_and_merge(db):
+def test_profile_settings_roundtrip_and_merge(db: Path) -> None:
     with Store(db) as store:
         profile = store.get_or_create_profile("anna")
         assert store.get_profile_settings(profile) == {}
@@ -116,7 +108,7 @@ def test_profile_settings_roundtrip_and_merge(db):
         }
 
 
-def test_upsert_item_state_inserts_then_updates(db):
+def test_upsert_item_state_inserts_then_updates(db: Path) -> None:
     with Store(db) as store:
         profile = store.get_or_create_profile("p")
         item = store.get_or_create_item("en", "run")
@@ -129,7 +121,7 @@ def test_upsert_item_state_inserts_then_updates(db):
     assert json.loads(rows[0]["scheduler_state"]) == {"box": 2}
 
 
-def test_log_review_appends(db):
+def test_log_review_appends(db: Path) -> None:
     with Store(db) as store:
         profile = store.get_or_create_profile("p")
         item = store.get_or_create_item("en", "run")
@@ -141,7 +133,7 @@ def test_log_review_appends(db):
     assert rows[1]["response"] == "wrong gloss"
 
 
-def test_items_for_review_joins_state_per_profile(db):
+def test_items_for_review_joins_state_per_profile(db: Path) -> None:
     with Store(db) as store:
         alice = store.get_or_create_profile("alice")
         bob = store.get_or_create_profile("bob")
@@ -160,7 +152,7 @@ def test_items_for_review_joins_state_per_profile(db):
         assert bob_rows["run"]["status"] is None
 
 
-def test_example_for_prefers_shortest_complete_sentence(db):
+def test_example_for_prefers_shortest_complete_sentence(db: Path) -> None:
     monster = "He longed to see the curious table-napkins wrought for " + "x" * 300 + "."
     truncated = "But the staginess of her acting"  # no terminal punctuation
     ocr_start = "| remember your telling me years ago that it was lost."
@@ -183,30 +175,30 @@ def test_example_for_prefers_shortest_complete_sentence(db):
         assert store.example_for(store.get_or_create_item("en", "unseen")) is None
 
 
-def test_example_for_bounds_the_scan_but_keeps_the_best(db):
+def test_example_for_bounds_the_scan_but_keeps_the_best(db: Path) -> None:
     # simulate a post-mega-ingest word: thousands of long occurrences plus
     # one short complete sentence — the LIMIT still surfaces the short one.
     good = "Dit is een korte zin."
     with Store(db) as store:
         source = store.add_source("t", "nl", "transcript", None)
         item = store.get_or_create_item("nl", "zin")
-        many = [("Een veel langere zin die maar door blijft gaan " * 5 + ".", i)
-                for i in range(5000)]
+        many = [
+            ("Een veel langere zin die maar door blijft gaan " * 5 + ".", i) for i in range(5000)
+        ]
         store.add_occurrences(item, source, many + [(good, 9999)])
         assert store.example_for(item) == good
 
 
-def test_writes_persist_after_clean_exit(db):
+def test_writes_persist_after_clean_exit(db: Path) -> None:
     with Store(db) as store:
         store.add_source("kept", "en", "book", "/kept.txt")
     with Store(db) as store:
         assert store.find_source_by_path("/kept.txt") is not None
 
 
-def test_writes_roll_back_on_exception(db):
-    with pytest.raises(ValueError):
-        with Store(db) as store:
-            store.add_source("lost", "en", "book", "/lost.txt")
-            raise ValueError("boom")
+def test_writes_roll_back_on_exception(db: Path) -> None:
+    with pytest.raises(ValueError), Store(db) as store:
+        store.add_source("lost", "en", "book", "/lost.txt")
+        raise ValueError("boom")
     with Store(db) as store:
         assert store.find_source_by_path("/lost.txt") is None

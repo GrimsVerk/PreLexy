@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from click.testing import CliRunner
 
 from prelexy.clean import clean_text, strip_subtitles
@@ -28,18 +30,18 @@ Vandaag praten we over fietsen.
 """
 
 
-def test_strip_subtitles_srt():
+def test_strip_subtitles_srt() -> None:
     text = strip_subtitles(SRT_SAMPLE)
     assert text == "Hallo, welkom bij de podcast. Vandaag praten we over fietsen."
 
 
-def test_strip_subtitles_vtt_drops_header_notes_and_tags():
+def test_strip_subtitles_vtt_drops_header_notes_and_tags() -> None:
     text = strip_subtitles(VTT_SAMPLE)
     assert text == "Hallo, welkom bij de podcast. Vandaag praten we over fietsen."
     assert "NOTE" not in text and "<i>" not in text
 
 
-def test_strip_subtitles_reparagraphs_long_streams_at_sentence_ends():
+def test_strip_subtitles_reparagraphs_long_streams_at_sentence_ends() -> None:
     cue = "00:00.000 --> 00:01.000\nDit is een zin die eindigt.\n\n"
     text = strip_subtitles("WEBVTT\n\n" + cue * 120)
     paragraphs = text.split("\n\n")
@@ -47,25 +49,25 @@ def test_strip_subtitles_reparagraphs_long_streams_at_sentence_ends():
     assert all(p.endswith(".") for p in paragraphs)  # no mid-sentence cuts
 
 
-def test_pipe_becomes_I():
+def test_pipe_becomes_I() -> None:
     cleaned, counts = clean_text("“| dare say,” he said. | am what | am.")
     assert cleaned == "“I dare say,” he said. I am what I am."
     assert counts["pipe-as-I"] == 3
 
 
-def test_pipe_inside_a_word_is_left_alone():
+def test_pipe_inside_a_word_is_left_alone() -> None:
     cleaned, _ = clean_text("the a|b notation stays")
     assert "a|b" in cleaned
 
 
-def test_broken_hyphenation_is_rejoined():
+def test_broken_hyphenation_is_rejoined() -> None:
     cleaned, counts = clean_text("a moss- coloured velvet jerkin, cross- gartered hose")
     assert "moss-coloured" in cleaned
     assert "cross-gartered" in cleaned
     assert counts["broken-hyphen"] == 2
 
 
-def test_hyphenation_across_line_breaks_is_rejoined():
+def test_hyphenation_across_line_breaks_is_rejoined() -> None:
     cleaned, _ = clean_text("the long tussore-\nsilk curtains")
     assert "tussore-silk curtains" in cleaned
     # the Dorian Gray scan's actual pattern: hyphen, trailing space, newline
@@ -76,18 +78,18 @@ def test_hyphenation_across_line_breaks_is_rejoined():
     assert clean_text(untouched)[0] == untouched
 
 
-def test_letterless_lines_are_dropped():
+def test_letterless_lines_are_dropped() -> None:
     cleaned, counts = clean_text("A real line.\n= \n42\n* * *\nAnother real line.")
     assert cleaned == "A real line.\nAnother real line."
     assert counts["letterless-line"] == 3
 
 
-def test_blank_runs_collapse_but_paragraphs_survive():
+def test_blank_runs_collapse_but_paragraphs_survive() -> None:
     cleaned, _ = clean_text("Paragraph one.\n\n\n\n\nParagraph two.\n\nParagraph three.")
     assert cleaned == "Paragraph one.\n\nParagraph two.\n\nParagraph three."
 
 
-def test_clean_text_is_idempotent():
+def test_clean_text_is_idempotent() -> None:
     dirty = "“| say,” he said- ly.\n===\n\n\n\nEnd- ing."
     once, _ = clean_text(dirty)
     twice, counts = clean_text(once)
@@ -95,7 +97,7 @@ def test_clean_text_is_idempotent():
     assert not any(counts.values())
 
 
-def test_clean_command_writes_output_and_summary(tmp_path):
+def test_clean_command_writes_output_and_summary(tmp_path: Path) -> None:
     source = tmp_path / "book.txt"
     source.write_text("| am here.\n= \nmoss- coloured.")
     result = CliRunner().invoke(cli, ["clean", str(source)])

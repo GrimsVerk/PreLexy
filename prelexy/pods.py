@@ -13,8 +13,7 @@ import subprocess
 from pathlib import Path
 
 INSTALL_HINT = (
-    "yt-dlp not found — it does the actual YouTube fetching. "
-    "Install it with: pip install yt-dlp"
+    "yt-dlp not found — it does the actual YouTube fetching. Install it with: pip install yt-dlp"
 )
 
 

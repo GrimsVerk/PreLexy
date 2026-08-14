@@ -13,32 +13,38 @@ VECTORS = {
 
 
 @pytest.fixture(scope="module")
-def provider():
+def provider() -> SpacyVectors:
     nlp = spacy.blank("en")
     for word, vector in VECTORS.items():
-        nlp.vocab.set_vector(word, np.array(vector, dtype="float32"))
+        nlp.vocab.set_vector(word, np.array(vector, dtype="float32"))  # type: ignore[arg-type]
     return SpacyVectors(nlp)
 
 
-def test_word_similarity(provider):
-    assert provider.similarity("red", "crimson") > 0.9
-    assert provider.similarity("red", "dog") < 0.1
+def score(value: float | None) -> float:
+    """A similarity the test requires to exist."""
+    assert value is not None
+    return value
+
+
+def test_word_similarity(provider: SpacyVectors) -> None:
+    assert score(provider.similarity("red", "crimson")) > 0.9
+    assert score(provider.similarity("red", "dog")) < 0.1
     assert provider.similarity("red", "unknownword") is None
 
 
-def test_text_similarity_compares_content_vectors(provider):
+def test_text_similarity_compares_content_vectors(provider: SpacyVectors) -> None:
     close = provider.text_similarity("a red colour", "a crimson shade")
     far = provider.text_similarity("a red colour", "a dog barking")
-    assert close > 0.9
-    assert far < 0.1
+    assert score(close) > 0.9
+    assert score(far) < 0.1
 
 
-def test_text_similarity_ignores_stopwords(provider):
+def test_text_similarity_ignores_stopwords(provider: SpacyVectors) -> None:
     # "the" has a deliberately orthogonal vector; if it leaked into the
     # average, these two texts could not stay near-identical.
-    assert provider.text_similarity("the the the red", "crimson") > 0.9
+    assert score(provider.text_similarity("the the the red", "crimson")) > 0.9
 
 
-def test_text_similarity_none_without_content(provider):
+def test_text_similarity_none_without_content(provider: SpacyVectors) -> None:
     assert provider.text_similarity("xyzzy blorp", "a red colour") is None
     assert provider.text_similarity("", "red") is None

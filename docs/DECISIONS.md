@@ -317,3 +317,33 @@ memorizing" — a big pool is precisely what makes distractors hard, and
 scarce distractors were the concern with per-module imports. Showing the
 source line up front would give answers away (same reasoning as ruling
 011's context-after-answer).
+
+## 025 — Adopt the template's Python toolchain; conda stays for the owner (2026-08)
+
+**Decision:** PreLexy declares its dependencies in `pyproject.toml` with a
+committed `uv.lock`, and adopts the template's ruff and mypy configuration —
+including `strict = true`, which the whole project now passes. CI runs the
+template's `.github/workflows/ci.yml`; the old `tests.yml` is retired.
+`environment.yml` stays as the owner's conda environment and is kept in step
+by hand. Two deliberate divergences from the rendered template: the package
+stays at `prelexy/` rather than moving to `src/`, and `requires-python` stays
+`>=3.11` rather than the template's `>=3.12`.
+**Why:** The template's CI is the gate machinery the project wants, and it
+runs `uv sync --locked` plus ruff/mypy — none of which existed here, which is
+why the adoption in 024 declined those files. Declining them permanently was
+not viable: copier treats a declined file as deleted and never restores it, so
+the project would have kept diverging from every future template release.
+Strict mypy was chosen over a laxer scope (owner ruling, 2026-08-14) precisely
+so `pyproject.toml` needs no per-module escapes to maintain. Moving 17 modules
+into `src/` and bumping the runtime are real changes to the project rather than
+consequences of adopting a template, so both were left alone.
+**Residual:** none in the workflow. The suite needs the WordNet/OMW corpora on
+disk — prelexy fetches them lazily, but `tests/conftest.py` blocks outbound
+sockets, so a lazy fetch inside a test fails. That requirement is met by a root
+`conftest.py`, which ensures the corpora once at startup before any test's
+monkeypatch is active. The root path is deliberate: the template ships
+`tests/conftest.py` but no root `conftest.py`, so the file is project-owned and
+survives every template update untouched — where the same step written into
+`ci.yml` would be overwritten by each update and would break the byte-for-byte
+`template-sync` check. `ci.yml` is therefore kept byte-identical to the
+template's own render.

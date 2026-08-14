@@ -2,13 +2,17 @@
 
 Terminal vocabulary game: ingest real texts → extract the rare words →
 multiple-choice practice with spaced repetition. Python 3.11, conda
-(`environment.yml`), no build step. `docs/DESIGN.md` is the authoritative
+(`environment.yml`) for the owner's environment and uv/`pyproject.toml` for
+CI and tooling, no build step. `docs/DESIGN.md` is the authoritative
 architecture reference; `docs/DECISIONS.md` is the numbered log of design
 choices and owner rulings.
 
 ## Commands
 
 - Tests (must pass before every commit): `python -m pytest`
+- Full CI gate, as CI runs it: `uv run ruff check .` · `uv run ruff format
+  --check .` · `uv run mypy` · `uv run pytest` (the project is clean under
+  `mypy --strict`; `pyproject.toml` holds the settings)
 - Run: `python -m prelexy [--debug] {ingest,words,question,play,say,clean}`
 - Sandbox first run: `pip install click nltk spacy wordfreq pytest`
   (the conda env is not available there). NLTK data and PyPI download fine;

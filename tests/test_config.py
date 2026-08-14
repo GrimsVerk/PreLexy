@@ -1,9 +1,11 @@
+from pathlib import Path
+
 import pytest
 
 from prelexy.config import DEFAULTS, config_path, load_config
 
 
-def test_first_use_writes_commented_default_file(tmp_path):
+def test_first_use_writes_commented_default_file(tmp_path: Path) -> None:
     path = tmp_path / "config.toml"
     config = load_config(path)
     assert config == DEFAULTS
@@ -16,7 +18,7 @@ def test_first_use_writes_commented_default_file(tmp_path):
     assert load_config(path) == DEFAULTS
 
 
-def test_file_values_override_defaults(tmp_path):
+def test_file_values_override_defaults(tmp_path: Path) -> None:
     path = tmp_path / "config.toml"
     path.write_text(
         "new_words = 12\nseen_words = 8\nsimilarity_floor = 0.5\n"
@@ -37,7 +39,7 @@ def test_file_values_override_defaults(tmp_path):
     assert config["show_context"] is False
 
 
-def test_unknown_keys_are_ignored(tmp_path):
+def test_unknown_keys_are_ignored(tmp_path: Path) -> None:
     path = tmp_path / "config.toml"
     path.write_text("volume = 11\nsession_length = 10\n")  # incl. retired keys
     assert load_config(path) == DEFAULTS
@@ -60,13 +62,13 @@ def test_unknown_keys_are_ignored(tmp_path):
         'default_language = ""',
     ],
 )
-def test_invalid_values_are_rejected(tmp_path, body):
+def test_invalid_values_are_rejected(tmp_path: Path, body: str) -> None:
     path = tmp_path / "config.toml"
     path.write_text(body)
     with pytest.raises(ValueError):
         load_config(path)
 
 
-def test_config_path_respects_xdg(monkeypatch, tmp_path):
+def test_config_path_respects_xdg(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     assert config_path() == tmp_path / "prelexy" / "config.toml"

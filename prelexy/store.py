@@ -12,8 +12,10 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Iterable
+from types import TracebackType
+from typing import Any
 
 SCHEMA_VERSION = 1
 
@@ -100,14 +102,20 @@ def default_db_path() -> Path:
     return base / "prelexy" / "prelexy.db"
 
 
-def item_zipf(row) -> float:
+def _new_id(cur: sqlite3.Cursor) -> int:
+    """The rowid an INSERT just created (sqlite3 types this as optional)."""
+    assert cur.lastrowid is not None, "INSERT did not produce a rowid"
+    return cur.lastrowid
+
+
+def item_zipf(row: sqlite3.Row) -> float:
     """Rarity score stored in an item row's metadata at ingest time."""
-    return json.loads(row["metadata"]).get("zipf", 0.0)
+    return float(json.loads(row["metadata"]).get("zipf", 0.0))
 
 
-def item_order(row) -> int:
+def item_order(row: sqlite3.Row) -> int:
     """Corpus position for code items (inventory order); 0 for natural."""
-    return json.loads(row["metadata"]).get("order", 0)
+    return int(json.loads(row["metadata"]).get("order", 0))
 
 
 def _sentence_complete(text: str) -> bool:
@@ -132,9 +140,7 @@ class Store:
         self._init_version()
 
     def _init_version(self) -> None:
-        row = self._conn.execute(
-            "SELECT value FROM meta WHERE key = 'schema_version'"
-        ).fetchone()
+        row = self._conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
         if row is None:
             self._conn.execute(
                 "INSERT INTO meta (key, value) VALUES ('schema_version', ?)",
@@ -155,12 +161,13 @@ class Store:
             "INSERT INTO sources (title, language, kind, path) VALUES (?, ?, ?, ?)",
             (title, language, kind, path),
         )
-        return cur.lastrowid
+        return _new_id(cur)
 
     def find_source_by_path(self, path: str) -> sqlite3.Row | None:
-        return self._conn.execute(
+        row: sqlite3.Row | None = self._conn.execute(
             "SELECT * FROM sources WHERE path = ?", (path,)
         ).fetchone()
+        return row
 
     def get_or_create_item(
         self,
@@ -168,7 +175,7 @@ class Store:
         form: str,
         lemma: str | None = None,
         pos: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         self._conn.execute(
             "INSERT OR IGNORE INTO items (language, form, lemma, pos, metadata) "
@@ -178,21 +185,21 @@ class Store:
         row = self._conn.execute(
             "SELECT id FROM items WHERE language = ? AND form = ?", (language, form)
         ).fetchone()
-        return row["id"]
+        return int(row["id"])
 
     def add_occurrences(
         self, item_id: int, source_id: int, occurrences: Iterable[tuple[str, int | None]]
     ) -> None:
         self._conn.executemany(
-            "INSERT INTO occurrences (item_id, source_id, context, position) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO occurrences (item_id, source_id, context, position) VALUES (?, ?, ?, ?)",
             ((item_id, source_id, context, position) for context, position in occurrences),
         )
 
     def find_item(self, language: str, form: str) -> sqlite3.Row | None:
-        return self._conn.execute(
+        row: sqlite3.Row | None = self._conn.execute(
             "SELECT * FROM items WHERE language = ? AND form = ?", (language, form)
         ).fetchone()
+        return row
 
     def example_for(self, item_id: int) -> str | None:
         """The item's best example sentence: shortest complete-looking one.
@@ -208,17 +215,16 @@ class Store:
         question building fast without changing the choice.
         """
         rows = self._conn.execute(
-            "SELECT context FROM occurrences WHERE item_id = ? "
-            "ORDER BY length(context) LIMIT 200",
+            "SELECT context FROM occurrences WHERE item_id = ? ORDER BY length(context) LIMIT 200",
             (item_id,),
         ).fetchall()
         if not rows:
             return None
         contexts = [row["context"] for row in rows]
         complete = [c for c in contexts if _sentence_complete(c)]
-        return min(complete or contexts, key=len)
+        return str(min(complete or contexts, key=len))
 
-    def unsuspend_items(self, item_ids) -> int:
+    def unsuspend_items(self, item_ids: Iterable[int]) -> int:
         """Return suspended items to play (all profiles); count of rows freed.
 
         Words are suspended when no definition can be found; an import that
@@ -230,13 +236,14 @@ class Store:
             return 0
         placeholders = ",".join("?" * len(ids))
         cur = self._conn.execute(
-            f"DELETE FROM item_state WHERE status = 'suspended' "
-            f"AND item_id IN ({placeholders})",
+            f"DELETE FROM item_state WHERE status = 'suspended' AND item_id IN ({placeholders})",
             ids,
         )
         return cur.rowcount
 
-    def code_pool(self, pos: str, languages, exclude_item_id: int) -> list[tuple[str, str]]:
+    def code_pool(
+        self, pos: str, languages: Sequence[str], exclude_item_id: int
+    ) -> list[tuple[str, str]]:
         """Distractor material for code items: same-kind forms + glosses.
 
         Unlike natural languages (WordNet-wide pools), code distractors come
@@ -258,8 +265,7 @@ class Store:
         """Item count per language, most-populated first — for empty-session
         guidance so the player knows what else is available to practice."""
         rows = self._conn.execute(
-            "SELECT language, COUNT(*) AS n FROM items "
-            "GROUP BY language ORDER BY n DESC"
+            "SELECT language, COUNT(*) AS n FROM items GROUP BY language ORDER BY n DESC"
         ).fetchall()
         return {row["language"]: row["n"] for row in rows}
 
@@ -284,14 +290,12 @@ class Store:
 
     # -- meta -------------------------------------------------------------
 
-    def get_meta(self, key: str, default=None):
+    def get_meta(self, key: str, default: Any = None) -> Any:
         """JSON value from the meta table (new-style keys only)."""
-        row = self._conn.execute(
-            "SELECT value FROM meta WHERE key = ?", (key,)
-        ).fetchone()
+        row = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return json.loads(row["value"]) if row else default
 
-    def set_meta(self, key: str, value) -> None:
+    def set_meta(self, key: str, value: Any) -> None:
         self._conn.execute(
             "INSERT INTO meta (key, value) VALUES (?, ?) "
             "ON CONFLICT (key) DO UPDATE SET value = excluded.value",
@@ -305,15 +309,12 @@ class Store:
             "SELECT * FROM senses WHERE item_id = ? ORDER BY id", (item_id,)
         ).fetchall()
 
-    def add_sense(
-        self, item_id: int, gloss: str, gloss_language: str, provider: str
-    ) -> int:
+    def add_sense(self, item_id: int, gloss: str, gloss_language: str, provider: str) -> int:
         cur = self._conn.execute(
-            "INSERT INTO senses (item_id, gloss, gloss_language, provider) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO senses (item_id, gloss, gloss_language, provider) VALUES (?, ?, ?, ?)",
             (item_id, gloss, gloss_language, provider),
         )
-        return cur.lastrowid
+        return _new_id(cur)
 
     # -- learner ----------------------------------------------------------
 
@@ -322,17 +323,16 @@ class Store:
 
     def get_or_create_profile(self, name: str) -> int:
         self._conn.execute("INSERT OR IGNORE INTO profiles (name) VALUES (?)", (name,))
-        return self._conn.execute(
-            "SELECT id FROM profiles WHERE name = ?", (name,)
-        ).fetchone()["id"]
+        row = self._conn.execute("SELECT id FROM profiles WHERE name = ?", (name,)).fetchone()
+        return int(row["id"])
 
-    def get_profile_settings(self, profile_id: int) -> dict:
+    def get_profile_settings(self, profile_id: int) -> dict[str, Any]:
         row = self._conn.execute(
             "SELECT settings FROM profiles WHERE id = ?", (profile_id,)
         ).fetchone()
         return json.loads(row["settings"]) if row else {}
 
-    def update_profile_settings(self, profile_id: int, **updates) -> None:
+    def update_profile_settings(self, profile_id: int, **updates: Any) -> None:
         settings = self.get_profile_settings(profile_id)
         settings.update(updates)
         self._conn.execute(
@@ -346,7 +346,7 @@ class Store:
         item_id: int,
         status: str,
         due_at: str | None,
-        scheduler_state: dict,
+        scheduler_state: dict[str, Any],
     ) -> None:
         self._conn.execute(
             "INSERT INTO item_state (profile_id, item_id, status, due_at, scheduler_state) "
@@ -395,10 +395,15 @@ class Store:
     def close(self) -> None:
         self._conn.close()
 
-    def __enter__(self) -> "Store":
+    def __enter__(self) -> Store:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         if exc_type is None:
             self._conn.commit()
         else:

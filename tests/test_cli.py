@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 from click.testing import CliRunner
@@ -9,18 +10,18 @@ from prelexy.textproc import Candidate
 
 
 @pytest.fixture(autouse=True)
-def isolated_config(tmp_path, monkeypatch):
+def isolated_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Every CLI test gets its own config dir (commands read the config now)."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
 
 
-def write_config(tmp_path, body):
+def write_config(tmp_path: Path, body: str) -> None:
     path = tmp_path / "xdg" / "prelexy" / "config.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(body)
 
 
-def isolate_play(monkeypatch, tmp_path):
+def isolate_play(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Skip the spaCy model load (no model in the sandbox)."""
     monkeypatch.setattr(
         "prelexy.textproc.load_nlp",
@@ -28,7 +29,7 @@ def isolate_play(monkeypatch, tmp_path):
     )
 
 
-def fake_extract(text, language="en", nlp=None):
+def fake_extract(text: str, language: str = "en", nlp: Any = None) -> list[Candidate]:
     return [
         Candidate(
             form="perambulate",
@@ -47,7 +48,7 @@ def fake_extract(text, language="en", nlp=None):
     ]
 
 
-def test_ingest_then_words_roundtrip(tmp_path, monkeypatch):
+def test_ingest_then_words_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("prelexy.cli.extract_candidates", fake_extract)
     db = tmp_path / "db.sqlite"
     book = tmp_path / "book.txt"
@@ -71,51 +72,46 @@ def test_ingest_then_words_roundtrip(tmp_path, monkeypatch):
     assert lines[2].startswith("run")
 
 
-def test_say_command_reports_missing_engine(monkeypatch):
-    monkeypatch.setattr(
-        "prelexy.speech.pronounce", lambda word, language="en", voice=None: False
-    )
+def test_say_command_reports_missing_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("prelexy.speech.pronounce", lambda word, language="en", voice=None: False)
     result = CliRunner().invoke(cli, ["say", "vermilion"])
     assert result.exit_code != 0
     assert "No speech engine found" in result.output
 
-    monkeypatch.setattr(
-        "prelexy.speech.pronounce", lambda word, language="en", voice=None: True
-    )
+    monkeypatch.setattr("prelexy.speech.pronounce", lambda word, language="en", voice=None: True)
     assert CliRunner().invoke(cli, ["say", "vermilion"]).exit_code == 0
 
 
-def test_words_on_empty_db_explains_ingest(tmp_path):
+def test_words_on_empty_db_explains_ingest(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["words", "--db", str(tmp_path / "empty.db")])
     assert result.exit_code != 0
     assert "ingest" in result.output
 
 
-def test_ingest_converts_subtitle_files(tmp_path, monkeypatch):
+def test_ingest_converts_subtitle_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     received = {}
 
-    def capturing_extract(text, language="en", nlp=None):
+    def capturing_extract(text: str, language: str = "en", nlp: Any = None) -> list[Candidate]:
         received["text"] = text
         return fake_extract(text, language, nlp)
 
     monkeypatch.setattr("prelexy.cli.extract_candidates", capturing_extract)
     db = tmp_path / "db.sqlite"
     episode = tmp_path / "episode.srt"
-    episode.write_text(
-        "1\n00:00:01,000 --> 00:00:04,000\nHallo, welkom bij de podcast.\n"
-    )
+    episode.write_text("1\n00:00:01,000 --> 00:00:04,000\nHallo, welkom bij de podcast.\n")
     result = CliRunner().invoke(cli, ["ingest", str(episode), "--db", str(db)])
     assert result.exit_code == 0, result.output
     assert "-->" not in received["text"]
     assert "Hallo, welkom" in received["text"]
     with Store(db) as store:
         source = store.find_source_by_path(str(episode.resolve()))
+        assert source is not None
         assert source["kind"] == "subtitles"
 
 
-def test_fetch_command_with_ingest(tmp_path, monkeypatch):
-    def fake_fetch(url, language, dest, archive=None):
+def test_fetch_command_with_ingest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_fetch(url: str, language: str, dest: Path, archive: Path | None = None) -> list[Path]:
         dest = Path(dest)
         dest.mkdir(parents=True, exist_ok=True)
         vtt = dest / "Tweakers - Ep1.nl.vtt"
@@ -127,9 +123,17 @@ def test_fetch_command_with_ingest(tmp_path, monkeypatch):
     db = tmp_path / "db.sqlite"
     result = CliRunner().invoke(
         cli,
-        ["fetch", "https://www.youtube.com/@tweakers/podcasts",
-         "--language", "nl", "--dest", str(tmp_path / "pods"),
-         "--ingest", "--db", str(db)],
+        [
+            "fetch",
+            "https://www.youtube.com/@tweakers/podcasts",
+            "--language",
+            "nl",
+            "--dest",
+            str(tmp_path / "pods"),
+            "--ingest",
+            "--db",
+            str(db),
+        ],
     )
     assert result.exit_code == 0, result.output
     assert "Fetched 1 new subtitle file(s)" in result.output
@@ -139,14 +143,16 @@ def test_fetch_command_with_ingest(tmp_path, monkeypatch):
         assert source["language"] == "nl"
 
 
-def test_fetch_command_without_ytdlp_hints_install(tmp_path, monkeypatch):
+def test_fetch_command_without_ytdlp_hints_install(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("prelexy.pods.shutil.which", lambda name: None)
     result = CliRunner().invoke(cli, ["fetch", "https://youtube.com/x"])
     assert result.exit_code != 0
     assert "yt-dlp" in result.output
 
 
-def test_pods_add_list_sync_remove(tmp_path, monkeypatch):
+def test_pods_add_list_sync_remove(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     db = tmp_path / "db.sqlite"
     runner = CliRunner()
     url = "https://www.youtube.com/@tweakers/podcasts"
@@ -161,13 +167,14 @@ def test_pods_add_list_sync_remove(tmp_path, monkeypatch):
 
     fetched = []
 
-    def fake_fetch(sub_url, language, dest, archive=None):
+    def fake_fetch(
+        sub_url: str, language: str, dest: Path, archive: Path | None = None
+    ) -> list[Path]:
         fetched.append((sub_url, language, archive is not None))
         return []
 
     monkeypatch.setattr("prelexy.pods.fetch_subtitles", fake_fetch)
-    result = runner.invoke(cli, ["pods", "sync", "--dest", str(tmp_path / "pods"),
-                                 "--db", str(db)])
+    result = runner.invoke(cli, ["pods", "sync", "--dest", str(tmp_path / "pods"), "--db", str(db)])
     assert result.exit_code == 0, result.output
     assert fetched == [(url, "nl", True)]
     assert "Sync complete: 0 new" in result.output
@@ -178,7 +185,9 @@ def test_pods_add_list_sync_remove(tmp_path, monkeypatch):
     assert result.exit_code != 0  # nothing saved anymore
 
 
-def test_play_prompts_to_create_first_profile(tmp_path, monkeypatch):
+def test_play_prompts_to_create_first_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     isolate_play(monkeypatch, tmp_path)
     db = tmp_path / "db.sqlite"
     runner = CliRunner()
@@ -190,7 +199,9 @@ def test_play_prompts_to_create_first_profile(tmp_path, monkeypatch):
         assert [row["name"] for row in store.list_profiles()] == ["alice"]
 
 
-def test_play_menu_picks_existing_profile_without_creating_one(tmp_path, monkeypatch):
+def test_play_menu_picks_existing_profile_without_creating_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     isolate_play(monkeypatch, tmp_path)
     db = tmp_path / "db.sqlite"
     with Store(db) as store:
@@ -204,7 +215,9 @@ def test_play_menu_picks_existing_profile_without_creating_one(tmp_path, monkeyp
         assert len(store.list_profiles()) == 2
 
 
-def test_play_menu_rejects_bad_input_then_creates_new_profile(tmp_path, monkeypatch):
+def test_play_menu_rejects_bad_input_then_creates_new_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     isolate_play(monkeypatch, tmp_path)
     db = tmp_path / "db.sqlite"
     with Store(db) as store:
@@ -217,7 +230,7 @@ def test_play_menu_rejects_bad_input_then_creates_new_profile(tmp_path, monkeypa
         assert [row["name"] for row in store.list_profiles()] == ["alice", "carol"]
 
 
-def test_play_profile_flag_bypasses_menu(tmp_path, monkeypatch):
+def test_play_profile_flag_bypasses_menu(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     isolate_play(monkeypatch, tmp_path)
     db = tmp_path / "db.sqlite"
     runner = CliRunner()
@@ -228,7 +241,9 @@ def test_play_profile_flag_bypasses_menu(tmp_path, monkeypatch):
         assert [row["name"] for row in store.list_profiles()] == ["dave"]
 
 
-def test_play_uses_default_profile_from_config(tmp_path, monkeypatch):
+def test_play_uses_default_profile_from_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     isolate_play(monkeypatch, tmp_path)
     write_config(tmp_path, 'default_profile = "erika"\n')
     db = tmp_path / "db.sqlite"
@@ -239,7 +254,9 @@ def test_play_uses_default_profile_from_config(tmp_path, monkeypatch):
         assert [row["name"] for row in store.list_profiles()] == ["erika"]
 
 
-def test_play_remembers_the_profiles_language(tmp_path, monkeypatch):
+def test_play_remembers_the_profiles_language(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     isolate_play(monkeypatch, tmp_path)
     db = tmp_path / "db.sqlite"
     with Store(db) as store:
@@ -255,29 +272,28 @@ def test_play_remembers_the_profiles_language(tmp_path, monkeypatch):
 
     # first session names the language explicitly
     result = runner.invoke(
-        cli, ["play", "--db", str(db), "--profile", "anna", "--language", "nl"],
+        cli,
+        ["play", "--db", str(db), "--profile", "anna", "--language", "nl"],
         input="q\n",
     )
     assert result.exit_code == 0, result.output
     assert "fiets" in result.output
 
     # the next session inherits it without any flag
-    result = runner.invoke(
-        cli, ["play", "--db", str(db), "--profile", "anna"], input="q\n"
-    )
+    result = runner.invoke(cli, ["play", "--db", str(db), "--profile", "anna"], input="q\n")
     assert result.exit_code == 0, result.output
     assert "fiets" in result.output
     assert "sagacious" not in result.output
 
     # a different profile still gets the config default (en)
-    result = runner.invoke(
-        cli, ["play", "--db", str(db), "--profile", "bert"], input="q\n"
-    )
+    result = runner.invoke(cli, ["play", "--db", str(db), "--profile", "bert"], input="q\n")
     assert result.exit_code == 0, result.output
     assert "sagacious" in result.output
 
 
-def test_play_does_not_remember_an_empty_language(tmp_path, monkeypatch):
+def test_play_does_not_remember_an_empty_language(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # the 2026-07-07 trap: playing an empty language must not pin the profile
     isolate_play(monkeypatch, tmp_path)
     db = tmp_path / "db.sqlite"
@@ -295,19 +311,22 @@ def test_play_does_not_remember_an_empty_language(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "Other languages with words: nl (1 items)" in result.output
     with Store(db) as store:
-        assert store.get_profile_settings(
-            store.get_or_create_profile("dev")
-        ).get("language") is None
+        assert (
+            store.get_profile_settings(store.get_or_create_profile("dev")).get("language") is None
+        )
 
     # so a plain play still finds Dutch (once it is the profile's choice)
     result = runner.invoke(
-        cli, ["play", "--db", str(db), "--profile", "dev", "--language", "nl"],
+        cli,
+        ["play", "--db", str(db), "--profile", "dev", "--language", "nl"],
         input="q\n",
     )
     assert "fiets" in result.output
 
 
-def test_default_language_and_db_path_come_from_config(tmp_path, monkeypatch):
+def test_default_language_and_db_path_come_from_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     config_db = tmp_path / "from-config.db"
     write_config(
         tmp_path,
@@ -328,7 +347,7 @@ def test_default_language_and_db_path_come_from_config(tmp_path, monkeypatch):
     assert "No 'nl' items" in result.output  # language default still from config
 
 
-def test_question_command_previews_mcq(tmp_path, monkeypatch):
+def test_question_command_previews_mcq(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     isolate_play(monkeypatch, tmp_path)  # question now reads the config too
     db = tmp_path / "db.sqlite"
     with Store(db) as store:
