@@ -19,7 +19,6 @@ from __future__ import annotations
 import random
 import sqlite3
 from dataclasses import dataclass
-from typing import cast
 
 from prelexy import debug
 from prelexy.config import DEFAULTS
@@ -40,8 +39,8 @@ from prelexy.store import Store
 # PROVISIONAL values — calibrate against real scores from
 # `prelexy --debug question <word>`. Configurable via config.toml; these
 # module constants are the single built-in default (from config.DEFAULTS).
-SIMILARITY_FLOOR = cast(float, DEFAULTS["similarity_floor"])
-SIMILARITY_CEILING = cast(float, DEFAULTS["similarity_ceiling"])
+SIMILARITY_FLOOR = DEFAULTS["similarity_floor"]
+SIMILARITY_CEILING = DEFAULTS["similarity_ceiling"]
 
 N_OPTIONS = 4
 
@@ -58,7 +57,7 @@ _LENGTH_SLACK = 40  # characters
 # Distractors are sampled from the pool_size highest-scoring candidates of
 # the whole scan (owner request): options stay varied between sessions while
 # biasing toward the hardest available. Configurable via config.toml.
-_POOL_SIZE = cast(int, DEFAULTS["pool_size"])
+_POOL_SIZE = DEFAULTS["pool_size"]
 
 
 @dataclass
@@ -239,7 +238,7 @@ def _code_distractors(
     floor, ceiling = band or (SIMILARITY_FLOOR, SIMILARITY_CEILING)
     pool_size = pool_size or _POOL_SIZE
     if own_pool is None:
-        own_pool = cast(bool, DEFAULTS["code_pool_own_language"])
+        own_pool = DEFAULTS["code_pool_own_language"]
     languages = [item["language"]] if own_pool else code_language_codes()
     needed = N_OPTIONS - 1
     rows = store.code_pool(item["pos"], languages, item["id"])

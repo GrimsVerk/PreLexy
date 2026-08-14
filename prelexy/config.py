@@ -10,9 +10,29 @@ from __future__ import annotations
 
 import os
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
+from typing import TypedDict, cast
 
-DEFAULTS = {
+
+class Config(TypedDict):
+    """The settings file's shape. Keeping it typed means every reader gets a
+    real type instead of `object` from a heterogeneous dict."""
+
+    new_words: int
+    seen_words: int
+    similarity_floor: float
+    similarity_ceiling: float
+    default_profile: str
+    default_language: str
+    db_path: str
+    tts_voice: str
+    pool_size: int
+    show_context: bool
+    code_pool_own_language: bool
+
+
+DEFAULTS: Config = {
     "new_words": 7,  # new words per session
     "seen_words": 3,  # previously seen words (due reviews) per session
     "similarity_floor": 0.45,  # distractor band, see docs/DESIGN.md
@@ -80,7 +100,7 @@ def config_path() -> Path:
     return base / "prelexy" / "config.toml"
 
 
-def load_config(path: Path | None = None) -> dict[str, object]:
+def load_config(path: Path | None = None) -> Config:
     """Defaults overlaid with the config file, creating the file on first use."""
     path = path or config_path()
     if not path.exists():
@@ -88,13 +108,17 @@ def load_config(path: Path | None = None) -> dict[str, object]:
         path.write_text(_TEMPLATE, encoding="utf-8")
     with path.open("rb") as fh:
         loaded = tomllib.load(fh)
-    config = dict(DEFAULTS)
-    config.update((key, loaded[key]) for key in DEFAULTS if key in loaded)
-    _validate(config)
-    return config
+    merged: dict[str, object] = dict(DEFAULTS)
+    for key in DEFAULTS:
+        if key in loaded:
+            merged[key] = loaded[key]
+    _validate(merged)
+    # _validate has just proven every key matches Config's declared types.
+    return cast(Config, merged)
 
 
-def _validate(config: dict[str, object]) -> None:
+def _validate(config: Mapping[str, object]) -> None:
+    """Check a freshly loaded settings mapping before it is trusted as Config."""
     for key in ("new_words", "seen_words"):
         value = config[key]
         if not isinstance(value, int) or isinstance(value, bool) or value < 0:
