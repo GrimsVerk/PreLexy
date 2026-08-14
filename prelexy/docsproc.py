@@ -91,10 +91,10 @@ class _SphinxGlossParser(HTMLParser):
         self._in_para = False
         self._dd_depth = 0
 
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-        if tag == "dt" and attrs.get("id") in self.wanted:
-            self._current = attrs["id"]
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr_map = dict(attrs)
+        if tag == "dt" and attr_map.get("id") in self.wanted:
+            self._current = attr_map["id"]
             self._sig_parts = []
         elif tag == "dd" and self._awaiting_dd and not self._dd_depth:
             self._dd_depth = 1
@@ -102,7 +102,7 @@ class _SphinxGlossParser(HTMLParser):
             self._in_para = True
             self._para_parts = []
 
-    def handle_endtag(self, tag):
+    def handle_endtag(self, tag: str) -> None:
         if tag == "dt" and self._current:
             signature = " ".join("".join(self._sig_parts).split()).rstrip("¶")
             self._sig_of[self._current] = signature.strip()
@@ -117,7 +117,7 @@ class _SphinxGlossParser(HTMLParser):
             self._in_para = False
             self._dd_depth = 0
 
-    def handle_data(self, data):
+    def handle_data(self, data: str) -> None:
         if self._current is not None:
             self._sig_parts.append(data)
         elif self._in_para:

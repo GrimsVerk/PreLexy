@@ -17,17 +17,22 @@ fall back to random same-POS picks.
 from __future__ import annotations
 
 import random
+import sqlite3
 from dataclasses import dataclass
+from typing import cast
 
 from prelexy import debug
 from prelexy.config import DEFAULTS
 from prelexy.definitions import (
+    Sense,
     ensure_sense,
     synonym_conflict,
     wordnet_lemma_names,
     wordnet_sense,
 )
 from prelexy.languages import code_language_codes, get_language
+from prelexy.similarity import SimilarityProvider
+from prelexy.store import Store
 
 # The distractor band, applied to definition-text similarity: above the
 # ceiling the two definitions nearly coincide (near-synonym — ambiguous,
@@ -35,8 +40,8 @@ from prelexy.languages import code_language_codes, get_language
 # PROVISIONAL values — calibrate against real scores from
 # `prelexy --debug question <word>`. Configurable via config.toml; these
 # module constants are the single built-in default (from config.DEFAULTS).
-SIMILARITY_FLOOR = DEFAULTS["similarity_floor"]
-SIMILARITY_CEILING = DEFAULTS["similarity_ceiling"]
+SIMILARITY_FLOOR = cast(float, DEFAULTS["similarity_floor"])
+SIMILARITY_CEILING = cast(float, DEFAULTS["similarity_ceiling"])
 
 N_OPTIONS = 4
 
@@ -53,7 +58,7 @@ _LENGTH_SLACK = 40  # characters
 # Distractors are sampled from the pool_size highest-scoring candidates of
 # the whole scan (owner request): options stay varied between sessions while
 # biasing toward the hardest available. Configurable via config.toml.
-_POOL_SIZE = DEFAULTS["pool_size"]
+_POOL_SIZE = cast(int, DEFAULTS["pool_size"])
 
 
 @dataclass
@@ -66,13 +71,13 @@ class Question:
 
 
 def build_question(
-    store,
-    item,
-    similarity=None,
-    rng=None,
-    band=None,
-    pool_size=None,
-    code_own_pool=None,
+    store: Store,
+    item: sqlite3.Row,
+    similarity: SimilarityProvider | None = None,
+    rng: random.Random | None = None,
+    band: tuple[float, float] | None = None,
+    pool_size: int | None = None,
+    code_own_pool: bool | None = None,
 ) -> Question | None:
     """Build an MCQ for an item row.
 
@@ -103,7 +108,14 @@ def build_question(
     )
 
 
-def _distractors(item, correct_sense, similarity, rng, band=None, pool_size=None) -> list[str]:
+def _distractors(
+    item: sqlite3.Row,
+    correct_sense: Sense,
+    similarity: SimilarityProvider | None,
+    rng: random.Random,
+    band: tuple[float, float] | None = None,
+    pool_size: int | None = None,
+) -> list[str]:
     """Up to N_OPTIONS-1 distractor glosses, sampled from the hardest available.
 
     Every scanned candidate below the near-synonym ceiling is scored against
@@ -179,7 +191,7 @@ def _distractors(item, correct_sense, similarity, rng, band=None, pool_size=None
     scored.sort(reverse=True)  # hardest first
     in_band = [entry for entry in scored if entry[0] > floor]
     ranked = in_band if len(in_band) >= needed else scored
-    pool = []
+    pool: list[tuple[float, str, str]] = []
     for entry in ranked:
         if len(pool) == pool_size:
             break
@@ -208,7 +220,14 @@ def _length_compatible(correct_gloss: str, candidate_gloss: str) -> bool:
 
 
 def _code_distractors(
-    store, item, correct_gloss, similarity, rng, band=None, pool_size=None, own_pool=None
+    store: Store,
+    item: sqlite3.Row,
+    correct_gloss: str,
+    similarity: SimilarityProvider | None,
+    rng: random.Random,
+    band: tuple[float, float] | None = None,
+    pool_size: int | None = None,
+    own_pool: bool | None = None,
 ) -> list[str]:
     """Distractors for code items: same-kind glosses from ingested corpora.
 
@@ -220,7 +239,7 @@ def _code_distractors(
     floor, ceiling = band or (SIMILARITY_FLOOR, SIMILARITY_CEILING)
     pool_size = pool_size or _POOL_SIZE
     if own_pool is None:
-        own_pool = DEFAULTS["code_pool_own_language"]
+        own_pool = cast(bool, DEFAULTS["code_pool_own_language"])
     languages = [item["language"]] if own_pool else code_language_codes()
     needed = N_OPTIONS - 1
     rows = store.code_pool(item["pos"], languages, item["id"])
@@ -272,21 +291,22 @@ def _code_distractors(
     return glosses
 
 
-def _pool_pos(item, correct_sense) -> str | None:
+def _pool_pos(item: sqlite3.Row, correct_sense: Sense) -> str | None:
     """The POS the correct gloss was sourced from.
 
     Cache reads carry no POS (the senses table stores none), so re-derive
     by asking WordNet afresh and checking it yields the same gloss.
     """
-    if correct_sense.pos:
+    if correct_sense.pos is not None:
         return correct_sense.pos
     fresh = wordnet_sense(item["form"], item["pos"], item["language"])
     if fresh is not None and fresh.gloss == correct_sense.gloss and fresh.pos:
         return fresh.pos
-    return item["pos"]
+    pos = item["pos"]
+    return str(pos) if pos is not None else None
 
 
-def _wordnet_candidates(pos, language, rng) -> list[str]:
+def _wordnet_candidates(pos: str | None, language: str, rng: random.Random) -> list[str]:
     """A fresh random sample of same-POS WordNet lemmas for one question."""
     names = wordnet_lemma_names(pos, language)
-    return rng.sample(names, min(len(names), _SCAN_LIMIT))
+    return list(rng.sample(names, min(len(names), _SCAN_LIMIT)))

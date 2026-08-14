@@ -80,7 +80,7 @@ def config_path() -> Path:
     return base / "prelexy" / "config.toml"
 
 
-def load_config(path: Path | None = None) -> dict:
+def load_config(path: Path | None = None) -> dict[str, object]:
     """Defaults overlaid with the config file, creating the file on first use."""
     path = path or config_path()
     if not path.exists():
@@ -94,19 +94,22 @@ def load_config(path: Path | None = None) -> dict:
     return config
 
 
-def _validate(config: dict) -> None:
+def _validate(config: dict[str, object]) -> None:
     for key in ("new_words", "seen_words"):
         value = config[key]
         if not isinstance(value, int) or isinstance(value, bool) or value < 0:
             raise ValueError(f"{key} must be a non-negative integer, got {value!r}")
-    floor, ceiling = config["similarity_floor"], config["similarity_ceiling"]
-    for key, value in (("similarity_floor", floor), ("similarity_ceiling", ceiling)):
+    bounds: dict[str, float] = {}
+    for key in ("similarity_floor", "similarity_ceiling"):
+        value = config[key]
         if (
             not isinstance(value, (int, float))
             or isinstance(value, bool)
             or not 0.0 <= value <= 1.0
         ):
             raise ValueError(f"{key} must be between 0.0 and 1.0, got {value!r}")
+        bounds[key] = float(value)
+    floor, ceiling = bounds["similarity_floor"], bounds["similarity_ceiling"]
     if floor >= ceiling:
         raise ValueError(f"similarity_floor ({floor}) must be below similarity_ceiling ({ceiling})")
     for key in ("default_profile", "default_language", "db_path", "tts_voice"):

@@ -14,7 +14,7 @@ experiences: how confusable two definitions are.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
 import numpy as np
 
@@ -30,12 +30,12 @@ class SimilarityProvider(Protocol):
 class SpacyVectors:
     """Similarity from a spaCy pipeline's word vectors (needs the md model)."""
 
-    def __init__(self, nlp):
+    def __init__(self, nlp: Any) -> None:
         self._nlp = nlp
         self._vocab = nlp.vocab
         # distractor scans compare one correct gloss against hundreds of
         # candidates; caching text vectors makes that target-side free
-        self._text_vectors: dict[str, np.ndarray | None] = {}
+        self._text_vectors: dict[str, np.ndarray[Any, np.dtype[Any]] | None] = {}
 
     def similarity(self, a: str, b: str) -> float | None:
         lex_a, lex_b = self._vocab[a], self._vocab[b]
@@ -49,7 +49,7 @@ class SpacyVectors:
             return None
         return float(np.dot(vec_a, vec_b))
 
-    def _text_vector(self, text: str):
+    def _text_vector(self, text: str) -> np.ndarray[Any, np.dtype[Any]] | None:
         """Unit vector of the averaged content-token vectors (cached).
 
         Stopwords and punctuation are excluded: averaging them in inflates

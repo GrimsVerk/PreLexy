@@ -8,15 +8,18 @@ distractors) are suspended so they stop being served.
 
 from __future__ import annotations
 
+import random
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import click
 
-from prelexy.mcq import build_question
-from prelexy.scheduler import ReviewOutcome
+from prelexy.mcq import Question, build_question
+from prelexy.scheduler import ReviewOutcome, Scheduler
+from prelexy.similarity import SimilarityProvider
 from prelexy.speech import INSTALL_HINT, pronounce
+from prelexy.store import Store
 
 EXERCISE = "mcq_definition"
 
@@ -30,18 +33,18 @@ class SessionSummary:
 
 
 def run_session(
-    store,
+    store: Store,
     profile_id: int,
     language: str,
-    scheduler,
-    similarity=None,
+    scheduler: Scheduler,
+    similarity: SimilarityProvider | None = None,
     n_questions: int = 10,
-    rng=None,
-    band=None,
-    pool_size=None,
+    rng: random.Random | None = None,
+    band: tuple[float, float] | None = None,
+    pool_size: int | None = None,
     show_context: bool = True,
     tts_voice: str | None = None,
-    code_own_pool=None,
+    code_own_pool: bool | None = None,
 ) -> SessionSummary:
     now = datetime.now(UTC)
     items = scheduler.next_items(store, profile_id, language, now, n_questions)
@@ -99,7 +102,7 @@ def run_session(
     return summary
 
 
-def _report_nothing_to_practice(store, language: str) -> None:
+def _report_nothing_to_practice(store: Store, language: str) -> None:
     """Explain the empty session and point at languages that do have items."""
     counts = store.language_item_counts()
     if not counts.get(language):
@@ -114,7 +117,7 @@ def _report_nothing_to_practice(store, language: str) -> None:
 
 
 def _ask(
-    question, number: int, language: str = "en", tts_voice: str | None = None
+    question: Question, number: int, language: str = "en", tts_voice: str | None = None
 ) -> tuple[int, int] | None:
     """Render one question and return (chosen index, latency ms); None = quit."""
     click.echo()

@@ -14,12 +14,13 @@ from __future__ import annotations
 
 import json
 import random
+import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Any, Protocol
 
 from prelexy import debug
-from prelexy.store import item_order, item_zipf
+from prelexy.store import Store, item_order, item_zipf
 
 
 @dataclass
@@ -33,14 +34,18 @@ class ItemSchedule:
 
     status: str
     due_at: str | None  # ISO timestamp; None = no scheduled review
-    scheduler_state: dict
+    scheduler_state: dict[str, Any]
 
 
 class Scheduler(Protocol):
-    def next_items(self, store, profile_id: int, language: str, now: datetime, limit: int) -> list:
+    def next_items(
+        self, store: Store, profile_id: int, language: str, now: datetime, limit: int
+    ) -> list[sqlite3.Row]:
         """Items to practice this session, most urgent first."""
 
-    def record_review(self, state, outcome: ReviewOutcome, now: datetime) -> ItemSchedule:
+    def record_review(
+        self, state: sqlite3.Row | None, outcome: ReviewOutcome, now: datetime
+    ) -> ItemSchedule:
         """Digest one review into the item's next schedule.
 
         `state` is the item's row from Store.items_for_review — its status,
@@ -63,7 +68,9 @@ class SM2Scheduler:
     MIN_EASE = 1.3
     KNOWN_AFTER = 3  # consecutive successes
 
-    def __init__(self, new_words: int = 7, seen_words: int = 3, rng=None):
+    def __init__(
+        self, new_words: int = 7, seen_words: int = 3, rng: random.Random | None = None
+    ) -> None:
         # Per-session quotas: new_words fresh words plus seen_words due
         # reviews. Quotas trump the review backlog — reviews never crowd
         # new words out — and when either pool runs short the other fills
@@ -72,7 +79,9 @@ class SM2Scheduler:
         self.seen_words = seen_words
         self.rng = rng or random.Random()
 
-    def next_items(self, store, profile_id, language, now, limit):
+    def next_items(
+        self, store: Store, profile_id: int, language: str, now: datetime, limit: int
+    ) -> list[sqlite3.Row]:
         rows = store.items_for_review(profile_id, language)
         due, new = [], []
         for row in rows:
@@ -98,7 +107,9 @@ class SM2Scheduler:
         )
         return due[:n_due] + new[:n_new]
 
-    def record_review(self, state, outcome, now):
+    def record_review(
+        self, state: sqlite3.Row | None, outcome: ReviewOutcome, now: datetime
+    ) -> ItemSchedule:
         previous = _blob(state)
         successes = previous.get("n", 0)
         ease = previous.get("ef", self.INITIAL_EASE)
@@ -126,14 +137,15 @@ class SM2Scheduler:
         )
 
 
-def _blob(state) -> dict:
+def _blob(state: sqlite3.Row | None) -> dict[str, Any]:
     raw = state["scheduler_state"] if state is not None else None
-    return json.loads(raw) if raw else {}
+    blob: dict[str, Any] = json.loads(raw) if raw else {}
+    return blob
 
 
-def _is_due(row, now: datetime) -> bool:
+def _is_due(row: sqlite3.Row, now: datetime) -> bool:
     if row["due_at"] is None:
-        return row["status"] == "learning"  # rows written before spacing existed
+        return bool(row["status"] == "learning")  # rows written before spacing existed
     return datetime.fromisoformat(row["due_at"]) <= now
 
 
@@ -144,13 +156,17 @@ class SimpleScheduler:
     session. No spacing.
     """
 
-    def next_items(self, store, profile_id, language, now, limit):
+    def next_items(
+        self, store: Store, profile_id: int, language: str, now: datetime, limit: int
+    ) -> list[sqlite3.Row]:
         rows = store.items_for_review(profile_id, language)
         missed = [row for row in rows if row["status"] == "learning"]
         new = sorted((row for row in rows if row["status"] is None), key=item_zipf)
         return (missed + new)[:limit]
 
-    def record_review(self, state, outcome, now):
+    def record_review(
+        self, state: sqlite3.Row | None, outcome: ReviewOutcome, now: datetime
+    ) -> ItemSchedule:
         return ItemSchedule(
             status="known" if outcome.correct else "learning",
             due_at=None,

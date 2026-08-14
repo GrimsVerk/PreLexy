@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from functools import cache
+from typing import Any
 
 from wordfreq import zipf_frequency
 
@@ -36,7 +37,7 @@ class Candidate:
     occurrences: list[tuple[str, int]] = field(default_factory=list)  # (sentence, char offset)
 
 
-def load_nlp(language: str = "en"):
+def load_nlp(language: str = "en") -> Any:
     """Load the spaCy pipeline for a language (NER disabled; not needed).
 
     The model names come from the language registry (prelexy/languages.py);
@@ -62,7 +63,7 @@ def load_nlp(language: str = "en"):
     )
 
 
-def item_form(token, language: str) -> str:
+def item_form(token: Any, language: str) -> str:
     """Extraction policy: which string is practiced for this token.
 
     English (fluent-reader mode) uses lemmas; other languages default to the
@@ -70,8 +71,8 @@ def item_form(token, language: str) -> str:
     See docs/DESIGN.md, "The item abstraction".
     """
     if language == "en":
-        return token.lemma_.lower()
-    return token.text.lower()
+        return str(token.lemma_).lower()
+    return str(token.text).lower()
 
 
 @cache
@@ -90,7 +91,7 @@ def in_dictionary(form: str, language: str = "en") -> bool:
     return zipf_frequency(form, language) > 0
 
 
-def get_wordnet():
+def get_wordnet() -> Any:
     """Return the WordNet corpus, downloading its data on first use."""
     import nltk
     from nltk.corpus import wordnet
@@ -103,14 +104,14 @@ def get_wordnet():
     return wordnet
 
 
-def extract_candidates(text: str, language: str = "en", nlp=None) -> list[Candidate]:
+def extract_candidates(text: str, language: str = "en", nlp: Any = None) -> list[Candidate]:
     """Extract ranked candidate items from raw text, rarest first."""
     nlp = nlp or load_nlp(language)
     docs = nlp.pipe(_paragraphs(text), as_tuples=True)
     return collect_candidates(docs, language)
 
 
-def collect_candidates(docs: Iterable[tuple], language: str) -> list[Candidate]:
+def collect_candidates(docs: Iterable[tuple[Any, int]], language: str) -> list[Candidate]:
     """Aggregate (doc, char_offset) pairs into ranked candidates."""
     found: dict[str, Candidate] = {}
     for doc, offset in docs:
@@ -133,7 +134,7 @@ def collect_candidates(docs: Iterable[tuple], language: str) -> list[Candidate]:
     return sorted(found.values(), key=lambda c: (c.zipf, c.form))
 
 
-def _learnable(token) -> bool:
+def _learnable(token: Any) -> bool:
     return token.is_alpha and not token.is_stop and token.pos_ not in _SKIP_POS
 
 

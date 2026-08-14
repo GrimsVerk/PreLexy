@@ -9,14 +9,21 @@ once and offline coverage improves with use.
 from __future__ import annotations
 
 import json
+import sqlite3
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cache
+from pathlib import Path
+from typing import IO, TYPE_CHECKING, Any
 
 from prelexy.languages import get_language
 from prelexy.textproc import get_wordnet
+
+if TYPE_CHECKING:
+    from prelexy.store import Store
 
 # Glosses are shown in the learner's strong language. English for now —
 # when profiles carry a strong_language setting this becomes per-profile.
@@ -32,6 +39,11 @@ _API_POS = {"NOUN": "noun", "VERB": "verb", "ADJ": "adjective", "ADV": "adverb"}
 _API_POS_TO_UPOS = {api: upos for upos, api in _API_POS.items()}
 
 
+def _wn_pos(pos: str | None) -> str | None:
+    """WordNet POS letter for a UPOS tag; None (any POS) passes through."""
+    return _WORDNET_POS.get(pos) if pos is not None else None
+
+
 @dataclass
 class Sense:
     gloss: str
@@ -43,7 +55,7 @@ class Sense:
     pos: str | None = None
 
 
-def ensure_sense(store, item, allow_api: bool = True) -> Sense | None:
+def ensure_sense(store: Store, item: sqlite3.Row, allow_api: bool = True) -> Sense | None:
     """Return a definition for an item row, caching whatever the chain finds.
 
     `allow_api=False` restricts the chain to offline sources — used for
@@ -82,9 +94,7 @@ def wordnet_lemma_names(pos: str | None, language: str = "en") -> tuple[str, ...
         return ()
     wordnet = get_wordnet()
     return tuple(
-        name
-        for name in wordnet.all_lemma_names(_WORDNET_POS.get(pos), lang=wn_lang)
-        if name.isalpha()
+        name for name in wordnet.all_lemma_names(_wn_pos(pos), lang=wn_lang) if name.isalpha()
     )
 
 
@@ -112,7 +122,7 @@ def wordnet_sense(
     if wn_lang is None:  # code languages: docs are the dictionary
         return None
     wordnet = get_wordnet()
-    synsets = wordnet.synsets(form, pos=_WORDNET_POS.get(pos), lang=wn_lang) or wordnet.synsets(
+    synsets = wordnet.synsets(form, pos=_wn_pos(pos), lang=wn_lang) or wordnet.synsets(
         form, lang=wn_lang
     )
     non_instance = [s for s in synsets if not s.instance_hypernyms()]
@@ -151,7 +161,7 @@ def synonym_conflict(
         return False
     target_lemmas = {lemma for synset in target_synsets for lemma in synset.lemma_names(wn_lang)}
     candidate_synsets = wordnet.synsets(
-        candidate_form, pos=_WORDNET_POS.get(pos), lang=wn_lang
+        candidate_form, pos=_wn_pos(pos), lang=wn_lang
     ) or wordnet.synsets(candidate_form, lang=wn_lang)
     for candidate_synset in candidate_synsets:
         if set(candidate_synset.lemma_names(wn_lang)) & target_lemmas:
@@ -190,7 +200,7 @@ def api_sense(form: str, pos: str | None, language: str = "en") -> Sense | None:
     payload = _fetch_api_json(url)
     if not isinstance(payload, list):
         return None
-    wanted = _API_POS.get(pos)
+    wanted = _API_POS.get(pos) if pos is not None else None
     fallback = None
     for entry in payload:
         for meaning in entry.get("meanings", []):
@@ -213,7 +223,7 @@ def api_sense(form: str, pos: str | None, language: str = "en") -> Sense | None:
 _KAIKKI_POS = {"noun": "NOUN", "verb": "VERB", "adj": "ADJ", "adv": "ADV"}
 
 
-def import_kaikki_glosses(store, path, language: str) -> tuple[int, int]:
+def import_kaikki_glosses(store: Store, path: str | Path, language: str) -> tuple[int, int]:
     """Fill missing definitions from a kaikki.org Wiktionary dump (JSONL).
 
     Works with both the deprecated per-language extracts and the
@@ -227,7 +237,7 @@ def import_kaikki_glosses(store, path, language: str) -> tuple[int, int]:
     (filled, missing_before).
     """
     missing = store.items_missing_senses(language)
-    by_word: dict[str, list] = {}
+    by_word: dict[str, list[sqlite3.Row]] = {}
     for item in missing:
         by_word.setdefault(item["form"], []).append(item)
         if item["lemma"] and item["lemma"] != item["form"]:
@@ -263,7 +273,7 @@ def import_kaikki_glosses(store, path, language: str) -> tuple[int, int]:
     return len(best), len(missing)
 
 
-def _open_extract(path):
+def _open_extract(path: str | Path) -> IO[str]:
     """Open a kaikki extract for text reading, gz or plain, by magic bytes."""
     import gzip
 
@@ -274,7 +284,7 @@ def _open_extract(path):
     return open(path, encoding="utf-8")
 
 
-def _kaikki_gloss(entry) -> tuple[str | None, bool]:
+def _kaikki_gloss(entry: Mapping[str, Any]) -> tuple[str | None, bool]:
     """Best gloss in an entry and whether it is only a form-of reference."""
     form_of_gloss = None
     for sense in entry.get("senses") or []:
@@ -289,7 +299,7 @@ def _kaikki_gloss(entry) -> tuple[str | None, bool]:
     return form_of_gloss, True
 
 
-def _fetch_api_json(url: str):
+def _fetch_api_json(url: str) -> Any:
     try:
         with urllib.request.urlopen(url, timeout=API_TIMEOUT_SECONDS) as response:
             return json.loads(response.read().decode("utf-8"))
