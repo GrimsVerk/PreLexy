@@ -47,8 +47,38 @@ and are referenced from entries.
   `omw-2.0` (replacing `omw-1.4`, not alongside it — deps are unpinned so
   every environment gets the latest NLTK; an old NLTK couldn't fetch
   `omw-2.0` anyway, so carrying both names bought nothing).
+- CI secrets pasted into GitHub with a trailing newline fail in ways that name
+  neither the newline nor the secret. `TEMPLATE_TOKEN` broke `template-sync`
+  with git's `error: invalid key (newline)`, which reads as a missing token;
+  `CLAUDE_CODE_OAUTH_TOKEN` broke the review gate with `Invalid Authorization
+  header value ... line break at character 68`. Re-paste without the trailing
+  newline; check this first when a secret "is set" and still fails.
 
 ## Log
+
+### 2026-08-14 (later) — template v0.4.7 landed; CI gates live
+
+- PR #3 (prep) and PR #4 (the update itself) are merged; PreLexy is on
+  template v0.4.7. The update jumped v0.1.0 -> v0.4.7 in one step and brought
+  the merge pipeline (plan, template-sync, secrets, test-the-tests, LLM
+  review), the planning system under `docs/plans/`, CODEOWNERS and GLOSSARY.
+- Four files conflicted, all resolved by keeping this project's content and
+  taking the template's where it had something to add: `pyproject.toml`,
+  `.claude/settings.json`, `README.md`, `docs/DESIGN.md`. Details in the PR #4
+  description and DECISIONS 025.
+- `ci.yml` and `tests/conftest.py` came through byte-identical to the render,
+  which is what the root `conftest.py` bootstrap was for.
+- **`template-sync` cannot pass on a conflicted update.** It replays `copier
+  update` and demands the tree match byte-for-byte, but the replay leaves
+  conflict markers in files this project owns content at — so the only
+  satisfying tree is a broken one. PR #4 needed an override. Fix belongs
+  upstream: detect that the replay itself conflicted, then require the PR to
+  differ from it only inside those files.
+- Both CI secrets failed on trailing newlines (field note above). The template
+  token is now verified working; the Claude token was still broken at the time
+  of writing.
+- Deleted the empty `template/v0.4.4` branch: a leftover from the failed
+  pre-fix update run, holding zero unique commits.
 
 ### 2026-08-14 — template update prep: toolchain adopted, CI restored
 
