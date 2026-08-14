@@ -1,6 +1,8 @@
 [project]
 name = "prelexy"
 version = "0.1.0"
+# Not measured by ruff (TOML, not Python), so a long description is safe here —
+# unlike the module docstring, which is wordwrapped for that reason.
 description = "Terminal vocabulary game: ingest real texts, extract the rare words, and drill them with spaced repetition."
 readme = "README.md"
 # 3.11 matches environment.yml, which is still the owner's real environment.
@@ -19,8 +21,10 @@ dependencies = [
 # espeak (shutil.which + install hint), not an importable dependency.
 
 [dependency-groups]
-# Pinned to the same minor as the `rev` values in .pre-commit-config.yaml, so
-# `uv sync` and pre-commit cannot disagree about formatting.
+# Pinned to the same minor as the `rev` values in .pre-commit-config.yaml. An
+# open lower bound here lets `uv sync` resolve a different ruff than pre-commit
+# runs, and the two then disagree about formatting: green locally, red in CI,
+# with no diff to explain why. Bump these and the pre-commit revs together.
 dev = [
     "mypy~=2.3",
     "pytest>=8.3",
