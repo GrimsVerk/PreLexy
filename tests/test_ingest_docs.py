@@ -1,5 +1,7 @@
 import zlib
+from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from prelexy.cli import cli
@@ -27,7 +29,7 @@ FUNCTOOLS_HTML = """
 """
 
 
-def make_docs_dir(tmp_path):
+def make_docs_dir(tmp_path: Path) -> Path:
     docs = tmp_path / "python-docs"
     (docs / "library").mkdir(parents=True)
     header = (
@@ -40,7 +42,7 @@ def make_docs_dir(tmp_path):
     return docs
 
 
-def test_ingest_docs_whole_corpus(tmp_path, monkeypatch):
+def test_ingest_docs_whole_corpus(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     docs = make_docs_dir(tmp_path)
     db = tmp_path / "db.sqlite"
@@ -70,7 +72,7 @@ def test_ingest_docs_whole_corpus(tmp_path, monkeypatch):
     assert "already ingested" in result.output
 
 
-def test_ingest_docs_module_filter(tmp_path, monkeypatch):
+def test_ingest_docs_module_filter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     docs = make_docs_dir(tmp_path)
     db = tmp_path / "db.sqlite"
@@ -83,7 +85,9 @@ def test_ingest_docs_module_filter(tmp_path, monkeypatch):
         assert store.find_item("python", "itertools.chain") is None
 
 
-def test_ingest_docs_rejects_natural_language_and_missing_inventory(tmp_path, monkeypatch):
+def test_ingest_docs_rejects_natural_language_and_missing_inventory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     docs = make_docs_dir(tmp_path)
     result = CliRunner().invoke(cli, ["ingest-docs", str(docs), "--language", "nl"])

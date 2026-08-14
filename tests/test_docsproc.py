@@ -1,4 +1,5 @@
 import zlib
+from pathlib import Path
 
 import pytest
 
@@ -15,7 +16,7 @@ INVENTORY_LINES = "\n".join(
 )
 
 
-def make_inventory(tmp_path):
+def make_inventory(tmp_path: Path) -> Path:
     path = tmp_path / "objects.inv"
     header = (
         b"# Sphinx inventory version 2\n"
@@ -27,7 +28,7 @@ def make_inventory(tmp_path):
     return path
 
 
-def test_parse_inventory_keeps_learnable_python_objects(tmp_path):
+def test_parse_inventory_keeps_learnable_python_objects(tmp_path: Path) -> None:
     entries = parse_inventory(make_inventory(tmp_path))
     assert entries == [
         DocEntry("itertools.chain", "function", "library/itertools.html", "itertools.chain"),
@@ -38,7 +39,7 @@ def test_parse_inventory_keeps_learnable_python_objects(tmp_path):
     assert entries[1].module == "list"
 
 
-def test_parse_inventory_rejects_other_formats(tmp_path):
+def test_parse_inventory_rejects_other_formats(tmp_path: Path) -> None:
     bad = tmp_path / "objects.inv"
     bad.write_bytes(b"# Sphinx inventory version 1\nwhatever")
     with pytest.raises(ValueError):
@@ -67,7 +68,7 @@ until it is exhausted. Then proceeds to the next iterable.</p>
 """
 
 
-def test_extract_glosses_signature_and_first_sentence():
+def test_extract_glosses_signature_and_first_sentence() -> None:
     result = extract_glosses(SPHINX_PAGE, {"itertools.chain", "itertools.count"})
     signature, gloss = result["itertools.chain"]
     assert signature == "itertools.chain(*iterables)"
