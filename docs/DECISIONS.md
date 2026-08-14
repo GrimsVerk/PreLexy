@@ -317,3 +317,28 @@ memorizing" — a big pool is precisely what makes distractors hard, and
 scarce distractors were the concern with per-module imports. Showing the
 source line up front would give answers away (same reasoning as ruling
 011's context-after-answer).
+
+## 025 — Adopt the template's Python toolchain; conda stays for the owner (2026-08)
+
+**Decision:** PreLexy declares its dependencies in `pyproject.toml` with a
+committed `uv.lock`, and adopts the template's ruff and mypy configuration —
+including `strict = true`, which the whole project now passes. CI runs the
+template's `.github/workflows/ci.yml`; the old `tests.yml` is retired.
+`environment.yml` stays as the owner's conda environment and is kept in step
+by hand. Two deliberate divergences from the rendered template: the package
+stays at `prelexy/` rather than moving to `src/`, and `requires-python` stays
+`>=3.11` rather than the template's `>=3.12`.
+**Why:** The template's CI is the gate machinery the project wants, and it
+runs `uv sync --locked` plus ruff/mypy — none of which existed here, which is
+why the adoption in 024 declined those files. Declining them permanently was
+not viable: copier treats a declined file as deleted and never restores it, so
+the project would have kept diverging from every future template release.
+Strict mypy was chosen over a laxer scope (owner ruling, 2026-08-14) precisely
+so `pyproject.toml` needs no per-module escapes to maintain. Moving 17 modules
+into `src/` and bumping the runtime are real changes to the project rather than
+consequences of adopting a template, so both were left alone.
+**Residual:** `ci.yml` carries one step the template has no notion of —
+fetching the WordNet/OMW corpora before pytest, without which eight Dutch/OMW
+tests fail. A template update that overwrites `ci.yml` drops it; the step is
+commented in place and noted in AGENTS.md so it can be re-applied. Upstreaming
+a per-project "extra setup step" hook to the template would remove the need.

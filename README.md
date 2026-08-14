@@ -110,6 +110,13 @@ python -m prelexy --debug question vermilion
 
 # run the test suite (CI runs it on every push too)
 python -m pytest
+
+# the full CI gate — lint, formatting, types, tests. Needs `uv`
+# (https://docs.astral.sh/uv/); dependencies come from pyproject.toml.
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
+uv run pytest
 ```
 
 The database lives at `~/.local/share/prelexy/prelexy.db` by default; every

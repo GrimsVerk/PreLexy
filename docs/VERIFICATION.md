@@ -36,6 +36,9 @@ observed working end-to-end anywhere.
 
 | v3: docs ingestion + code-mode questions | sandbox (synthetic Sphinx tree) | end-to-end play verified offline; owner: real stdlib run below |
 | v3: full Python stdlib corpus (real model) | AWAITING OWNER | commands below |
+| Template toolchain: ruff + mypy --strict + pytest via uv | sandbox | `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` (34 files clean), `uv run pytest` (161 passed, 1 skipped) — all run 2026-08-14 |
+| `ci.yml` WordNet fetch step | UNVERIFIED (sandbox cannot run it) | NLTK refuses proxied downloads and this sandbox proxies all egress; the command matches the one `tests.yml` ran green on GitHub. Owner/CI: confirm the `checks` job goes green on the first run |
+| `ci.yml` gate jobs (plan, template-sync, secrets, test-the-tests) | UNVERIFIED | never executed — they arrive with this change. `template-sync` also needs a `TEMPLATE_TOKEN` repository Actions secret, since the template repo is private |
 
 ## Owner verification commands — v3 (Python docs)
 
