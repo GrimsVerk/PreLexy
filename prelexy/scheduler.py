@@ -37,6 +37,16 @@ class ItemSchedule:
     scheduler_state: dict[str, Any]
 
 
+class RowLike(Protocol):
+    """What a scheduler actually needs of an item-state row: string lookup.
+
+    Store hands it sqlite3.Row; the type is stated structurally so callers
+    (and tests) are not forced to manufacture a Row to satisfy it.
+    """
+
+    def __getitem__(self, key: str, /) -> Any: ...
+
+
 class Scheduler(Protocol):
     def next_items(
         self, store: Store, profile_id: int, language: str, now: datetime, limit: int
@@ -44,7 +54,7 @@ class Scheduler(Protocol):
         """Items to practice this session, most urgent first."""
 
     def record_review(
-        self, state: sqlite3.Row | None, outcome: ReviewOutcome, now: datetime
+        self, state: RowLike | None, outcome: ReviewOutcome, now: datetime
     ) -> ItemSchedule:
         """Digest one review into the item's next schedule.
 
@@ -108,7 +118,7 @@ class SM2Scheduler:
         return due[:n_due] + new[:n_new]
 
     def record_review(
-        self, state: sqlite3.Row | None, outcome: ReviewOutcome, now: datetime
+        self, state: RowLike | None, outcome: ReviewOutcome, now: datetime
     ) -> ItemSchedule:
         previous = _blob(state)
         successes = previous.get("n", 0)
@@ -137,7 +147,7 @@ class SM2Scheduler:
         )
 
 
-def _blob(state: sqlite3.Row | None) -> dict[str, Any]:
+def _blob(state: RowLike | None) -> dict[str, Any]:
     raw = state["scheduler_state"] if state is not None else None
     blob: dict[str, Any] = json.loads(raw) if raw else {}
     return blob
@@ -165,7 +175,7 @@ class SimpleScheduler:
         return (missed + new)[:limit]
 
     def record_review(
-        self, state: sqlite3.Row | None, outcome: ReviewOutcome, now: datetime
+        self, state: RowLike | None, outcome: ReviewOutcome, now: datetime
     ) -> ItemSchedule:
         return ItemSchedule(
             status="known" if outcome.correct else "learning",

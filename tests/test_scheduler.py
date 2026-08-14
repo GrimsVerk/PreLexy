@@ -68,6 +68,7 @@ def fake_state(blob: dict[str, Any] | None = None) -> dict[str, Any]:
 
 
 def due_in(schedule: ItemSchedule, days: int) -> bool:
+    assert schedule.due_at is not None
     return datetime.fromisoformat(schedule.due_at) == NOW + timedelta(days=days)
 
 

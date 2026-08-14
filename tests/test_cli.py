@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +10,7 @@ from prelexy.textproc import Candidate
 
 
 @pytest.fixture(autouse=True)
-def isolated_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+def isolated_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Every CLI test gets its own config dir (commands read the config now)."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
 
@@ -107,6 +106,7 @@ def test_ingest_converts_subtitle_files(tmp_path: Path, monkeypatch: pytest.Monk
     assert "Hallo, welkom" in received["text"]
     with Store(db) as store:
         source = store.find_source_by_path(str(episode.resolve()))
+        assert source is not None
         assert source["kind"] == "subtitles"
 
 

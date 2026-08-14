@@ -31,7 +31,7 @@ def add_word(store: Store, form: str, zipf: float = 2.5, gloss: str | None = Non
 
 def feed_answers(monkeypatch: pytest.MonkeyPatch, answers: list[str]) -> None:
     answer_iterator = iter(answers)
-    monkeypatch.setattr(session.click, "prompt", lambda *args, **kwargs: next(answer_iterator))
+    monkeypatch.setattr("click.prompt", lambda *args, **kwargs: next(answer_iterator))
 
 
 def play(store: Store, profile: int, n_questions: int = 10) -> SessionSummary:
@@ -130,11 +130,12 @@ def test_p_pronounces_and_still_records_one_review(
     add_word(store, "sagacious", zipf=2.0, gloss="having keen judgement")  # served first
     add_word(store, "gaunt", zipf=2.6, gloss="very thin")
     spoken = []
-    monkeypatch.setattr(
-        session,
-        "pronounce",
-        lambda word, language="en", voice=None: spoken.append(word) or True,
-    )
+
+    def fake_pronounce(word: str, language: str = "en", voice: str | None = None) -> bool:
+        spoken.append(word)
+        return True
+
+    monkeypatch.setattr(session, "pronounce", fake_pronounce)
     feed_answers(monkeypatch, ["p", "1", "q"])
 
     summary = play(store, profile)
@@ -184,11 +185,12 @@ def test_p_passes_language_and_voice_to_pronounce(
     add_word(store, "sagacious", zipf=2.0, gloss="having keen judgement")
     add_word(store, "gaunt", zipf=2.6, gloss="very thin")
     calls = []
-    monkeypatch.setattr(
-        session,
-        "pronounce",
-        lambda word, language="en", voice=None: calls.append((word, language, voice)) or True,
-    )
+
+    def fake_pronounce(word: str, language: str = "en", voice: str | None = None) -> bool:
+        calls.append((word, language, voice))
+        return True
+
+    monkeypatch.setattr(session, "pronounce", fake_pronounce)
     feed_answers(monkeypatch, ["p", "q"])
 
     run_session(

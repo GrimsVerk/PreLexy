@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -8,7 +9,7 @@ from prelexy.cli import cli
 
 
 @pytest.fixture(autouse=True)
-def reset_debug(monkeypatch: pytest.MonkeyPatch) -> None:
+def reset_debug(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.delenv("PRELEXY_DEBUG", raising=False)
     debug.enable(False)
     yield

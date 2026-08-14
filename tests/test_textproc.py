@@ -18,7 +18,10 @@ VOCAB = spacy.blank("en").vocab
 
 
 def make_doc(
-    words: list[str], lemmas: list[str], pos: list[str], sent_starts: list[bool] | None = None
+    words: list[str],
+    lemmas: list[str],
+    pos: list[str],
+    sent_starts: list[bool | int | None] | None = None,
 ) -> Any:
     """Build a fully annotated Doc by hand, so no statistical model is needed."""
     if sent_starts is None:

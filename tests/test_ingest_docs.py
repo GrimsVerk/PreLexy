@@ -53,6 +53,7 @@ def test_ingest_docs_whole_corpus(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     with Store(db) as store:
         item = store.find_item("python", "itertools.chain")
+        assert item is not None
         assert item["pos"] == "function"
         import json
 

@@ -1,3 +1,4 @@
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -20,6 +21,24 @@ def no_network(monkeypatch: pytest.MonkeyPatch) -> None:
 def store(tmp_path: Path) -> Iterator[Store]:
     with Store(tmp_path / "test.db") as s:
         yield s
+
+
+def row_for(store: Store, language: str, form: str) -> sqlite3.Row:
+    """A stored item row that the test requires to exist."""
+    item = store.find_item(language, form)
+    assert item is not None
+    assert item is not None
+    return item
+
+
+def gloss_for(store: Store, language: str, form: str) -> str:
+    """The gloss the chain resolves for a stored form; fails if there is none."""
+    item = store.find_item(language, form)
+    assert item is not None
+    assert item is not None
+    sense = ensure_sense(store, item)
+    assert sense is not None
+    return sense.gloss
 
 
 API_PAYLOAD = [
@@ -61,13 +80,15 @@ def test_clean_gloss(dirty: str, clean: str) -> None:
 
 def test_wordnet_sense_glosses_are_clean() -> None:
     sense = wordnet_sense("wizened", "ADJ")
+    assert sense is not None
     assert sense.gloss == "lean and wrinkled by shrinkage as from age or illness"
 
 
 def test_ensure_sense_cleans_previously_cached_glosses(store: Store) -> None:
     item_id = store.get_or_create_item("en", "pitiable", pos="ADJ")
     store.add_sense(item_id, "deserving or inciting pity; ; ; - Galsworthy", "en", "wordnet")
-    sense = ensure_sense(store, store.find_item("en", "pitiable"))
+    sense = ensure_sense(store, row_for(store, "en", "pitiable"))
+    assert sense is not None
     assert sense.gloss == "deserving or inciting pity"
 
 
@@ -75,6 +96,7 @@ def test_wordnet_sense_prefers_non_instance_synsets() -> None:
     # "china": first synset is the country (an instance); the porcelain
     # sense must win for vocabulary purposes.
     sense = wordnet_sense("china", "NOUN")
+    assert sense is not None
     assert "porcelain" in sense.gloss
 
 
@@ -105,7 +127,7 @@ def test_dutch_distractor_pool_exists() -> None:
 def test_ensure_sense_falls_back_to_the_lemma_for_surface_forms(store: Store) -> None:
     # L2 items keep the surface form ("liep"); OMW keys on lemmas ("lopen")
     item_id = store.get_or_create_item("nl", "liep", lemma="lopen", pos="VERB")
-    sense = ensure_sense(store, store.find_item("nl", "liep"))
+    sense = ensure_sense(store, row_for(store, "nl", "liep"))
     assert sense is not None
     assert sense.gloss_language == "en"
     assert len(store.senses_for(item_id)) == 1
@@ -138,12 +160,19 @@ def test_wordnet_sense_falls_back_across_pos() -> None:
     assert wordnet_sense("run", "ADJ") is not None
 
 
+def sense_pos(word: str, pos: str) -> str | None:
+    """The POS a gloss actually came from; fails the test if there is none."""
+    sense = wordnet_sense(word, pos)
+    assert sense is not None
+    return sense.pos
+
+
 def test_wordnet_sense_reports_the_gloss_pos() -> None:
-    assert wordnet_sense("carthorse", "NOUN").pos == "NOUN"
+    assert sense_pos("carthorse", "NOUN") == "NOUN"
     # ADJ item whose only synsets are verbs: the fallback POS is reported
-    assert wordnet_sense("gartered", "ADJ").pos == "VERB"
+    assert sense_pos("gartered", "ADJ") == "VERB"
     # satellite adjectives count as ADJ
-    assert wordnet_sense("unpictured", "ADJ").pos == "ADJ"
+    assert sense_pos("unpictured", "ADJ") == "ADJ"
 
 
 def test_wordnet_sense_unknown_word() -> None:
@@ -160,6 +189,7 @@ def test_api_sense_prefers_matching_pos(monkeypatch: pytest.MonkeyPatch) -> None
 def test_api_sense_falls_back_to_first_gloss(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(definitions, "_fetch_api_json", lambda url: API_PAYLOAD)
     sense = api_sense("sagacious", "VERB")
+    assert sense is not None
     assert sense.gloss == "a wise-noun gloss"
 
 
@@ -174,8 +204,10 @@ def test_api_sense_handles_failure_and_unsupported_language(
 def test_ensure_sense_caches_wordnet_hit(store: Store) -> None:
     item_id = store.get_or_create_item("en", "sagacious", pos="ADJ")
     item = store.find_item("en", "sagacious")
+    assert item is not None
 
     first = ensure_sense(store, item)
+    assert first is not None
     assert first.provider == "wordnet"
     assert len(store.senses_for(item_id)) == 1
 
@@ -183,6 +215,7 @@ def test_ensure_sense_caches_wordnet_hit(store: Store) -> None:
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(definitions, "wordnet_sense", lambda *a, **k: pytest.fail("cache missed"))
         cached = ensure_sense(store, item)
+        assert cached is not None
     assert (cached.gloss, cached.gloss_language, cached.provider) == (
         first.gloss,
         first.gloss_language,
@@ -198,8 +231,10 @@ def test_ensure_sense_falls_back_to_api_and_caches(
     monkeypatch.setattr(definitions, "_fetch_api_json", lambda url: API_PAYLOAD)
     item_id = store.get_or_create_item("en", "xqzt", pos="ADJ")
     item = store.find_item("en", "xqzt")
+    assert item is not None
 
     sense = ensure_sense(store, item)
+    assert sense is not None
     assert sense.provider == "api"
     cached = store.senses_for(item_id)
     assert len(cached) == 1 and cached[0]["provider"] == "api"
@@ -229,11 +264,12 @@ def test_import_kaikki_glosses_fills_gaps_with_pos_preference(store: Store, tmp_
     filled, missing = definitions.import_kaikki_glosses(store, extract, "nl")
     assert (filled, missing) == (2, 2)
 
-    sense = ensure_sense(store, store.find_item("nl", "mooi"))
+    sense = ensure_sense(store, row_for(store, "nl", "mooi"))
+    assert sense is not None
     assert sense.gloss == "beautiful, handsome"  # POS-matched entry won
     assert sense.provider == "wiktionary"
-    assert ensure_sense(store, store.find_item("nl", "gezellig")).gloss == "cozy, convivial"
-    assert ensure_sense(store, store.find_item("nl", "liep")).gloss == "existing gloss"
+    assert gloss_for(store, "nl", "gezellig") == "cozy, convivial"
+    assert gloss_for(store, "nl", "liep") == "existing gloss"
     assert store.senses_for(mooi)[0]["gloss_language"] == "en"
 
 
@@ -264,7 +300,8 @@ def test_import_kaikki_streams_gzip_and_filters_language(store: Store, tmp_path:
         fh.write(KAIKKI_SAMPLE)
     filled, missing = definitions.import_kaikki_glosses(store, extract, "nl")
     assert (filled, missing) == (1, 1)
-    sense = ensure_sense(store, store.find_item("nl", "gezellig"))
+    sense = ensure_sense(store, row_for(store, "nl", "gezellig"))
+    assert sense is not None
     assert sense.gloss == "cozy, convivial"  # the de entry was skipped
 
 
@@ -290,13 +327,15 @@ def test_import_kaikki_prefers_real_glosses_over_form_of(store: Store, tmp_path:
     )
     filled, missing = definitions.import_kaikki_glosses(store, extract, "nl")
     assert (filled, missing) == (2, 2)
-    assert ensure_sense(store, store.find_item("nl", "abonneert")).gloss == "to subscribe"
-    assert ensure_sense(store, store.find_item("nl", "graatje")).gloss == "diminutive of graat"
+    assert gloss_for(store, "nl", "abonneert") == "to subscribe"
+    assert gloss_for(store, "nl", "graatje") == "diminutive of graat"
 
 
 def test_ensure_sense_offline_only_skips_api(store: Store) -> None:
     store.get_or_create_item("en", "xqzt", pos="ADJ")
     item = store.find_item("en", "xqzt")
+    assert item is not None
+    assert item is not None
     # The autouse no_network fixture fails the test if the API is touched.
     assert ensure_sense(store, item, allow_api=False) is None
     assert store.senses_for(item["id"]) == []

@@ -44,6 +44,7 @@ def test_add_source_and_find_by_path(db: Path) -> None:
         source_id = store.add_source("Dorian Gray", "en", "book", "/tmp/dg.txt")
         assert source_id == 1
         found = store.find_source_by_path("/tmp/dg.txt")
+        assert found is not None
         assert found["title"] == "Dorian Gray"
         assert store.find_source_by_path("/nowhere") is None
 
