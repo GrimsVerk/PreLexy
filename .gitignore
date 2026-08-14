@@ -1,4 +1,7 @@
 .DS_Store
+# Claude Code orchestration (transient; produced by .claude/scripts/spawn-worker.sh)
+.claude/orchestration-logs/
+.claude/worktrees/
 __pycache__/
 *.py[cod]
 *.cleaned.txt
