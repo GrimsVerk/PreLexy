@@ -23,23 +23,17 @@ def db(tmp_path):
 
 def test_creates_full_schema(db):
     with Store(db) as store:
-        rows = store._conn.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table'"
-        ).fetchall()
-    assert EXPECTED_TABLES <= {row["name"] for row in rows}
+        rows = store._conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+    assert {row["name"] for row in rows} >= EXPECTED_TABLES
 
 
 def test_schema_version_persists_and_mismatch_is_rejected(db):
     with Store(db):
         pass
     with Store(db) as store:
-        row = store._conn.execute(
-            "SELECT value FROM meta WHERE key = 'schema_version'"
-        ).fetchone()
+        row = store._conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
         assert int(row["value"]) == SCHEMA_VERSION
-        store._conn.execute(
-            "UPDATE meta SET value = '999' WHERE key = 'schema_version'"
-        )
+        store._conn.execute("UPDATE meta SET value = '999' WHERE key = 'schema_version'")
     with pytest.raises(RuntimeError, match="schema version 999"):
         Store(db)
 
@@ -65,9 +59,7 @@ def test_get_or_create_item_dedupes_on_language_and_form(db):
 def test_item_metadata_roundtrip(db):
     with Store(db) as store:
         item_id = store.get_or_create_item("en", "sagacious", metadata={"zipf": 2.5})
-        row = store._conn.execute(
-            "SELECT metadata FROM items WHERE id = ?", (item_id,)
-        ).fetchone()
+        row = store._conn.execute("SELECT metadata FROM items WHERE id = ?", (item_id,)).fetchone()
         assert json.loads(row["metadata"]) == {"zipf": 2.5}
 
 
@@ -98,9 +90,7 @@ def test_meta_roundtrip(db):
         store.set_meta("pod_subscriptions", [{"url": "v", "language": "en"}])
         assert store.get_meta("pod_subscriptions") == [{"url": "v", "language": "en"}]
         # the schema_version key is untouched by meta helpers
-        row = store._conn.execute(
-            "SELECT value FROM meta WHERE key = 'schema_version'"
-        ).fetchone()
+        row = store._conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
         assert row["value"] == "1"
 
 
@@ -190,8 +180,9 @@ def test_example_for_bounds_the_scan_but_keeps_the_best(db):
     with Store(db) as store:
         source = store.add_source("t", "nl", "transcript", None)
         item = store.get_or_create_item("nl", "zin")
-        many = [("Een veel langere zin die maar door blijft gaan " * 5 + ".", i)
-                for i in range(5000)]
+        many = [
+            ("Een veel langere zin die maar door blijft gaan " * 5 + ".", i) for i in range(5000)
+        ]
         store.add_occurrences(item, source, many + [(good, 9999)])
         assert store.example_for(item) == good
 
@@ -204,9 +195,8 @@ def test_writes_persist_after_clean_exit(db):
 
 
 def test_writes_roll_back_on_exception(db):
-    with pytest.raises(ValueError):
-        with Store(db) as store:
-            store.add_source("lost", "en", "book", "/lost.txt")
-            raise ValueError("boom")
+    with pytest.raises(ValueError), Store(db) as store:
+        store.add_source("lost", "en", "book", "/lost.txt")
+        raise ValueError("boom")
     with Store(db) as store:
         assert store.find_source_by_path("/lost.txt") is None

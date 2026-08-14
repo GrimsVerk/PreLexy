@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import click
 
@@ -43,7 +43,7 @@ def run_session(
     tts_voice: str | None = None,
     code_own_pool=None,
 ) -> SessionSummary:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     items = scheduler.next_items(store, profile_id, language, now, n_questions)
     summary = SessionSummary(had_items=bool(items))
     if not items:
@@ -52,16 +52,19 @@ def run_session(
 
     for item in items:
         question = build_question(
-            store, item, similarity=similarity, rng=rng, band=band,
-            pool_size=pool_size, code_own_pool=code_own_pool,
+            store,
+            item,
+            similarity=similarity,
+            rng=rng,
+            band=band,
+            pool_size=pool_size,
+            code_own_pool=code_own_pool,
         )
         if question is None:
             store.upsert_item_state(profile_id, item["id"], "suspended", None, {})
             summary.suspended += 1
             continue
-        answered = _ask(
-            question, number=summary.asked + 1, language=language, tts_voice=tts_voice
-        )
+        answered = _ask(question, number=summary.asked + 1, language=language, tts_voice=tts_voice)
         if answered is None:  # player quit (q / EOF)
             break
         choice, latency_ms = answered
@@ -92,9 +95,7 @@ def run_session(
     if summary.asked:
         click.echo(f"\nSession over: {summary.correct}/{summary.asked} correct.")
     if summary.suspended:
-        click.echo(
-            f"({summary.suspended} word(s) had no usable definition and were set aside.)"
-        )
+        click.echo(f"({summary.suspended} word(s) had no usable definition and were set aside.)")
     return summary
 
 

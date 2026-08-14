@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -11,7 +11,7 @@ from prelexy.scheduler import (
 )
 from prelexy.store import Store
 
-NOW = datetime(2026, 7, 3, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -124,12 +124,8 @@ def test_sm2_next_items_serves_due_then_new_and_respects_spacing(store):
     legacy = add_word(store, "legacy", zipf=4.5)
     suspended = add_word(store, "suspended", zipf=0.5)
     add_word(store, "brandnew", zipf=3.0)
-    store.upsert_item_state(
-        profile, overdue, "known", (NOW - timedelta(days=2)).isoformat(), {}
-    )
-    store.upsert_item_state(
-        profile, not_yet, "learning", (NOW + timedelta(days=3)).isoformat(), {}
-    )
+    store.upsert_item_state(profile, overdue, "known", (NOW - timedelta(days=2)).isoformat(), {})
+    store.upsert_item_state(profile, not_yet, "learning", (NOW + timedelta(days=3)).isoformat(), {})
     store.upsert_item_state(profile, legacy, "learning", None, {})
     store.upsert_item_state(profile, suspended, "suspended", None, {})
 
@@ -152,9 +148,7 @@ def test_sm2_quotas_trump_review_backlog(store):
     for i in range(30):
         add_word(store, f"new{i}", zipf=2.0)
 
-    picked = SM2Scheduler(new_words=7, seen_words=3).next_items(
-        store, profile, "en", NOW, limit=10
-    )
+    picked = SM2Scheduler(new_words=7, seen_words=3).next_items(store, profile, "en", NOW, limit=10)
     forms = [row["form"] for row in picked]
     assert len(forms) == 10
     assert sum(form.startswith("new") for form in forms) == 7
@@ -208,7 +202,10 @@ def test_code_items_are_served_in_inventory_order(store):
 
     for i, name in enumerate(["zlib.compress", "abc.register", "os.walk"]):
         store.get_or_create_item(
-            "python", name, lemma=name, pos="function",
+            "python",
+            name,
+            lemma=name,
+            pos="function",
             metadata={"order": i},
         )
     profile = store.get_or_create_profile("p")

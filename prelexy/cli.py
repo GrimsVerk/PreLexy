@@ -39,7 +39,7 @@ def _validate_language(code):
     try:
         get_language(code)
     except UnsupportedLanguageError as error:
-        raise click.ClickException(str(error))
+        raise click.ClickException(str(error)) from error
     return code
 
 
@@ -48,8 +48,12 @@ def _resolve_language(language, config):
 
 
 @click.group()
-@click.option("--debug", "debug_flag", is_flag=True,
-              help="Print diagnostic detail to stderr (e.g. distractor scores).")
+@click.option(
+    "--debug",
+    "debug_flag",
+    is_flag=True,
+    help="Print diagnostic detail to stderr (e.g. distractor scores).",
+)
 def cli(debug_flag):
     """PreLexy — learn the vocabulary of the texts you actually read."""
     if debug_flag:
@@ -87,8 +91,7 @@ def ingest(file, language, title, kind, db_path):
         click.echo("\nRarest finds:")
         for candidate in candidates[:10]:
             click.echo(
-                f"  {candidate.form:<22} zipf {candidate.zipf:4.2f}"
-                f"  ×{len(candidate.occurrences)}"
+                f"  {candidate.form:<22} zipf {candidate.zipf:4.2f}  ×{len(candidate.occurrences)}"
             )
 
 
@@ -142,9 +145,7 @@ def words(language, limit, db_path):
     click.echo(f"{'form':<22} {'pos':<6} {'zipf':>5}  occurrences")
     for row in ranked[:limit]:
         zipf = json.loads(row["metadata"]).get("zipf", 0.0)
-        click.echo(
-            f"{row['form']:<22} {row['pos'] or '?':<6} {zipf:>5.2f}  {row['n_occurrences']}"
-        )
+        click.echo(f"{row['form']:<22} {row['pos'] or '?':<6} {zipf:>5.2f}  {row['n_occurrences']}")
 
 
 @cli.command()
@@ -188,8 +189,9 @@ def clean(file, output):
     show_default=True,
     help="Where fetched subtitle files land.",
 )
-@click.option("--ingest", "do_ingest", is_flag=True,
-              help="Ingest the fetched subtitles immediately.")
+@click.option(
+    "--ingest", "do_ingest", is_flag=True, help="Ingest the fetched subtitles immediately."
+)
 @_db_option
 def fetch(url, language, dest, do_ingest, db_path):
     """Download a YouTube video/playlist/channel's subtitles via yt-dlp.
@@ -217,18 +219,19 @@ def _ingest_paths(files, language, config, db_path):
                 click.echo(f"  {file.name}: already ingested, skipped")
             else:
                 candidates, n_occurrences = result
-                click.echo(
-                    f"  {file.name}: {len(candidates)} items ({n_occurrences} occurrences)"
-                )
+                click.echo(f"  {file.name}: {len(candidates)} items ({n_occurrences} occurrences)")
 
 
 @cli.command("ingest-docs")
 @click.argument("docs_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
-@click.option("--language", default="python", show_default=True,
-              help="Code language namespace for the items.")
-@click.option("--modules", default=None,
-              help="Comma-separated module filter, e.g. 'itertools,functools' "
-                   "[default: the whole corpus]")
+@click.option(
+    "--language", default="python", show_default=True, help="Code language namespace for the items."
+)
+@click.option(
+    "--modules",
+    default=None,
+    help="Comma-separated module filter, e.g. 'itertools,functools' [default: the whole corpus]",
+)
 @_db_option
 def ingest_docs(docs_dir, language, modules, db_path):
     """Ingest a downloaded Sphinx HTML documentation tree.
@@ -256,11 +259,12 @@ def ingest_docs(docs_dir, language, modules, db_path):
     try:
         entries = parse_inventory(inventory)
     except ValueError as error:
-        raise click.ClickException(str(error))
+        raise click.ClickException(str(error)) from error
     if modules:
         wanted = {m.strip() for m in modules.split(",") if m.strip()}
         entries = [
-            e for e in entries
+            e
+            for e in entries
             if e.module in wanted or any(e.module.startswith(m + ".") for m in wanted)
         ]
     if not entries:
@@ -306,9 +310,7 @@ def ingest_docs(docs_dir, language, modules, db_path):
                         "order": order,
                     },
                 )
-                store.add_occurrences(
-                    item_id, source_id, [(signature or entry.name, order)]
-                )
+                store.add_occurrences(item_id, source_id, [(signature or entry.name, order)])
                 if not store.senses_for(item_id):
                     store.add_sense(item_id, gloss, "en", "docs")
                 stored += 1
@@ -382,8 +384,9 @@ def pods_remove(url, db_path):
     default=Path("data/pods"),
     show_default=True,
 )
-@click.option("--ingest", "do_ingest", is_flag=True,
-              help="Ingest every new transcript immediately.")
+@click.option(
+    "--ingest", "do_ingest", is_flag=True, help="Ingest every new transcript immediately."
+)
 @_db_option
 def pods_sync(dest, do_ingest, db_path):
     """Fetch new episodes' subtitles from every saved pod.
@@ -462,7 +465,7 @@ def _load_config_or_die() -> dict:
     try:
         return load_config()
     except (OSError, ValueError, tomllib.TOMLDecodeError) as error:
-        raise click.ClickException(f"Bad config file ({config_path()}): {error}")
+        raise click.ClickException(f"Bad config file ({config_path()}): {error}") from error
 
 
 def _choose_profile(store) -> int:
@@ -550,11 +553,21 @@ def question(form, language, db_path):
     help="Language to practice [default: the profile's last language, "
     "else default_language from the config file]",
 )
-@click.option("--new", "new_words", default=None, type=click.IntRange(min=0),
-              help="New words this session [default: new_words from the config file]")
-@click.option("--seen", "seen_words", default=None, type=click.IntRange(min=0),
-              help="Previously seen words (due reviews) this session "
-                   "[default: seen_words from the config file]")
+@click.option(
+    "--new",
+    "new_words",
+    default=None,
+    type=click.IntRange(min=0),
+    help="New words this session [default: new_words from the config file]",
+)
+@click.option(
+    "--seen",
+    "seen_words",
+    default=None,
+    type=click.IntRange(min=0),
+    help="Previously seen words (due reviews) this session "
+    "[default: seen_words from the config file]",
+)
 @_db_option
 def play(profile_name, language, new_words, seen_words, db_path):
     """Start a practice session."""
@@ -576,9 +589,7 @@ def play(profile_name, language, new_words, seen_words, db_path):
         similarity = None  # no vectors: distractor band is skipped
     with Store(_resolve_db(db_path, config)) as store:
         profile_id = (
-            store.get_or_create_profile(profile_name)
-            if profile_name
-            else _choose_profile(store)
+            store.get_or_create_profile(profile_name) if profile_name else _choose_profile(store)
         )
         settings = store.get_profile_settings(profile_id)
         language = _validate_language(

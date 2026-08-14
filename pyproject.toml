@@ -1,0 +1,60 @@
+[project]
+name = "prelexy"
+version = "0.1.0"
+description = "Terminal vocabulary game: ingest real texts, extract the rare words, and drill them with spaced repetition."
+readme = "README.md"
+# 3.11 matches environment.yml, which is still the owner's real environment.
+# The template renders >=3.12; bumping PreLexy's runtime is a separate call.
+requires-python = ">=3.11"
+# No `license` field, by design — see "Licensing" in AGENTS.md.
+dependencies = [
+    "click",
+    "nltk",
+    "numpy",
+    "spacy",
+    "wordfreq",
+]
+
+# yt-dlp is deliberately absent: pods.py treats it as an external tool like
+# espeak (shutil.which + install hint), not an importable dependency.
+
+[dependency-groups]
+# Pinned to the same minor as the `rev` values in .pre-commit-config.yaml, so
+# `uv sync` and pre-commit cannot disagree about formatting.
+dev = [
+    "mypy~=2.3",
+    "pytest>=8.3",
+    "ruff~=0.15.22",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# The package lives at the repository root, not under src/ — the template's
+# src layout was never adopted here, and moving 17 modules is not a template
+# concern.
+packages = ["prelexy"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Holds a verbatim Sphinx HTML page as a fixture. Its lines are the real
+# document's lines; rewrapping them would change the input under test.
+"tests/test_docsproc.py" = ["E501"]
+
+[tool.mypy]
+strict = true
+files = ["prelexy", "tests"]
+
+# Third-party packages that ship no type information. Without these the strict
+# run fails on the import line itself, before it can check any of our code.
+[[tool.mypy.overrides]]
+module = ["nltk.*", "spacy.*", "wordfreq.*"]
+ignore_missing_imports = true

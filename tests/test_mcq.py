@@ -41,9 +41,7 @@ def store(tmp_path):
 
 
 def add_target(store, form="sagacious", pos="ADJ", gloss="having keen judgement"):
-    item_id = store.get_or_create_item(
-        "en", form, lemma=form, pos=pos, metadata={"zipf": 2.5}
-    )
+    item_id = store.get_or_create_item("en", form, lemma=form, pos=pos, metadata={"zipf": 2.5})
     store.add_sense(item_id, gloss, "en", "wordnet")
     return store.find_item("en", form)
 
@@ -116,8 +114,20 @@ def test_pool_biases_toward_hardest_candidates(store, monkeypatch):
     item = add_target(store, gloss=correct)
     # 12 in-band candidates with ascending scores: the 2 weakest fall
     # outside the top-10 pool and must never be sampled.
-    words = ["gaunt", "sallow", "listless", "sombre", "wan", "ashen",
-             "haggard", "drawn", "pallid", "peaked", "sickly", "drab"]
+    words = [
+        "gaunt",
+        "sallow",
+        "listless",
+        "sombre",
+        "wan",
+        "ashen",
+        "haggard",
+        "drawn",
+        "pallid",
+        "peaked",
+        "sickly",
+        "drab",
+    ]
     table, glosses = {}, {}
     for rank, word in enumerate(words):
         gloss = f"gloss number {rank} for {word}"
@@ -160,9 +170,7 @@ def test_below_floor_candidates_fill_when_band_is_empty(store, monkeypatch):
 
 
 def test_wordnet_synonyms_never_become_distractors(store, monkeypatch):
-    item = add_target(
-        store, form="joy", pos="NOUN", gloss="the emotion of great happiness"
-    )
+    item = add_target(store, form="joy", pos="NOUN", gloss="the emotion of great happiness")
     use_candidates(monkeypatch, ["delight", "brickfield", "scaup", "probity"])
     question = build_question(store, item, rng=random.Random(0))
     delight_gloss = definitions.wordnet_sense("delight", "NOUN").gloss
@@ -188,8 +196,9 @@ def test_length_mismatched_glosses_are_excluded(store, monkeypatch):
     # end to end: the monster gloss never appears even when in band
     item = add_target(store, gloss=short)
     use_candidates(monkeypatch, ["gaunt", "sallow", "listless", "crimson"])
-    table = {frozenset((short, gloss_of(w))): IN_BAND
-             for w in ("gaunt", "sallow", "listless", "crimson")}
+    table = {
+        frozenset((short, gloss_of(w))): IN_BAND for w in ("gaunt", "sallow", "listless", "crimson")
+    }
     monkeypatch.setattr(
         "prelexy.mcq._length_compatible",
         lambda correct, cand: cand != gloss_of("crimson"),
@@ -212,8 +221,7 @@ def test_candidate_pool_follows_the_gloss_pos(store, monkeypatch):
     monkeypatch.setattr(mcq_module, "_wordnet_candidates", recording_candidates)
 
     # fresh lookup: 'gartered' stored as ADJ, glossed from the verb 'garter'
-    store.get_or_create_item("en", "gartered", lemma="gartered", pos="ADJ",
-                             metadata={"zipf": 1.0})
+    store.get_or_create_item("en", "gartered", lemma="gartered", pos="ADJ", metadata={"zipf": 1.0})
     item = store.find_item("en", "gartered")
     question = build_question(store, item, rng=random.Random(0))
     assert question is not None
@@ -228,9 +236,16 @@ def test_candidate_pool_follows_the_gloss_pos(store, monkeypatch):
 
 def add_code_item(store, form, gloss, language="python", kind="method", order=0):
     item_id = store.get_or_create_item(
-        language, form, lemma=form, pos=kind,
-        metadata={"kind": kind, "module": form.split(".")[0],
-                  "signature": f"{form}(...)", "order": order},
+        language,
+        form,
+        lemma=form,
+        pos=kind,
+        metadata={
+            "kind": kind,
+            "module": form.split(".")[0],
+            "signature": f"{form}(...)",
+            "order": order,
+        },
     )
     store.add_sense(item_id, gloss, "en", "docs")
     return item_id
@@ -274,8 +289,7 @@ def test_code_pool_spans_languages_unless_restricted(store, monkeypatch):
 
 def test_dutch_question_end_to_end_offline(store):
     """A Dutch item gets an English-glossed MCQ with Dutch-pool distractors."""
-    store.get_or_create_item("nl", "fiets", lemma="fiets", pos="NOUN",
-                             metadata={"zipf": 4.0})
+    store.get_or_create_item("nl", "fiets", lemma="fiets", pos="NOUN", metadata={"zipf": 4.0})
     item = store.find_item("nl", "fiets")
     question = build_question(store, item, rng=random.Random(7))
     assert question is not None
@@ -285,7 +299,9 @@ def test_dutch_question_end_to_end_offline(store):
 
 
 def test_named_entities_never_become_distractors(store, monkeypatch):
-    item = add_target(store, form="carthorse", pos="NOUN", gloss="draft horse kept for pulling carts")
+    item = add_target(
+        store, form="carthorse", pos="NOUN", gloss="draft horse kept for pulling carts"
+    )
     use_candidates(monkeypatch, ["guevara", "jacksonville", "scaup", "denizen", "probity"])
     question = build_question(store, item, rng=random.Random(0))
     joined = " ".join(question.options)
@@ -324,7 +340,7 @@ def test_exhausted_pool_yields_fewer_options(store, monkeypatch):
 
 def test_unknown_definition_returns_none(store, monkeypatch):
     monkeypatch.setattr(definitions, "_fetch_api_json", lambda url: None)
-    item_id = store.get_or_create_item("en", "xqzt", lemma="xqzt", pos="ADJ")
+    store.get_or_create_item("en", "xqzt", lemma="xqzt", pos="ADJ")
     item = store.find_item("en", "xqzt")
     assert build_question(store, item) is None
 
@@ -332,7 +348,5 @@ def test_unknown_definition_returns_none(store, monkeypatch):
 def test_all_vectors_missing_falls_back_entirely(store, monkeypatch):
     item = add_target(store)
     use_candidates(monkeypatch, ["gaunt", "sallow", "listless"])
-    question = build_question(
-        store, item, similarity=FakeSimilarity({}), rng=random.Random(0)
-    )
+    question = build_question(store, item, similarity=FakeSimilarity({}), rng=random.Random(0))
     assert len(question.options) == 4

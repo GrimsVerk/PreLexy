@@ -70,9 +70,7 @@ def test_collect_records_sentence_context_and_absolute_offset():
         lemmas=["he", "perambulate", "slowly", "."],
         pos=["PRON", "VERB", "ADV", "PUNCT"],
     )
-    (candidate,) = [
-        c for c in collect_candidates([(doc, 500)], "en") if c.form == "perambulate"
-    ]
+    (candidate,) = [c for c in collect_candidates([(doc, 500)], "en") if c.form == "perambulate"]
     (context, position) = candidate.occurrences[0]
     assert context == "He perambulated slowly ."
     assert position == 500 + doc[1].idx

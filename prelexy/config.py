@@ -101,12 +101,14 @@ def _validate(config: dict) -> None:
             raise ValueError(f"{key} must be a non-negative integer, got {value!r}")
     floor, ceiling = config["similarity_floor"], config["similarity_ceiling"]
     for key, value in (("similarity_floor", floor), ("similarity_ceiling", ceiling)):
-        if not isinstance(value, (int, float)) or isinstance(value, bool) or not 0.0 <= value <= 1.0:
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not 0.0 <= value <= 1.0
+        ):
             raise ValueError(f"{key} must be between 0.0 and 1.0, got {value!r}")
     if floor >= ceiling:
-        raise ValueError(
-            f"similarity_floor ({floor}) must be below similarity_ceiling ({ceiling})"
-        )
+        raise ValueError(f"similarity_floor ({floor}) must be below similarity_ceiling ({ceiling})")
     for key in ("default_profile", "default_language", "db_path", "tts_voice"):
         if not isinstance(config[key], str):
             raise ValueError(f"{key} must be a string, got {config[key]!r}")

@@ -37,14 +37,10 @@ class ItemSchedule:
 
 
 class Scheduler(Protocol):
-    def next_items(
-        self, store, profile_id: int, language: str, now: datetime, limit: int
-    ) -> list:
+    def next_items(self, store, profile_id: int, language: str, now: datetime, limit: int) -> list:
         """Items to practice this session, most urgent first."""
 
-    def record_review(
-        self, state, outcome: ReviewOutcome, now: datetime
-    ) -> ItemSchedule:
+    def record_review(self, state, outcome: ReviewOutcome, now: datetime) -> ItemSchedule:
         """Digest one review into the item's next schedule.
 
         `state` is the item's row from Store.items_for_review — its status,
@@ -151,9 +147,7 @@ class SimpleScheduler:
     def next_items(self, store, profile_id, language, now, limit):
         rows = store.items_for_review(profile_id, language)
         missed = [row for row in rows if row["status"] == "learning"]
-        new = sorted(
-            (row for row in rows if row["status"] is None), key=item_zipf
-        )
+        new = sorted((row for row in rows if row["status"] is None), key=item_zipf)
         return (missed + new)[:limit]
 
     def record_review(self, state, outcome, now):

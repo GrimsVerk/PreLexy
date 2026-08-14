@@ -72,8 +72,7 @@ def test_extract_glosses_signature_and_first_sentence():
     signature, gloss = result["itertools.chain"]
     assert signature == "itertools.chain(*iterables)"
     assert gloss == (
-        "Make an iterator that returns elements from the first iterable "
-        "until it is exhausted."
+        "Make an iterator that returns elements from the first iterable until it is exhausted."
     )
     assert result["itertools.count"][1] == "Make an iterator that returns evenly spaced values."
     assert "itertools.unwanted" not in result

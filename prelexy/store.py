@@ -12,8 +12,8 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 SCHEMA_VERSION = 1
 
@@ -132,9 +132,7 @@ class Store:
         self._init_version()
 
     def _init_version(self) -> None:
-        row = self._conn.execute(
-            "SELECT value FROM meta WHERE key = 'schema_version'"
-        ).fetchone()
+        row = self._conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
         if row is None:
             self._conn.execute(
                 "INSERT INTO meta (key, value) VALUES ('schema_version', ?)",
@@ -158,9 +156,7 @@ class Store:
         return cur.lastrowid
 
     def find_source_by_path(self, path: str) -> sqlite3.Row | None:
-        return self._conn.execute(
-            "SELECT * FROM sources WHERE path = ?", (path,)
-        ).fetchone()
+        return self._conn.execute("SELECT * FROM sources WHERE path = ?", (path,)).fetchone()
 
     def get_or_create_item(
         self,
@@ -184,8 +180,7 @@ class Store:
         self, item_id: int, source_id: int, occurrences: Iterable[tuple[str, int | None]]
     ) -> None:
         self._conn.executemany(
-            "INSERT INTO occurrences (item_id, source_id, context, position) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO occurrences (item_id, source_id, context, position) VALUES (?, ?, ?, ?)",
             ((item_id, source_id, context, position) for context, position in occurrences),
         )
 
@@ -208,8 +203,7 @@ class Store:
         question building fast without changing the choice.
         """
         rows = self._conn.execute(
-            "SELECT context FROM occurrences WHERE item_id = ? "
-            "ORDER BY length(context) LIMIT 200",
+            "SELECT context FROM occurrences WHERE item_id = ? ORDER BY length(context) LIMIT 200",
             (item_id,),
         ).fetchall()
         if not rows:
@@ -230,8 +224,7 @@ class Store:
             return 0
         placeholders = ",".join("?" * len(ids))
         cur = self._conn.execute(
-            f"DELETE FROM item_state WHERE status = 'suspended' "
-            f"AND item_id IN ({placeholders})",
+            f"DELETE FROM item_state WHERE status = 'suspended' AND item_id IN ({placeholders})",
             ids,
         )
         return cur.rowcount
@@ -258,8 +251,7 @@ class Store:
         """Item count per language, most-populated first — for empty-session
         guidance so the player knows what else is available to practice."""
         rows = self._conn.execute(
-            "SELECT language, COUNT(*) AS n FROM items "
-            "GROUP BY language ORDER BY n DESC"
+            "SELECT language, COUNT(*) AS n FROM items GROUP BY language ORDER BY n DESC"
         ).fetchall()
         return {row["language"]: row["n"] for row in rows}
 
@@ -286,9 +278,7 @@ class Store:
 
     def get_meta(self, key: str, default=None):
         """JSON value from the meta table (new-style keys only)."""
-        row = self._conn.execute(
-            "SELECT value FROM meta WHERE key = ?", (key,)
-        ).fetchone()
+        row = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return json.loads(row["value"]) if row else default
 
     def set_meta(self, key: str, value) -> None:
@@ -305,12 +295,9 @@ class Store:
             "SELECT * FROM senses WHERE item_id = ? ORDER BY id", (item_id,)
         ).fetchall()
 
-    def add_sense(
-        self, item_id: int, gloss: str, gloss_language: str, provider: str
-    ) -> int:
+    def add_sense(self, item_id: int, gloss: str, gloss_language: str, provider: str) -> int:
         cur = self._conn.execute(
-            "INSERT INTO senses (item_id, gloss, gloss_language, provider) "
-            "VALUES (?, ?, ?, ?)",
+            "INSERT INTO senses (item_id, gloss, gloss_language, provider) VALUES (?, ?, ?, ?)",
             (item_id, gloss, gloss_language, provider),
         )
         return cur.lastrowid
@@ -322,9 +309,9 @@ class Store:
 
     def get_or_create_profile(self, name: str) -> int:
         self._conn.execute("INSERT OR IGNORE INTO profiles (name) VALUES (?)", (name,))
-        return self._conn.execute(
-            "SELECT id FROM profiles WHERE name = ?", (name,)
-        ).fetchone()["id"]
+        return self._conn.execute("SELECT id FROM profiles WHERE name = ?", (name,)).fetchone()[
+            "id"
+        ]
 
     def get_profile_settings(self, profile_id: int) -> dict:
         row = self._conn.execute(
@@ -395,7 +382,7 @@ class Store:
     def close(self) -> None:
         self._conn.close()
 
-    def __enter__(self) -> "Store":
+    def __enter__(self) -> Store:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

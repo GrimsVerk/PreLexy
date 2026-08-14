@@ -176,12 +176,12 @@ def test_ensure_sense_caches_wordnet_hit(store):
 
     # Second call must be served from the cache, not WordNet.
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(
-            definitions, "wordnet_sense", lambda *a, **k: pytest.fail("cache missed")
-        )
+        mp.setattr(definitions, "wordnet_sense", lambda *a, **k: pytest.fail("cache missed"))
         cached = ensure_sense(store, item)
     assert (cached.gloss, cached.gloss_language, cached.provider) == (
-        first.gloss, first.gloss_language, first.provider,
+        first.gloss,
+        first.gloss_language,
+        first.provider,
     )
     assert cached.pos is None  # by design: the senses table stores no POS
     assert len(store.senses_for(item_id)) == 1
@@ -200,11 +200,11 @@ def test_ensure_sense_falls_back_to_api_and_caches(store, monkeypatch):
 
 KAIKKI_SAMPLE = "\n".join(
     [
-        '{"word": "mooi", "pos": "noun", "lang_code": "nl", "senses": [{"glosses": ["a beauty (wrong POS)"]}]}',
-        '{"word": "mooi", "pos": "adj", "lang_code": "nl", "senses": [{"glosses": ["beautiful, handsome"]}]}',
-        '{"word": "gezellig", "pos": "adj", "lang_code": "nl", "senses": [{"glosses": ["cozy, convivial"]}]}',
-        '{"word": "gezellig", "pos": "adj", "lang_code": "de", "senses": [{"glosses": ["WRONG LANGUAGE"]}]}',
-        '{"word": "liep", "pos": "verb", "lang_code": "nl", "senses": [{"glosses": ["should not be used"]}]}',
+        '{"word": "mooi", "pos": "noun", "lang_code": "nl", "senses": [{"glosses": ["a beauty (wrong POS)"]}]}',  # noqa: E501
+        '{"word": "mooi", "pos": "adj", "lang_code": "nl", "senses": [{"glosses": ["beautiful, handsome"]}]}',  # noqa: E501
+        '{"word": "gezellig", "pos": "adj", "lang_code": "nl", "senses": [{"glosses": ["cozy, convivial"]}]}',  # noqa: E501
+        '{"word": "gezellig", "pos": "adj", "lang_code": "de", "senses": [{"glosses": ["WRONG LANGUAGE"]}]}',  # noqa: E501
+        '{"word": "liep", "pos": "verb", "lang_code": "nl", "senses": [{"glosses": ["should not be used"]}]}',  # noqa: E501
         "not json at all",
         '{"word": "onbekend", "pos": "adj", "lang_code": "nl", "senses": []}',
     ]

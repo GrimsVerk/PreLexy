@@ -21,9 +21,7 @@ def store(tmp_path):
 
 
 def add_word(store, form, zipf=2.5, gloss=None):
-    item_id = store.get_or_create_item(
-        "en", form, lemma=form, pos="ADJ", metadata={"zipf": zipf}
-    )
+    item_id = store.get_or_create_item("en", form, lemma=form, pos="ADJ", metadata={"zipf": zipf})
     if gloss:
         store.add_sense(item_id, gloss, "en", "wordnet")
     return item_id
@@ -31,9 +29,7 @@ def add_word(store, form, zipf=2.5, gloss=None):
 
 def feed_answers(monkeypatch, answers):
     answer_iterator = iter(answers)
-    monkeypatch.setattr(
-        session.click, "prompt", lambda *args, **kwargs: next(answer_iterator)
-    )
+    monkeypatch.setattr(session.click, "prompt", lambda *args, **kwargs: next(answer_iterator))
 
 
 def play(store, profile, n_questions=10):
@@ -127,7 +123,8 @@ def test_p_pronounces_and_still_records_one_review(store, monkeypatch):
     add_word(store, "gaunt", zipf=2.6, gloss="very thin")
     spoken = []
     monkeypatch.setattr(
-        session, "pronounce",
+        session,
+        "pronounce",
         lambda word, language="en", voice=None: spoken.append(word) or True,
     )
     feed_answers(monkeypatch, ["p", "1", "q"])
@@ -142,9 +139,7 @@ def test_p_without_engine_shows_hint(store, monkeypatch, capsys):
     profile = store.get_or_create_profile("p")
     add_word(store, "sagacious", gloss="having keen judgement")
     add_word(store, "gaunt", gloss="very thin")
-    monkeypatch.setattr(
-        session, "pronounce", lambda word, language="en", voice=None: False
-    )
+    monkeypatch.setattr(session, "pronounce", lambda word, language="en", voice=None: False)
     feed_answers(monkeypatch, ["p", "q"])
 
     play(store, profile)
@@ -160,8 +155,12 @@ def test_show_context_false_hides_the_sentence(store, monkeypatch, capsys):
     feed_answers(monkeypatch, ["1", "q"])
 
     run_session(
-        store, profile, "en", SimpleScheduler(),
-        rng=random.Random(42), show_context=False,
+        store,
+        profile,
+        "en",
+        SimpleScheduler(),
+        rng=random.Random(42),
+        show_context=False,
     )
     assert "seen in:" not in capsys.readouterr().out
 
@@ -172,14 +171,19 @@ def test_p_passes_language_and_voice_to_pronounce(store, monkeypatch):
     add_word(store, "gaunt", zipf=2.6, gloss="very thin")
     calls = []
     monkeypatch.setattr(
-        session, "pronounce",
+        session,
+        "pronounce",
         lambda word, language="en", voice=None: calls.append((word, language, voice)) or True,
     )
     feed_answers(monkeypatch, ["p", "q"])
 
     run_session(
-        store, profile, "en", SimpleScheduler(),
-        rng=random.Random(42), tts_voice="en-gb",
+        store,
+        profile,
+        "en",
+        SimpleScheduler(),
+        rng=random.Random(42),
+        tts_voice="en-gb",
     )
     assert calls == [("sagacious", "en", "en-gb")]
 

@@ -36,8 +36,6 @@ def test_env_var_enables(monkeypatch, capsys):
 
 
 def test_cli_flag_enables(tmp_path):
-    result = CliRunner().invoke(
-        cli, ["--debug", "words", "--db", str(tmp_path / "empty.db")]
-    )
+    result = CliRunner().invoke(cli, ["--debug", "words", "--db", str(tmp_path / "empty.db")])
     assert result.exit_code != 0  # empty db message, but the flag was parsed
     assert debug.enabled()

@@ -10,9 +10,9 @@ Pipeline (docs/DESIGN.md, "Extraction pipeline"):
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from functools import lru_cache
-from typing import Iterable, Iterator
+from functools import cache
 
 from wordfreq import zipf_frequency
 
@@ -74,7 +74,7 @@ def item_form(token, language: str) -> str:
     return token.text.lower()
 
 
-@lru_cache(maxsize=None)
+@cache
 def in_dictionary(form: str, language: str = "en") -> bool:
     """Membership gate: only words the dictionary knows are learnable.
 

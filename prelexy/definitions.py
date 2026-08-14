@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache
 
 from prelexy.languages import get_language
 from prelexy.textproc import get_wordnet
@@ -69,7 +69,7 @@ def ensure_sense(store, item, allow_api: bool = True) -> Sense | None:
     return sense
 
 
-@lru_cache(maxsize=None)
+@cache
 def wordnet_lemma_names(pos: str | None, language: str = "en") -> tuple[str, ...]:
     """All single-word WordNet lemma names for a POS tag (e.g. "ADJ").
 
@@ -112,9 +112,9 @@ def wordnet_sense(
     if wn_lang is None:  # code languages: docs are the dictionary
         return None
     wordnet = get_wordnet()
-    synsets = wordnet.synsets(
-        form, pos=_WORDNET_POS.get(pos), lang=wn_lang
-    ) or wordnet.synsets(form, lang=wn_lang)
+    synsets = wordnet.synsets(form, pos=_WORDNET_POS.get(pos), lang=wn_lang) or wordnet.synsets(
+        form, lang=wn_lang
+    )
     non_instance = [s for s in synsets if not s.instance_hypernyms()]
     candidates = non_instance or (synsets if include_instances else [])
     if not candidates:
@@ -149,11 +149,7 @@ def synonym_conflict(
     target_synsets = wordnet.synsets(target_form, lang=wn_lang)
     if not target_synsets:
         return False
-    target_lemmas = {
-        lemma
-        for synset in target_synsets
-        for lemma in synset.lemma_names(wn_lang)
-    }
+    target_lemmas = {lemma for synset in target_synsets for lemma in synset.lemma_names(wn_lang)}
     candidate_synsets = wordnet.synsets(
         candidate_form, pos=_WORDNET_POS.get(pos), lang=wn_lang
     ) or wordnet.synsets(candidate_form, lang=wn_lang)

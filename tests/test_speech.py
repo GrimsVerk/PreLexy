@@ -40,9 +40,7 @@ def test_no_engine_returns_false(monkeypatch):
 
 
 def test_pronounce_runs_the_command_and_survives_failure(monkeypatch):
-    monkeypatch.setattr(
-        speech, "_command", lambda word, language, voice=None: ["fake-tts", word]
-    )
+    monkeypatch.setattr(speech, "_command", lambda word, language, voice=None: ["fake-tts", word])
     calls = []
 
     def fake_run(command, **kwargs):

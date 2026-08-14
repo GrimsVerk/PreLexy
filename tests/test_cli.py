@@ -72,16 +72,12 @@ def test_ingest_then_words_roundtrip(tmp_path, monkeypatch):
 
 
 def test_say_command_reports_missing_engine(monkeypatch):
-    monkeypatch.setattr(
-        "prelexy.speech.pronounce", lambda word, language="en", voice=None: False
-    )
+    monkeypatch.setattr("prelexy.speech.pronounce", lambda word, language="en", voice=None: False)
     result = CliRunner().invoke(cli, ["say", "vermilion"])
     assert result.exit_code != 0
     assert "No speech engine found" in result.output
 
-    monkeypatch.setattr(
-        "prelexy.speech.pronounce", lambda word, language="en", voice=None: True
-    )
+    monkeypatch.setattr("prelexy.speech.pronounce", lambda word, language="en", voice=None: True)
     assert CliRunner().invoke(cli, ["say", "vermilion"]).exit_code == 0
 
 
@@ -102,9 +98,7 @@ def test_ingest_converts_subtitle_files(tmp_path, monkeypatch):
     monkeypatch.setattr("prelexy.cli.extract_candidates", capturing_extract)
     db = tmp_path / "db.sqlite"
     episode = tmp_path / "episode.srt"
-    episode.write_text(
-        "1\n00:00:01,000 --> 00:00:04,000\nHallo, welkom bij de podcast.\n"
-    )
+    episode.write_text("1\n00:00:01,000 --> 00:00:04,000\nHallo, welkom bij de podcast.\n")
     result = CliRunner().invoke(cli, ["ingest", str(episode), "--db", str(db)])
     assert result.exit_code == 0, result.output
     assert "-->" not in received["text"]
@@ -127,9 +121,17 @@ def test_fetch_command_with_ingest(tmp_path, monkeypatch):
     db = tmp_path / "db.sqlite"
     result = CliRunner().invoke(
         cli,
-        ["fetch", "https://www.youtube.com/@tweakers/podcasts",
-         "--language", "nl", "--dest", str(tmp_path / "pods"),
-         "--ingest", "--db", str(db)],
+        [
+            "fetch",
+            "https://www.youtube.com/@tweakers/podcasts",
+            "--language",
+            "nl",
+            "--dest",
+            str(tmp_path / "pods"),
+            "--ingest",
+            "--db",
+            str(db),
+        ],
     )
     assert result.exit_code == 0, result.output
     assert "Fetched 1 new subtitle file(s)" in result.output
@@ -166,8 +168,7 @@ def test_pods_add_list_sync_remove(tmp_path, monkeypatch):
         return []
 
     monkeypatch.setattr("prelexy.pods.fetch_subtitles", fake_fetch)
-    result = runner.invoke(cli, ["pods", "sync", "--dest", str(tmp_path / "pods"),
-                                 "--db", str(db)])
+    result = runner.invoke(cli, ["pods", "sync", "--dest", str(tmp_path / "pods"), "--db", str(db)])
     assert result.exit_code == 0, result.output
     assert fetched == [(url, "nl", True)]
     assert "Sync complete: 0 new" in result.output
@@ -255,24 +256,21 @@ def test_play_remembers_the_profiles_language(tmp_path, monkeypatch):
 
     # first session names the language explicitly
     result = runner.invoke(
-        cli, ["play", "--db", str(db), "--profile", "anna", "--language", "nl"],
+        cli,
+        ["play", "--db", str(db), "--profile", "anna", "--language", "nl"],
         input="q\n",
     )
     assert result.exit_code == 0, result.output
     assert "fiets" in result.output
 
     # the next session inherits it without any flag
-    result = runner.invoke(
-        cli, ["play", "--db", str(db), "--profile", "anna"], input="q\n"
-    )
+    result = runner.invoke(cli, ["play", "--db", str(db), "--profile", "anna"], input="q\n")
     assert result.exit_code == 0, result.output
     assert "fiets" in result.output
     assert "sagacious" not in result.output
 
     # a different profile still gets the config default (en)
-    result = runner.invoke(
-        cli, ["play", "--db", str(db), "--profile", "bert"], input="q\n"
-    )
+    result = runner.invoke(cli, ["play", "--db", str(db), "--profile", "bert"], input="q\n")
     assert result.exit_code == 0, result.output
     assert "sagacious" in result.output
 
@@ -295,13 +293,14 @@ def test_play_does_not_remember_an_empty_language(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "Other languages with words: nl (1 items)" in result.output
     with Store(db) as store:
-        assert store.get_profile_settings(
-            store.get_or_create_profile("dev")
-        ).get("language") is None
+        assert (
+            store.get_profile_settings(store.get_or_create_profile("dev")).get("language") is None
+        )
 
     # so a plain play still finds Dutch (once it is the profile's choice)
     result = runner.invoke(
-        cli, ["play", "--db", str(db), "--profile", "dev", "--language", "nl"],
+        cli,
+        ["play", "--db", str(db), "--profile", "dev", "--language", "nl"],
         input="q\n",
     )
     assert "fiets" in result.output

@@ -103,9 +103,7 @@ def build_question(
     )
 
 
-def _distractors(
-    item, correct_sense, similarity, rng, band=None, pool_size=None
-) -> list[str]:
+def _distractors(item, correct_sense, similarity, rng, band=None, pool_size=None) -> list[str]:
     """Up to N_OPTIONS-1 distractor glosses, sampled from the hardest available.
 
     Every scanned candidate below the near-synonym ceiling is scored against
@@ -143,13 +141,12 @@ def _distractors(
             return True
         debug.log("mcq", f"{item['form']!r} ✗ {word!r} (WordNet synonym/relative)")
         return False
+
     for candidate in _wordnet_candidates(pool_pos, item["language"], rng):
         scanned += 1
         if candidate == target_lemma:
             continue
-        sense = wordnet_sense(
-            candidate, pool_pos, item["language"], include_instances=False
-        )
+        sense = wordnet_sense(candidate, pool_pos, item["language"], include_instances=False)
         if sense is None or sense.gloss in seen_glosses:
             continue
         if target_lemma in sense.gloss.lower().split():
@@ -157,11 +154,7 @@ def _distractors(
         if not _length_compatible(correct_gloss, sense.gloss):
             continue
         seen_glosses.add(sense.gloss)
-        score = (
-            similarity.text_similarity(correct_gloss, sense.gloss)
-            if similarity
-            else None
-        )
+        score = similarity.text_similarity(correct_gloss, sense.gloss) if similarity else None
         if score is None:
             # without a provider the scan stops at `needed`, so the
             # fairness guard must apply before counting, not after
@@ -171,9 +164,7 @@ def _distractors(
                 break
             continue
         if score >= ceiling:
-            debug.log(
-                "mcq", f"{item['form']!r} ✗ {candidate!r} score {score:.3f} (near-synonym)"
-            )
+            debug.log("mcq", f"{item['form']!r} ✗ {candidate!r} score {score:.3f} (near-synonym)")
             continue
         scored.append((score, candidate, sense.gloss))
 
@@ -205,11 +196,9 @@ def _distractors(
     )
     glosses = [gloss for _, _, gloss in sampled]
     if len(glosses) < needed:
-        glosses += [
-            gloss
-            for word, gloss in unscored
-            if gloss not in glosses and fair(word)
-        ][: needed - len(glosses)]
+        glosses += [gloss for word, gloss in unscored if gloss not in glosses and fair(word)][
+            : needed - len(glosses)
+        ]
     return glosses
 
 
