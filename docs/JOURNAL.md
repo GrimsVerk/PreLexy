@@ -1,12 +1,10 @@
 # Session journal
 
 Two parts. **Field notes** are standing operational facts a fresh session
-must know — edit in place, prune when stale. The **Log** is append-only:
-every Claude working session adds one dated entry at the bottom — commits
-made, discoveries, decisions taken, friction encountered (permission
-prompts, denials, classifier blocks — this is the guardrail-tuning data),
-and hand-off notes. Owner playtest transcripts live in `docs/playtests/`
-and are referenced from entries.
+must know — edit in place, prune when stale. The **Log** is the history of
+past sessions; work in flight now lives in `next-steps.md`, so
+add a Log entry only when something is worth keeping beyond git history. Owner
+playtest transcripts live in `docs/playtests/` and are referenced from entries.
 
 ## Field notes
 
@@ -28,8 +26,6 @@ and are referenced from entries.
 - The auto-mode permission classifier (a layer outside `.claude/settings.json`
   that we do not configure) has blocked: batch delete/restructure commands,
   branch surgery, and any attempt by the agent to write settings.json.
-  Approved backlog items should spell out destructive intent ("delete X",
-  "rewrite Y") so the classifier can see the action is sanctioned.
 - Distractor band values (0.45 / 0.85) are provisional — calibrate against
   `[mcq]` score lines from owner `--debug` playtests before trusting them.
 - `pods sync --ingest` verified at scale (owner 2026-07-07): 429 Tweakers
@@ -47,14 +43,16 @@ and are referenced from entries.
   `omw-2.0` (replacing `omw-1.4`, not alongside it — deps are unpinned so
   every environment gets the latest NLTK; an old NLTK couldn't fetch
   `omw-2.0` anyway, so carrying both names bought nothing).
-- CI secrets pasted into GitHub with a trailing newline fail in ways that name
-  neither the newline nor the secret. `TEMPLATE_TOKEN` broke `template-sync`
-  with git's `error: invalid key (newline)`, which reads as a missing token;
-  `CLAUDE_CODE_OAUTH_TOKEN` broke the review gate with `Invalid Authorization
-  header value ... line break at character 68`. Re-paste without the trailing
-  newline; check this first when a secret "is set" and still fails.
 
 ## Log
+
+### 2026-10-29 — template v2 (v1.0.1)
+
+- Branch `chore/template-v2`: `copier update` from v0.4.7 to v1.0.1. The summer
+  pipeline is gone (plan/template-sync/test-the-tests/review gates, auto-merge,
+  CODEOWNERS, worker spawning, GLOSSARY, ceremony docs); CI is one `check` job
+  on push to `main`. `AGENTS.md` now says MIT, closing the 2026-10-29 hand-off
+  below. Process changes recorded in DECISIONS 027.
 
 ### 2026-10-29 — go-public preparation
 

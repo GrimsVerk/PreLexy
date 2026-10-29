@@ -45,10 +45,9 @@ v1 is done when this works end to end:
 ## Version sequence
 
 Development is strictly sequential: **finish v1 polish, then build v2, then
-build v3** (docs/BACKLOG.md mirrors this as Stages 1–3). The only exception
-is the stuck rule in CLAUDE.md: if everything remaining in the current
-stage is blocked or awaiting the owner, continue into the next stage and
-journal why.
+build v3** (docs/BACKLOG.md mirrors this as Stages 1–3). If everything
+remaining in the current stage is blocked or awaiting the owner, continue into
+the next stage and note why in `next-steps.md`.
 
 ## v2 — learn a new language from zero (tier 2)
 

@@ -362,3 +362,23 @@ gate-intent file) still describes the project as intentionally unlicensed. It
 is not edited here: AGENTS.md changes go on their own PR, ideally via a
 template option so `template-sync` stays byte-identical.
 
+
+## 027 — Template v2: plain working rules, CI on main only (2026-10)
+
+**Decision:** PreLexy moves to grimsverk-template v2 (v1.0.1). Supersedes the
+process parts of 020, 021 and 025: working rules live in `AGENTS.md` (one
+screen; `CLAUDE.md` only points to it); work in flight lives in
+`next-steps.md` rather than a per-session journal entry; agents work on a
+branch, run the checks locally, and open and merge their own PR. The summer
+gates (`plan`, `template-sync`, `test-the-tests`, LLM `review`, auto-merge,
+CODEOWNERS) and `GLOSSARY.md` are gone, and `ci.yml` is one `check` job on push
+to `main`. "Approved" in `docs/BACKLOG.md` stays the owner-approved queue;
+Proposed ideas still need the owner's OK and Deferred items stay untouched.
+Unchanged product rulings: free and offline-first, the seams, no new
+dependencies without asking, MIT (026), the root package layout and
+`requires-python >=3.11` (025), the root `conftest.py` corpus bootstrap (025).
+**Why:** The template's own postmortem: the unattended pipeline kept no product
+code, long contexts degraded, and CI was slow from volume (every push and PR,
+an LLM review as the slowest check). File-based state is what survived, so v2
+keeps that and drops the rest. Resolves 026's residual: `AGENTS.md` now says
+MIT.

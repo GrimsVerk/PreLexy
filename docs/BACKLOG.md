@@ -1,15 +1,10 @@
 # Backlog
 
-The agreed work queue. **Autonomous sessions implement items from
-"Approved" only, strictly top to bottom** — the stages are sequential:
-finish Stage 1 before starting Stage 2, finish Stage 2 before Stage 3.
-Exception (CLAUDE.md stuck rule): when every remaining item of the current
-stage is stuck or awaiting the owner, journal that state and continue into
-the next stage rather than idling.
-
-New ideas land in "Proposed" (one line of rationale each); the owner
-promotes by moving them into Approved. "Deferred" items were explicitly
-parked by the owner — do not start them, do not delete them.
+The agreed work queue. "Approved" holds the owner-approved stages, in order:
+finish one stage before starting the next. New ideas land in "Proposed" (one
+line of rationale each) and need the owner's OK before they are built; the
+owner promotes them into Approved. "Deferred" items were explicitly parked by
+the owner — do not start them, do not delete them.
 
 ## Approved
 
