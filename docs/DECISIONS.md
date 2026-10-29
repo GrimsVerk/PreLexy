@@ -347,3 +347,18 @@ survives every template update untouched — where the same step written into
 `ci.yml` would be overwritten by each update and would break the byte-for-byte
 `template-sync` check. `ci.yml` is therefore kept byte-identical to the
 template's own render.
+
+## 026 — MIT license for publication (2026-10)
+
+**Decision:** PreLexy is licensed MIT (`LICENSE`, `Copyright (c) 2026
+GrimsVerk`; `license = "MIT"` in `pyproject.toml`) in preparation for making
+the repository public (owner ruling, relayed by the Chief of Staff,
+2026-10-29).
+**Why:** AGENTS.md leaves the project unlicensed until the owner assesses it
+"at the point it actually matters — publication". Publication is that point,
+and MIT is the owner's default for fully open-source repos.
+**Residual:** the "Licensing" paragraph in AGENTS.md (template-owned, and a
+gate-intent file) still describes the project as intentionally unlicensed. It
+is not edited here: AGENTS.md changes go on their own PR, ideally via a
+template option so `template-sync` stays byte-identical.
+

@@ -56,6 +56,16 @@ and are referenced from entries.
 
 ## Log
 
+### 2026-10-29 — go-public preparation
+
+- Branch `go-public`: added MIT `LICENSE`, the `pyproject.toml` license field,
+  and a README License section (DECISIONS 026).
+- Secret scan of every ref (incl. `refs/pull/*`) with gitleaks 8.30.1 and
+  trufflehog 3.99.2, plus a manual pass over `git log -p --all`: nothing found.
+- Path audit: no machine-specific paths in tracked files; the `~/` paths are
+  the app's portable XDG defaults, so no local-override file was needed.
+- Hand-off: AGENTS.md "Licensing" paragraph is now stale (see DECISIONS 026).
+
 ### 2026-08-14 (later) — template v0.4.7 landed; CI gates live
 
 - PR #3 (prep) and PR #4 (the update itself) are merged; PreLexy is on
