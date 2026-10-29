@@ -38,7 +38,7 @@ observed working end-to-end anywhere.
 | v3: full Python stdlib corpus (real model) | AWAITING OWNER | commands below |
 | Template toolchain: ruff + mypy --strict + pytest via uv | sandbox | `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` (34 files clean), `uv run pytest` (161 passed, 1 skipped) — all run 2026-08-14 |
 | Corpus bootstrap in the root `conftest.py` | sandbox (exercised with the corpora deleted) | 2026-08-14: removed `~/nltk_data` entirely, ran the suite — the bootstrap re-fetched wordnet + omw-2.0 and 161 passed. Under `uv run` the venv's newer NLTK refuses a *proxied* fetch (SSRF guard, sandbox-only: it triggers on `HTTPS_PROXY` being set); with `NLTK_ALLOW_PROXIED_URLOPEN=1` that path also downloads and passes. CI sets no proxy, so the guard does not apply there |
-| `ci.yml` gate jobs (plan, template-sync, secrets, test-the-tests) | UNVERIFIED | never executed — they arrive with this change. `template-sync` also needs a `TEMPLATE_TOKEN` repository Actions secret, since the template repo is private |
+| Template v2 `ci.yml` (one `check` job: gitleaks, ruff, mypy, pytest; push to `main` only) | sandbox (same commands locally) | 2026-10-29: `uv sync --locked`, ruff, ruff format, mypy (34 files), pytest (161 passed, 1 skipped) all green locally; GitHub run pending the first push to `main` |
 
 ## Owner verification commands — v3 (Python docs)
 
@@ -104,12 +104,12 @@ python -m prelexy say fiets --language nl
 
 git add docs/playtests
 git commit -m "Dutch playtest transcripts $STAMP"
-git push origin claude
+git push -u origin HEAD   # then open a PR
 ```
 
 ## Owner verification commands
 
-Run from the repo root (the `PreLexy` folder, branch `claude`). Each
+Run from the repo root (the `PreLexy` folder, on a branch). Each
 command shows its output live **and** saves it where future sessions can
 read it. Commit and push the transcripts when done.
 
@@ -136,5 +136,5 @@ python -m prelexy clean data/corpora/dorian_gray_oscar_wilde.txt 2>&1 | tee docs
 # 5. share everything with the next session
 git add docs/playtests
 git commit -m "Playtest transcripts $STAMP"
-git push origin claude
+git push -u origin HEAD   # then open a PR
 ```
