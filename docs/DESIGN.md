@@ -23,6 +23,17 @@ Three constraints shape everything:
    RL-personalized scheduler is the motivating case).
 3. **Free and offline-first.**
 
+## Module map
+
+- `prelexy/store.py`: all SQL lives here; nothing else touches the DB
+- `prelexy/textproc.py`: extraction pipeline (spaCy); per-language item policy
+- `prelexy/definitions.py`: gloss chain: senses cache → WordNet → free API (cached)
+- `prelexy/mcq.py`: question building; distractor band on gloss-vs-gloss similarity
+- `prelexy/similarity.py`: SimilarityProvider seam (swappable embeddings)
+- `prelexy/scheduler.py`: Scheduler seam; SM-2 default; opaque `scheduler_state` blob
+- `prelexy/languages.py`: language registry. `docsproc.py`: Sphinx docs ingestion (v3). `pods.py`: YouTube transcript fetching via yt-dlp
+- `prelexy/session.py`, `cli.py`, `config.py`, `speech.py`, `clean.py`, `debug.py`
+
 ## The item abstraction
 
 The unit of learning is an **item**, not a "word". What counts as an item is decided

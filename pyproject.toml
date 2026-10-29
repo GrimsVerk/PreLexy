@@ -23,12 +23,10 @@ dependencies = [
 # espeak (shutil.which + install hint), not an importable dependency.
 
 [dependency-groups]
-# Pinned to the same minor as the `rev` values in .pre-commit-config.yaml. An
-# open lower bound here lets `uv sync` resolve a different ruff than pre-commit
-# runs, and the two then disagree about formatting: green locally, red in CI,
-# with no diff to explain why. Bump these and the pre-commit revs together.
+# Keep ruff in step with the rev in .pre-commit-config.yaml.
 dev = [
     "mypy~=2.3",
+    "pre-commit~=4.0",
     "pytest>=8.3",
     "ruff~=0.15.22",
 ]
@@ -38,9 +36,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-# The package lives at the repository root, not under src/ — the template's
-# src layout was never adopted here, and moving 17 modules is not a template
-# concern.
+# The package lives at the repository root, not under src/ (the template's
+# src layout was never adopted here).
 packages = ["prelexy"]
 
 [tool.ruff]
