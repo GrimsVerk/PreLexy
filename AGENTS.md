@@ -28,7 +28,7 @@ Terminal vocabulary game: ingest real texts, extract the rare words, and drill t
 - Free and offline-first: no paid services; free APIs only as a cached fallback. No new dependencies without asking the owner; they must be MIT-compatible.
 - Keep the seams: scheduler and similarity stay swappable behind their protocols; rarity never influences distractor selection (DECISIONS 013); nothing may preclude tier 2 (languages from media) or tier 3 (programming docs).
 - All SQL lives in `prelexy/store.py`. Diagnostics go through `prelexy/debug.py` (add a channel, not a new mechanism).
-- Package at `prelexy/` (not `src/`), Python >=3.11. `environment.yml` (the owner's conda env) is kept in step with `pyproject.toml` by hand.
+- Package at `prelexy/` (not `src/`), Python 3.11-3.13 (`requires-python`, DECISIONS 028). `environment.yml` (the owner's conda env) is kept in step with `pyproject.toml` by hand.
 - Real spaCy models and audio exist only on the owner's machine: ask for `prelexy --debug` transcripts instead of claiming it works, and update `docs/VERIFICATION.md`.
 
 ## Checks

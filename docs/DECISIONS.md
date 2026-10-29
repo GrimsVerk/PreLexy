@@ -382,3 +382,12 @@ code, long contexts degraded, and CI was slow from volume (every push and PR,
 an LLM review as the slowest check). File-based state is what survived, so v2
 keeps that and drops the rest. Resolves 026's residual: `AGENTS.md` now says
 MIT.
+
+## 028 — Supported Python is 3.11-3.13 (2026-10)
+
+**Decision:** `requires-python = ">=3.11,<3.14"`. CI runs 3.13; 3.11 is the
+floor because `environment.yml` (the owner's conda env) pins it. The `<3.14`
+cap is where spaCy publishes wheels today; lift it only after spaCy ships 3.14
+wheels and the suite passes there. Refines 025/027 (floor unchanged).
+**Why:** An open upper bound let `pip install` pick a Python on which spaCy
+fails to build, which is a confusing first-run failure.
