@@ -1,25 +1,5 @@
 {
-  "_comment": "Optional Claude Code convenience layer — deleting the whole .claude/ directory leaves a fully functional project. Enforcement lives in pre-commit and CI; this hook only surfaces failures earlier, in-session, and the deny rules mirror the AGENTS.md branch discipline (no pushes to main, no force pushes, no history rewrites, no --no-verify gate-skipping) for Claude Code sessions. CI is the authoritative gate regardless; these denies just stop a session skipping it. The allow list is a scoped allowlist for /orchestrate (headless workers + git worktree management) plus this project's own test/run loop; it does NOT switch the project into a full bypass mode.",
-  "_comment_hook": "The PostToolUse hook is FORMAT ONLY, in both languages. It used to run the full pytest suite after every single edit, which is wrong twice over: on any real suite it is far too slow for a per-edit hook, and it fires mid-refactor when tests are legitimately red — so its exit 2 blocks the session precisely while you are in the middle of the multi-step change that would make it pass again. Tests belong at the commit boundary, where pre-commit runs them, and in CI, which is authoritative. Formatting is the only thing cheap enough and safe enough to do on every write.",
-  "_comment_session_start": "SessionStart runs this project's own setup script, which makes a fresh sandbox able to run the suite (pip installs, NLTK data). It is PreLexy's, not the template's, and is kept across template updates.",
   "permissions": {
-    "allow": [
-      "Bash(.claude/scripts/spawn-worker.sh:*)",
-      "Bash(codex exec:*)",
-      "Bash(claude -p:*)",
-      "Bash(git worktree:*)",
-      "Bash(python -m pytest*)", "Bash(python -m prelexy*)", "Bash(python -c*)",
-      "Bash(python -m nltk.downloader*)", "Bash(pip install*)",
-      "Bash(uv run pytest*)", "Bash(uv run ruff*)", "Bash(uv run mypy*)",
-      "Bash(uv sync*)", "Bash(uv lock*)",
-      "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git show*)",
-      "Bash(git add*)", "Bash(git commit*)",
-      "Bash(git fetch*)", "Bash(git branch*)",
-      "Bash(git mv*)", "Bash(git rm*)",
-      "Bash(git checkout*)", "Bash(git switch*)", "Bash(git stash*)",
-      "Bash(mkdir*)", "Bash(printf*)",
-      "Bash(bash .claude/session-setup.sh*)"
-    ],
     "deny": [
       "Bash(git push origin main*)", "Bash(git push * main*)",
       "Bash(git push origin HEAD:main*)",
