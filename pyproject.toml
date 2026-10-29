@@ -5,9 +5,10 @@ version = "0.1.0"
 # unlike the module docstring, which is wordwrapped for that reason.
 description = "Terminal vocabulary game: ingest real texts, extract the rare words, and drill them with spaced repetition."
 readme = "README.md"
-# 3.11 matches environment.yml, which is still the owner's real environment.
-# The template renders >=3.12; bumping PreLexy's runtime is a separate call.
-requires-python = ">=3.11"
+# Supported: 3.11-3.13. CI tests 3.13; 3.11 matches environment.yml (the owner's
+# conda env). The upper bound is where spaCy publishes wheels today; raise it
+# once spaCy ships 3.14 wheels and the suite passes there (DECISIONS 028).
+requires-python = ">=3.11,<3.14"
 # MIT, chosen by the owner for publication (DECISIONS 026).
 license = "MIT"
 license-files = ["LICENSE"]
