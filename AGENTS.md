@@ -19,7 +19,7 @@ Terminal vocabulary game: ingest real texts, extract the rare words, and drill t
 
 - Non-trivial work: plan it in plan mode first. `/adversarial-review` attacks a plan before you build it (optional).
 - A feature too big for one context: `/orchestrate`.
-- Work on a branch, never on `main`. Run the checks below locally, then open a PR and merge it (`gh pr merge --squash --delete-branch`). CI runs only on `main`; a red `main` is the next task.
+- Work on a branch, never on `main`. Run the checks below locally, then open a PR and merge it (`gh pr merge --rebase --delete-branch`). CI runs only on `main`; a red `main` is the next task.
 - Never force-push, rewrite pushed history, or skip hooks (`--no-verify`).
 - Paths in repo files are relative, so any computer can resume the work. Machine-specific values go in one gitignored local file with a committed `.example`.
 
