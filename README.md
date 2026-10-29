@@ -1,130 +1,83 @@
 # PreLexy
 
-PreLexy is a terminal-based vocabulary learning game. Feed it real texts — books,
-subtitles, podcast transcripts — and it extracts the words you don't know yet,
-drills them with multiple-choice exercises, and schedules reviews with spaced
-repetition so they stick.
+A terminal vocabulary game. Feed it real texts (books, subtitles, podcast
+transcripts, programming docs); it finds the words you probably don't know and
+drills them with multiple-choice questions, scheduling reviews with spaced
+repetition (SM-2) so they stick. Free and offline-first.
 
-Generated from [grimsverk-template](https://github.com/GrimsVerk/grimsverk-template);
-pull in template updates with `scripts/update-from-template.sh`.
+Three flows, one tool:
 
-## Why
+1. **Read hard books without stopping.** Pre-teach the rare words of a specific
+   novel before you read it.
+2. **Learn a language from real media.** Ingest a Dutch podcast transcript and
+   learn exactly the words it uses (definitions in English).
+3. **Learn a programming language from its docs.** Ingest the Python standard
+   library docs and drill the functions and classes.
 
-Three use cases drive the design, in priority order:
+## Install
 
-1. **Read heavy literature without interruption** *(v1 target).* You're fluent in
-   English, but a novel like *The Picture of Dorian Gray* keeps sending you to the
-   dictionary and breaking the flow of the story. PreLexy pre-teaches the hard
-   vocabulary of a specific book so you can read it uninterrupted.
-2. **Learn a new language from real media.** Feed in transcripts of, say, a Dutch
-   podcast and memorize exactly the words it uses — surface forms only, no
-   conjugation tables. With enough input, grammar is absorbed naturally by
-   listening, instead of studied.
-3. **Learn programming libraries from their docs** *(future, design-only).* Feed in
-   the official Python docs, or the docs of a library you want to learn, and drill
-   methods and functions the same way. This needs custom-trained embeddings, so it
-   is not being built yet — but the architecture keeps the door open.
-
-## Status
-
-Early development. Phases 1–3 are implemented: `ingest` extracts, filters, and
-ranks vocabulary from a text into a local SQLite database, `words` lists it,
-`question` previews a generated multiple-choice question (definitions via
-WordNet with a cached free-API fallback), and `play` runs an interactive
-practice session that tracks per-profile progress, logs every answer, and
-schedules reviews with spaced repetition (SM-2): correct answers push a word
-further into the future, misses bring it back tomorrow.
-
-Learning a new language (v2) works too: ingest a Dutch podcast transcript
-(plain text or `.srt`/`.vtt`) and practice the exact words it uses, with
-definitions in English — `--language nl` once, remembered per profile.
-See [ROADMAP.md](ROADMAP.md) for goals and phases, and
-[docs/DESIGN.md](docs/DESIGN.md) for the architecture and data model.
-
-## Setup
-
-First time:
+Needs [uv](https://docs.astral.sh/uv/) and Python 3.11 to 3.13.
 
 ```bash
-conda env create -f environment.yml
-conda activate prelexy
+git clone https://github.com/GrimsVerk/PreLexy && cd PreLexy
+uv sync
 
-# one-time model/data downloads (everything runs offline afterwards)
-python -m spacy download en_core_web_md
-python -m nltk.downloader wordnet omw-2.0   # auto-fetched on first run if skipped
+# one-time model download (English; add nl_core_news_md for Dutch).
+# The project venv has no pip, so give it one without letting `uv run` remove it:
+uv pip install pip
+uv run --no-sync python -m spacy download en_core_web_md
+uv run prelexy --help
 ```
 
-After pulling changes that touch `environment.yml`, refresh the existing
-environment instead:
+WordNet data is fetched automatically on first use. If a model or data file is
+missing, PreLexy prints the exact command to install it.
+
+To run it as plain `prelexy` (no `uv run` prefix), activate the venv
+(`source .venv/bin/activate`) or run `uv tool install .` once. `python -m
+prelexy` works the same. (`environment.yml` is the owner's conda alternative,
+kept in step with `pyproject.toml` by hand.)
+
+## Quickstart
 
 ```bash
-conda env update -f environment.yml --prune
+# 1. A book (a Dorian Gray copy is bundled)
+prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
+prelexy words --limit 20          # rarest first
+prelexy play                      # pick or create a profile, then drill
+
+# 2. A language from media (.txt, .srt or .vtt)
+prelexy ingest episode.srt --language nl
+prelexy play --language nl        # remembered per profile afterwards
+#   from YouTube instead (needs `uv pip install yt-dlp`):
+prelexy pods add https://www.youtube.com/@tweakers/podcasts --language nl
+prelexy pods sync --ingest
+#   more definitions from Wiktionary (raw wiktextract dump from kaikki.org):
+prelexy import-glosses raw-wiktextract-data.jsonl.gz --language nl
+
+# 3. Python from its docs (unpack the HTML archive from docs.python.org/3/download.html)
+prelexy ingest-docs data/python-3.13-docs-html
+prelexy play --language python
 ```
 
-## Usage
+During a question: answer with the option number, `p` to hear the word, `q` to
+quit. Also: `prelexy question WORD` previews one question with the answer
+marked, `prelexy say WORD` pronounces a word, `prelexy clean FILE` tidies OCR
+junk before ingesting. Run any command with `--help`.
 
-```bash
-# optional: clean OCR artifacts (| for I, split hyphenation, page junk)
-# out of a text first — writes <name>.cleaned.txt beside the input
-python -m prelexy clean data/corpora/dorian_gray_oscar_wilde.txt
+## Where things live
 
-# extract the vocabulary of a text into the local database — one ingest
-# for everything: books, plain transcripts, and .srt/.vtt subtitles
-# (e.g. an English film's subtitles), in any supported language
-python -m prelexy ingest data/corpora/dorian_gray_oscar_wilde.txt
+- Database (words, progress, profiles): `~/.local/share/prelexy/prelexy.db`.
+  Override with `--db PATH`, `PRELEXY_DB` or `db_path` in the config.
+- Config: `~/.config/prelexy/config.toml`, created with commented defaults on
+  first run (see below).
+- Your texts: wherever you like; `data/corpora/` holds the bundled one and
+  `data/pods/` is where `pods sync` saves transcripts.
 
-# list the stored words, rarest first
-python -m prelexy words --limit 20
+## Debugging
 
-# preview a multiple-choice question for a stored word
-python -m prelexy question vermilion
-
-# play a practice session — asks who is playing (pick a saved profile
-# or create one); --profile skips the menu. During a question, answer
-# with p to hear the word pronounced, q to quit.
-python -m prelexy play
-python -m prelexy play --profile alice --length 20
-
-# pronounce any word outside a session
-python -m prelexy say vermilion
-
-# learn a language from a podcast: save the channel once, sync new
-# episodes' transcripts straight from YouTube (needs `pip install yt-dlp`
-# and the language's spaCy model: python -m spacy download nl_core_news_md)
-python -m prelexy pods add https://www.youtube.com/@tweakers/podcasts --language nl
-python -m prelexy pods sync --ingest
-python -m prelexy play --language nl   # remembered per profile afterwards
-
-# one-off fetch and manual ingest also work
-python -m prelexy fetch https://www.youtube.com/watch?v=... --language nl --ingest
-python -m prelexy ingest episode.srt --language nl
-
-# top up definitions from Wiktionary (raw wiktextract dump from
-# kaikki.org/dictionary/rawdata.html; .gz streamed directly)
-python -m prelexy import-glosses raw-wiktextract-data.jsonl.gz --language nl
-
-# learn a programming language from its official docs (download the
-# Sphinx HTML archive, e.g. docs.python.org/3 → "Download" → HTML)
-python -m prelexy ingest-docs data/python-3.13-docs-html
-python -m prelexy play --language python
-
-# any command with diagnostic detail on stderr (distractor scores, session mix)
-python -m prelexy --debug question vermilion
-
-# run the test suite (CI runs it on every push to main too)
-python -m pytest
-
-# the full CI gate — lint, formatting, types, tests. Needs `uv`
-# (https://docs.astral.sh/uv/); dependencies come from pyproject.toml.
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy
-uv run pytest
-```
-
-The database lives at `~/.local/share/prelexy/prelexy.db` by default; every
-command accepts `--db <path>` (or the `PRELEXY_DB` environment variable) to
-use a different one.
+`prelexy --debug <command>` prints diagnostics to stderr (distractor scores,
+session mix, scheduling). To report a problem, paste that output; see
+[docs/TESTING.md](docs/TESTING.md).
 
 ## Configuration
 
@@ -139,7 +92,7 @@ run. It currently holds:
   definition-vs-definition similarity. Above the ceiling a candidate reads
   as a near-synonym and is excluded; the floor is a soft preference for
   plausible-but-wrong options. Check real scores with
-  `python -m prelexy --debug play` before tuning.
+  `prelexy --debug play` before tuning.
 - `default_profile` — skip the who-is-playing menu (empty = ask)
 - `default_language` — assumed by every command without `--language`
 - `db_path` — database location (empty = the XDG default; `--db` and
@@ -153,19 +106,18 @@ run. It currently holds:
 CLI flags override the word counts per session:
 
 ```bash
-python -m prelexy play --new 12 --seen 8
+prelexy play --new 12 --seen 8
 ```
 
 (If you have a config file from an earlier version, retired keys like
 `session_length`/`new_ratio` are ignored; delete the file to regenerate the
 current template.)
 
-## Scope
+## License
 
-**In scope:** multiple languages, multiple user profiles on the same machine,
-entirely free (offline dictionaries first, free APIs only as a cached fallback).
-
-**Out of scope:** GUI/web/mobile interfaces, audio playback, cloud sync.
+MIT, see [LICENSE](LICENSE). The bundled corpus in `data/corpora/` is Oscar
+Wilde's *The Picture of Dorian Gray* (public domain) from the Standard Ebooks
+edition, released under CC0 1.0.
 
 ## Repository layout
 
@@ -198,8 +150,9 @@ merge a PR. CI (`.github/workflows/ci.yml`) runs one job on every push to
 opens a PR. If the template changed a dependency pin, run `uv lock` on that
 branch too, or `uv sync --locked` fails in CI.
 
+
 ## License
 
-MIT — see [LICENSE](LICENSE). The bundled corpus in `data/corpora/` is Oscar
+MIT, see [LICENSE](LICENSE). The bundled corpus in `data/corpora/` is Oscar
 Wilde's *The Picture of Dorian Gray* (public domain) from the Standard Ebooks
 edition, released under CC0 1.0.
