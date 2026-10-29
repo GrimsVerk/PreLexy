@@ -8,7 +8,9 @@ readme = "README.md"
 # 3.11 matches environment.yml, which is still the owner's real environment.
 # The template renders >=3.12; bumping PreLexy's runtime is a separate call.
 requires-python = ">=3.11"
-# No `license` field, by design — see "Licensing" in AGENTS.md.
+# MIT, chosen by the owner for publication (DECISIONS 026).
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "click",
     "nltk",
