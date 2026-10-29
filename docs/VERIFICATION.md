@@ -26,7 +26,7 @@ observed working end-to-end anywhere.
 | Free-API definition fallback | UNVERIFIED (fails soft) | only fires for words WordNet lacks; low risk, mocked in tests |
 | SessionStart hook + setup script | sandbox (script itself) | hook wiring confirmed on next fresh Claude session |
 | Stage 1 polish set (instance/POS/length/synonym guards, contexts, config) | sandbox | owner: next `--debug play` should feel harder and read cleaner |
-| GitHub Actions CI | verified (GitHub runner) | run 362b31f green after dropping the pip-cache option; earlier runs all failed pre-pytest |
+| GitHub Actions CI | verified (GitHub runner) | template-v2 `ci.yml` on `main`: one `check` job (gitleaks, ruff, mypy, pytest) on Python 3.13; see the last row below |
 | v2: OMW English glosses for Dutch words | sandbox (real OMW data) | offline end-to-end Dutch MCQ in tests; owner run pending |
 | v2: kaikki gloss importer | sandbox (synthetic extract) | owner: real kaikki Dutch file (commands below) |
 | v2: subtitle (.srt/.vtt) ingestion | sandbox | owner: ingest a real podcast transcript |
@@ -35,10 +35,11 @@ observed working end-to-end anywhere.
 | v2: Dutch pronunciation | owner (works; quality poor) | owner 2026-07-07: audio plays, voice bad in both languages — TTS upgrade parked in Deferred |
 
 | v3: docs ingestion + code-mode questions | sandbox (synthetic Sphinx tree) | end-to-end play verified offline; owner: real stdlib run below |
-| v3: full Python stdlib corpus (real model) | AWAITING OWNER | commands below |
+| v3: full Python stdlib corpus (real model) | AWAITING OWNER | commands below; checklist in [TESTING.md](TESTING.md) |
+| First-run messages (missing spaCy model / WordNet) and `prelexy` console command | sandbox | offline tests in `tests/test_missing_assets.py`; owner: see TESTING.md item 1 |
 | Template toolchain: ruff + mypy --strict + pytest via uv | sandbox | `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` (34 files clean), `uv run pytest` (161 passed, 1 skipped) — all run 2026-08-14 |
 | Corpus bootstrap in the root `conftest.py` | sandbox (exercised with the corpora deleted) | 2026-08-14: removed `~/nltk_data` entirely, ran the suite — the bootstrap re-fetched wordnet + omw-2.0 and 161 passed. Under `uv run` the venv's newer NLTK refuses a *proxied* fetch (SSRF guard, sandbox-only: it triggers on `HTTPS_PROXY` being set); with `NLTK_ALLOW_PROXIED_URLOPEN=1` that path also downloads and passes. CI sets no proxy, so the guard does not apply there |
-| Template v2 `ci.yml` (one `check` job: gitleaks, ruff, mypy, pytest; push to `main` only) | sandbox (same commands locally) | 2026-10-29: `uv sync --locked`, ruff, ruff format, mypy (34 files), pytest (161 passed, 1 skipped) all green locally; GitHub run pending the first push to `main` |
+| Template v2 `ci.yml` (one `check` job: gitleaks, ruff, mypy, pytest; push to `main` only) | sandbox (same commands locally) | 2026-10-29: `uv sync --locked`, ruff, ruff format, mypy (34 files), pytest (161 passed, 1 skipped) all green locally; confirm green via `gh run list --branch main` after each merge |
 
 ## Owner verification commands — v3 (Python docs)
 
