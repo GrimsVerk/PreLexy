@@ -22,6 +22,9 @@ dependencies = [
 # yt-dlp is deliberately absent: pods.py treats it as an external tool like
 # espeak (shutil.which + install hint), not an importable dependency.
 
+[project.scripts]
+prelexy = "prelexy.cli:main"
+
 [dependency-groups]
 # Keep ruff in step with the rev in .pre-commit-config.yaml.
 dev = [

@@ -1,4 +1,4 @@
-from prelexy.cli import cli
+from prelexy.cli import main
 
 if __name__ == "__main__":
-    cli()
+    main()

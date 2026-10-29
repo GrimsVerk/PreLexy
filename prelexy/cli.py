@@ -1,4 +1,5 @@
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -61,6 +62,18 @@ def cli(debug_flag: bool) -> None:
     """PreLexy — learn the vocabulary of the texts you actually read."""
     if debug_flag:
         debug.enable()
+
+
+def main() -> None:
+    """Console entry point: like `cli()`, but a missing model or data file
+    prints its fix-it message instead of a traceback."""
+    from prelexy.textproc import MissingAssetError
+
+    try:
+        cli()
+    except MissingAssetError as error:
+        click.secho(f"Error: {error}", fg="red", err=True)
+        sys.exit(1)
 
 
 @cli.command()
@@ -480,6 +493,16 @@ def definitions_language() -> str:
     return STRONG_LANGUAGE
 
 
+def _warn_no_vectors(error: Exception) -> None:
+    """Playing without the English model still works, but distractors get easier."""
+    click.secho(
+        f"Warning: {error}\nContinuing without word vectors: wrong answers will be "
+        "chosen less carefully until the model is installed.",
+        fg="yellow",
+        err=True,
+    )
+
+
 def _load_config_or_die() -> Config:
     import tomllib
 
@@ -538,7 +561,8 @@ def question(form: str, language: str | None, db_path: Path | None) -> None:
             # glosses are strong-language text, so similarity always uses
             # the English vectors — even for Dutch sessions
             similarity = SpacyVectors(load_nlp(definitions_language()))
-        except (OSError, ValueError):
+        except (OSError, ValueError) as error:
+            _warn_no_vectors(error)
             similarity = None  # no vectors: random same-POS fallback
         built = build_question(
             store,
@@ -614,7 +638,8 @@ def play(
         # glosses are strong-language text, so similarity always uses the
         # English vectors — even for Dutch sessions
         similarity = SpacyVectors(load_nlp(definitions_language()))
-    except (OSError, ValueError):
+    except (OSError, ValueError) as error:
+        _warn_no_vectors(error)
         similarity = None  # no vectors: distractor band is skipped
     with Store(_resolve_db(db_path, config)) as store:
         profile_id = (
