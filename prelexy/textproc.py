@@ -37,6 +37,23 @@ class Candidate:
     occurrences: list[tuple[str, int]] = field(default_factory=list)  # (sentence, char offset)
 
 
+class MissingAssetError(OSError):
+    """A model or data file PreLexy needs is not installed.
+
+    The message is written for the user: it names the exact command that
+    fixes it. The CLI prints it without a traceback.
+    """
+
+
+def spacy_download_hint(model: str) -> str:
+    """The commands that install a spaCy model (plain Python, or uv)."""
+    return (
+        f"Install it with:  python -m spacy download {model}\n"
+        f"With uv (the project venv has no pip):  uv pip install pip && "
+        f"uv run --no-sync python -m spacy download {model}"
+    )
+
+
 def load_nlp(language: str = "en") -> Any:
     """Load the spaCy pipeline for a language (NER disabled; not needed).
 
@@ -57,9 +74,9 @@ def load_nlp(language: str = "en") -> Any:
             return spacy.load(name, disable=["ner"])
         except OSError:
             continue
-    raise OSError(
-        f"No spaCy model installed for language {language!r}. "
-        f"Run: python -m spacy download {names[0]}"
+    raise MissingAssetError(
+        f"The spaCy model {names[0]!r} (language {language!r}) is not installed.\n"
+        + spacy_download_hint(names[0])
     )
 
 
@@ -101,6 +118,15 @@ def get_wordnet() -> Any:
     except LookupError:
         nltk.download("wordnet", quiet=True)
         nltk.download("omw-2.0", quiet=True)
+        try:
+            wordnet.ensure_loaded()
+        except LookupError as error:
+            raise MissingAssetError(
+                "The WordNet data could not be loaded, and the automatic download "
+                "failed (are you offline?).\n"
+                "Install it with:  python -m nltk.downloader wordnet omw-2.0\n"
+                "With uv:  uv run python -m nltk.downloader wordnet omw-2.0"
+            ) from error
     return wordnet
 
 
